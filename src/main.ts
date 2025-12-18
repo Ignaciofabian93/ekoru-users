@@ -22,7 +22,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = configService.get<number>('PORT') || 9001;
+  const port = configService.get<number>('PORT') || 4001;
   await app.listen(port);
 
   console.log(`Users subgraph is running on port ${port}`);

@@ -1,98 +1,376 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Ekoru Users Subgraph
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS GraphQL Federation microservice for managing users, sellers, locations, and authentication in the Ekoru platform.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📋 Overview
 
-## Description
+This service is part of Ekoru's federated GraphQL architecture and handles:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Seller Management**: Registration and profiles for both individuals and businesses
+- **Authentication & Account Management**: User login, registration, and account operations
+- **Location Services**: Countries, regions, counties, and cities data
+- **Email Notifications**: Transactional emails via Nodemailer
+- **User Preferences**: Seller-specific settings and configurations
 
-## Project setup
+### Technology Stack
 
-```bash
-$ npm install
-```
+- **Framework**: NestJS 11.x with TypeScript
+- **API**: GraphQL with Apollo Federation v2
+- **Database**: PostgreSQL with Prisma ORM
+- **Validation**: class-validator & class-transformer
+- **Security**: bcrypt for password hashing
+- **Email**: Nodemailer (Zoho SMTP)
+- **Node Version**: 22.14.0+
 
-## Compile and run the project
+## 🚀 Quick Start
 
-```bash
-# development
-$ npm run start
+### Prerequisites
 
-# watch mode
-$ npm run start:dev
+Ensure you have the following installed:
 
-# production mode
-$ npm run start:prod
-```
+- **Node.js**: >= 22.14.0
+- **npm**: >= 10.0.0
+- **PostgreSQL**: Latest stable version
+- **Git**: For version control
 
-## Run tests
+### 1. Clone & Install
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Install dependencies
+npm install
 ```
 
-## Deployment
+### 2. Environment Configuration
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Create a `.env` file in the root directory with the following variables:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+# Server
+PORT=4001
+NODE_ENV=development
+
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/ekoru_users?schema=public"
+
+# Email (Zoho SMTP)
+SMTP_HOST=smtp.zoho.com
+SMTP_PORT=587
+MAIL=your-email@zoho.com
+PASSWORD=your-email-password
+```
+
+### 3. Database Setup
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Generate Prisma Client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# (Optional) Seed the database
+npx prisma db seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Start Development Server
 
-## Resources
+```bash
+# Development mode with hot-reload
+npm run start:dev
 
-Check out a few resources that may come in handy when working with NestJS:
+# The server will start on http://localhost:4001
+# GraphQL Playground: http://localhost:4001/graphql
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 📁 Project Structure
 
-## Support
+```
+src/
+├── account/              # Authentication & account management
+│   ├── account.module.ts
+│   ├── account.resolver.ts
+│   └── account.service.ts
+├── sellers/              # Seller registration & profiles
+│   ├── dto/             # Input DTOs for mutations
+│   ├── entities/        # GraphQL entity types
+│   ├── sellers.module.ts
+│   ├── sellers.resolver.ts
+│   └── sellers.service.ts
+├── location/             # Geographic data management
+│   ├── entities/        # Country, Region, County, City
+│   ├── location.module.ts
+│   ├── location.resolver.ts
+│   └── location.service.ts
+├── mail/                 # Email service
+│   ├── mail.module.ts
+│   └── mail.service.ts
+├── prisma/               # Database service
+│   ├── prisma.module.ts
+│   └── prisma.service.ts
+├── common/               # Shared utilities
+│   ├── decorators/      # Custom decorators
+│   └── exceptions/      # Custom exception filters
+├── config/               # Configuration management
+│   └── configuration.ts
+├── graphql/              # GraphQL setup
+│   ├── enums/           # GraphQL enums
+│   └── scalars/         # Custom scalars (DateTime, JSON)
+├── health/               # Health check endpoint
+│   └── health.controller.ts
+├── types/                # TypeScript types
+├── app.module.ts         # Root module
+└── main.ts               # Application entry point
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 🛠️ Available Scripts
 
-## Stay in touch
+```bash
+# Development
+npm run start              # Start server
+npm run start:dev          # Start with hot-reload
+npm run start:debug        # Start with debugging
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Building
+npm run build              # Build for production
 
-## License
+# Code Quality
+npm run format             # Format code with Prettier
+npm run lint               # Lint and auto-fix with ESLint
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Testing
+npm run test               # Run unit tests
+npm run test:watch         # Run tests in watch mode
+npm run test:cov           # Run tests with coverage
+npm run test:e2e           # Run end-to-end tests
+npm run test:debug         # Debug tests
+```
+
+## 🔑 Key Features & Modules
+
+### Sellers Module
+
+Handles seller registration and profile management:
+
+- **Person Registration**: Individual seller accounts
+- **Business Registration**: Business/company seller accounts
+- **Profile Updates**: Update personal or business information
+- **Seller Preferences**: Manage notifications and settings
+- **Seller Levels**: Track seller tier/status
+
+### Account Module
+
+Manages authentication and account operations:
+
+- User registration and login
+- Password hashing with bcrypt
+- Session management
+- Account verification
+
+### Location Module
+
+Provides geographic reference data:
+
+- Countries
+- Regions (states/provinces)
+- Counties
+- Cities
+
+### Mail Module
+
+Handles transactional email:
+
+- Welcome emails
+- Password resets
+- Order confirmations
+- Notifications
+
+## 🎯 GraphQL API
+
+### Accessing GraphQL Playground
+
+When running in development mode, access the playground at:
+
+```
+http://localhost:4001/graphql
+```
+
+### Example Queries
+
+```graphql
+# Get all countries
+query {
+  countries {
+    id
+    name
+    code
+  }
+}
+
+# Get seller by ID
+query {
+  seller(id: "seller-uuid") {
+    id
+    email
+    sellerLevel {
+      name
+    }
+    personProfile {
+      firstName
+      lastName
+    }
+  }
+}
+```
+
+### Example Mutations
+
+```graphql
+# Register a person seller
+mutation {
+  registerPerson(
+    input: {
+      email: "john@example.com"
+      password: "SecurePass123!"
+      firstName: "John"
+      lastName: "Doe"
+      phone: "+1234567890"
+    }
+  ) {
+    id
+    email
+    personProfile {
+      firstName
+      lastName
+    }
+  }
+}
+```
+
+## 🐳 Docker Support
+
+### Development with Docker Compose
+
+```bash
+# Start QA environment
+docker-compose -f compose.qa.yml up -d
+
+# Start production environment
+docker-compose -f compose.prod.yml up -d
+```
+
+### Build Docker Image
+
+```bash
+docker build -t ekoru-users:latest .
+```
+
+## 🗄️ Database
+
+### Prisma Commands
+
+```bash
+# Generate Prisma Client (after schema changes)
+npx prisma generate
+
+# Create a new migration
+npx prisma migrate dev --name your_migration_name
+
+# Apply migrations in production
+npx prisma migrate deploy
+
+# Open Prisma Studio (database GUI)
+npx prisma studio
+
+# Reset database (⚠️ development only)
+npx prisma migrate reset
+```
+
+### Schema Management
+
+The Prisma schema is located at `prisma/schema.prisma`. After modifying:
+
+1. Run `npx prisma generate` to update the client
+2. Run `npx prisma migrate dev` to create and apply migrations
+3. Commit both schema and migration files
+
+## 🔐 Security
+
+- Passwords are hashed using bcrypt
+- GraphQL playground is disabled in production
+- CORS is enabled (configure allowed origins as needed)
+- Input validation with class-validator
+- SQL injection protection via Prisma
+
+## 🧪 Testing
+
+Tests are organized alongside source files:
+
+```bash
+# Unit tests
+npm run test
+
+# Watch mode during development
+npm run test:watch
+
+# Coverage report
+npm run test:cov
+
+# E2E tests
+npm run test:e2e
+```
+
+## 📝 Code Style
+
+This project uses:
+
+- **ESLint**: For linting
+- **Prettier**: For code formatting
+- **TypeScript**: Strict mode enabled
+
+Run before committing:
+
+```bash
+npm run format && npm run lint
+```
+
+## 🚢 Deployment
+
+### Environment Variables (Production)
+
+Ensure these are set in production:
+
+```env
+NODE_ENV=production
+PORT=4001
+DATABASE_URL=your_production_database_url
+SMTP_HOST=smtp.zoho.com
+SMTP_PORT=587
+MAIL=production-email@domain.com
+PASSWORD=production-password
+```
+
+### Production Build
+
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm run start:prod
+```
+
+## 📚 Resources
+
+- [NestJS Documentation](https://docs.nestjs.com)
+- [GraphQL Federation](https://www.apollographql.com/docs/federation/)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [Apollo Server](https://www.apollographql.com/docs/apollo-server/)
+
+## 👥 Team
+
+- **Author**: Ignacio Rodríguez Rulas - EKORU CTO
+- **Repository**: ekoru-users
+
+## 📄 License
+
+UNLICENSED - Private project

@@ -37,6 +37,8 @@ import { HealthController } from './health/health.controller';
       context: ({ req, res }: { req: Request; res: Response }) => ({
         req,
         res,
+        sellerId: req.headers['x-seller-id'] as string,
+        token: req.headers.authorization?.replace('Bearer ', '') as string,
       }),
       formatError: (error) => {
         if (process.env.NODE_ENV === 'production') {
