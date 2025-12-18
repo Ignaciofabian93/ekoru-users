@@ -6,7 +6,7 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
-import { SellerType, BusinessType } from '@prisma/client';
+import { SellerType, BusinessType } from '../../graphql/enums';
 
 @InputType()
 export class RegisterBusinessInput {

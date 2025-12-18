@@ -6,7 +6,7 @@ import {
   Directive,
   createUnionType,
 } from '@nestjs/graphql';
-import { SellerType, ContactMethod } from '@prisma/client';
+import { SellerType, ContactMethod } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 import { Country, Region, City, County } from '../../location/entities';
 import { SellerLevel } from './seller-level.entity';

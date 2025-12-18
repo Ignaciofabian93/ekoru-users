@@ -1,6 +1,6 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
 import { IsString, IsOptional, IsEnum, IsInt } from 'class-validator';
-import { BusinessType } from '@prisma/client';
+import { BusinessType } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 
 @InputType()

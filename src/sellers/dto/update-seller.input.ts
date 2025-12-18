@@ -1,6 +1,6 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
 import { IsEmail, IsString, IsOptional, IsEnum, IsInt } from 'class-validator';
-import { ContactMethod } from '@prisma/client';
+import { ContactMethod } from '../../graphql/enums';
 import { JSONScalar } from '../../graphql/scalars';
 
 @InputType()

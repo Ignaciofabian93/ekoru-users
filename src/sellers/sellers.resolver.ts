@@ -26,7 +26,7 @@ import {
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
 import { CurrentSeller } from '../common/decorators';
-import { SellerType } from '@prisma/client';
+import { SellerType } from '../graphql/enums';
 
 @Resolver(() => Seller)
 export class SellersResolver {

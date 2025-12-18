@@ -7,7 +7,6 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { hash, genSalt } from 'bcrypt';
-import { SellerType } from '@prisma/client';
 import {
   RegisterPersonInput,
   RegisterBusinessInput,
@@ -16,7 +15,8 @@ import {
   UpdateBusinessProfileInput,
   UpdateSellerPreferencesInput,
 } from './dto';
-import { Seller } from 'src/types/seller';
+import { Seller } from '../types/seller';
+import { SellerType } from '../graphql/enums';
 
 @Injectable()
 export class SellersService {
@@ -114,7 +114,7 @@ export class SellersService {
         select: { sellerType: true },
       });
 
-      if (sellerType?.sellerType === 'PERSON') {
+      if (sellerType?.sellerType === SellerType.PERSON) {
         const userProfile = await this.prisma.seller.findUnique({
           where: { id: sellerId },
           include: {
@@ -130,8 +130,8 @@ export class SellersService {
 
         return userProfile;
       } else if (
-        sellerType?.sellerType === 'STARTUP' ||
-        sellerType?.sellerType === 'COMPANY'
+        sellerType?.sellerType === SellerType.STARTUP ||
+        sellerType?.sellerType === SellerType.COMPANY
       ) {
         const businessProfile = await this.prisma.seller.findUnique({
           where: { id: sellerId },
@@ -201,7 +201,7 @@ export class SellersService {
           data: {
             email: email.toLowerCase(),
             password: hashedPassword,
-            sellerType: 'PERSON',
+            sellerType: SellerType.PERSON,
             updatedAt: new Date(),
           },
         });
@@ -394,12 +394,13 @@ export class SellersService {
   }
 
   resolveProfile(seller: Seller) {
-    if (seller && seller.sellerType === 'PERSON' && seller.profile) {
+    if (seller && seller.sellerType === SellerType.PERSON && seller.profile) {
       return { ...seller.profile, __typename: 'PersonProfile' };
     }
     if (
       seller &&
-      (seller.sellerType === 'STARTUP' || seller.sellerType === 'COMPANY') &&
+      (seller.sellerType === SellerType.STARTUP ||
+        seller.sellerType === SellerType.COMPANY) &&
       seller.profile
     ) {
       return { ...seller.profile, __typename: 'BusinessProfile' };

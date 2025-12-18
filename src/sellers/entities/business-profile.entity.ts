@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
-import { BusinessType } from '@prisma/client';
+import { BusinessType } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 
 @ObjectType()
