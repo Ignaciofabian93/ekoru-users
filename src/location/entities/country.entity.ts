@@ -1,4 +1,5 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { Region } from './region.entity';
 
 @ObjectType()
 export class Country {
@@ -7,4 +8,7 @@ export class Country {
 
   @Field()
   country: string;
+
+  @Field(() => [Region], { nullable: true })
+  region?: Region[];
 }

@@ -25,7 +25,10 @@ export class LocationService {
 
       return countries;
     } catch (error) {
-      if (error instanceof UnAuthorizedError || error instanceof NotFoundError) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
         throw error;
       }
       throw new InternalServerError('Error al obtener los países');

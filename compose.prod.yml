@@ -15,11 +15,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0' # Maximum 1 CPU core
-          memory: 512M # Maximum 512MB RAM
+          cpus: '2.0' # Maximum 2 CPU cores (production environment)
+          memory: 1G # Maximum 1GB RAM (production environment)
         reservations:
-          cpus: '0.25' # Minimum 0.25 CPU cores reserved
-          memory: 256M # Minimum 256MB RAM reserved
+          cpus: '0.5' # Minimum 0.5 CPU cores reserved
+          memory: 512M # Minimum 512MB RAM reserved
     healthcheck:
       test:
         [

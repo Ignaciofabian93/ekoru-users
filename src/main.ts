@@ -1,10 +1,13 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug'],
+  });
   const configService = app.get(ConfigService);
 
   // Enable CORS
@@ -25,10 +28,11 @@ async function bootstrap() {
   const port = configService.get<number>('PORT') || 4001;
   await app.listen(port);
 
-  console.log(`Users subgraph is running on port ${port}`);
+  logger.log(`Users subgraph is running on port ${port}`);
 }
 
 bootstrap().catch((err) => {
-  console.error('Error starting the application:', err);
+  const logger = new Logger('Bootstrap');
+  logger.error('Error starting the application:', err);
   process.exit(1);
 });
