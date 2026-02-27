@@ -25,7 +25,8 @@ import {
   UpdateSellerPreferencesInput,
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
-import { CurrentSeller } from '../common/decorators';
+import { CurrentSeller, CurrentLanguage } from '../common/decorators';
+import type { SupportedLocale } from '../common/decorators';
 import { SellerType } from '../graphql/enums';
 
 @Resolver(() => Seller)
@@ -81,13 +82,19 @@ export class SellersResolver {
 
   // Mutations
   @Mutation(() => Seller)
-  async registerPerson(@Args('input') input: RegisterPersonInput) {
-    return this.sellersService.registerPerson(input);
+  async registerPerson(
+    @Args('input') input: RegisterPersonInput,
+    @CurrentLanguage() locale: SupportedLocale,
+  ) {
+    return this.sellersService.registerPerson(input, locale);
   }
 
   @Mutation(() => Seller)
-  async registerBusiness(@Args('input') input: RegisterBusinessInput) {
-    return this.sellersService.registerBusiness(input);
+  async registerBusiness(
+    @Args('input') input: RegisterBusinessInput,
+    @CurrentLanguage() locale: SupportedLocale,
+  ) {
+    return this.sellersService.registerBusiness(input, locale);
   }
 
   @Mutation(() => Seller)

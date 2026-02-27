@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { welcomeTemplates } from './welcome-templates';
+import type { SupportedLocale } from '../common/decorators/current-language.decorator';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
@@ -18,17 +21,26 @@ export class MailService {
     });
   }
 
-  async sendWelcomeEmail(email: string, name: string, businessName: string) {
+  async sendWelcomeEmail(
+    email: string,
+    name: string,
+    businessName: string,
+    locale: SupportedLocale = 'es',
+  ) {
     try {
+      const displayName = name || businessName || 'usuario';
+      const template = welcomeTemplates[locale] ?? welcomeTemplates['es'];
+      const { subject, html, text } = template({ name: displayName });
+
       await this.transporter.sendMail({
         from: 'Ekoru <contacto@ekoru.cl>',
         to: email,
-        subject: 'Bienvenido a Ekoru',
-        text: `Hola ${name || businessName || 'usuario'}, ¡gracias por registrarte en Ekoru!`,
-        html: `<p>Hola ${name || businessName || 'usuario'}, ¡gracias por registrarte en Ekoru!</p>`,
+        subject,
+        text,
+        html,
       });
     } catch (error) {
-      console.error('Error sending welcome email:', error);
+      this.logger.error('Error sending welcome email:', error);
     }
   }
 }

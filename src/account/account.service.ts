@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UnAuthorizedError,
@@ -9,6 +9,8 @@ import { hash, genSalt, compare } from 'bcrypt';
 
 @Injectable()
 export class AccountService {
+  private readonly logger = new Logger(AccountService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async deactivateAccount(sellerId: string) {
@@ -25,7 +27,7 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al desactivar cuenta:', error);
+      this.logger.error('Error al desactivar cuenta:', error);
       throw new InternalServerError('Error al desactivar cuenta');
     }
   }
@@ -44,7 +46,7 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error reactivating account:', error);
+      this.logger.error('Error reactivating account:', error);
       throw new InternalServerError('Error al activar cuenta');
     }
   }
@@ -63,7 +65,7 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error adding points:', error);
+      this.logger.error('Error adding points:', error);
       throw new InternalServerError('Error al incrementar puntos');
     }
   }
@@ -82,7 +84,7 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error deducting points:', error);
+      this.logger.error('Error deducting points:', error);
       throw new InternalServerError('Error al reducir puntos');
     }
   }
@@ -106,7 +108,7 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error updating user category:', error);
+      this.logger.error('Error updating user category:', error);
       throw new InternalServerError('Error updating user category');
     }
   }
@@ -144,14 +146,14 @@ export class AccountService {
         error instanceof BadRequestError
       )
         throw error;
-      console.error('Error al actualizar contraseña:', error);
+      this.logger.error('Error al actualizar contraseña:', error);
       throw new InternalServerError('Error al actualizar contraseña');
     }
   }
 
   requestPasswordReset(email: string) {
     // TODO: Implement password reset logic
-    console.log('email: ', email);
+    this.logger.debug(`requestPasswordReset for email: ${email}`);
     return true;
   }
 }

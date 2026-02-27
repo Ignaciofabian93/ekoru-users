@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import {
@@ -17,9 +17,12 @@ import {
 } from './dto';
 import { Seller } from '../types/seller';
 import { SellerType } from '../graphql/enums';
+import type { SupportedLocale } from '../common/decorators';
 
 @Injectable()
 export class SellersService {
+  private readonly logger = new Logger(SellersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
@@ -65,7 +68,7 @@ export class SellersService {
       return sellers;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al obtener usuarios:', error);
+      this.logger.error('Error al obtener usuarios:', error);
       throw new InternalServerError('Error al obtener usuarios');
     }
   }
@@ -84,7 +87,7 @@ export class SellersService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al obtener usuario por ID:', error);
+      this.logger.error('Error al obtener usuario por ID:', error);
       throw new InternalServerError('Error al obtener usuario por ID');
     }
   }
@@ -98,7 +101,7 @@ export class SellersService {
 
       return seller;
     } catch (error) {
-      console.error('Error al obtener seller para federación:', error);
+      this.logger.error('Error al obtener seller para federación:', error);
       return null;
     }
   }
@@ -152,7 +155,7 @@ export class SellersService {
       return null;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al obtener usuario actual:', error);
+      this.logger.error('Error al obtener usuario actual:', error);
       throw new InternalServerError('Error al obtener usuario actual');
     }
   }
@@ -164,7 +167,7 @@ export class SellersService {
       });
       return levels;
     } catch (error) {
-      console.error('Error al obtener niveles de vendedor:', error);
+      this.logger.error('Error al obtener niveles de vendedor:', error);
       throw new InternalServerError('Error al obtener niveles de vendedor');
     }
   }
@@ -176,12 +179,15 @@ export class SellersService {
       });
       return level;
     } catch (error) {
-      console.error('Error al obtener nivel de vendedor:', error);
+      this.logger.error('Error al obtener nivel de vendedor:', error);
       throw new InternalServerError('Error al obtener nivel de vendedor');
     }
   }
 
-  async registerPerson(input: RegisterPersonInput) {
+  async registerPerson(
+    input: RegisterPersonInput,
+    locale: SupportedLocale = 'es',
+  ) {
     try {
       const { email, password, firstName, lastName } = input;
 
@@ -196,6 +202,11 @@ export class SellersService {
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
+      const pointsForRegistration =
+        await this.prisma.pointsByTransactionKind.findFirst({
+          where: { transactionKind: 'REGISTRATION' },
+        });
+
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.seller.create({
           data: {
@@ -203,6 +214,7 @@ export class SellersService {
             password: hashedPassword,
             sellerType: SellerType.PERSON,
             updatedAt: new Date(),
+            points: pointsForRegistration?.pointsAwarded || 10,
           },
         });
 
@@ -221,17 +233,21 @@ export class SellersService {
         email.toLowerCase(),
         firstName,
         '',
+        locale,
       );
 
       return result;
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
-      console.error('Error al registrar persona:', error);
+      this.logger.error('Error al registrar persona:', error);
       throw new InternalServerError('Error al registrar persona');
     }
   }
 
-  async registerBusiness(input: RegisterBusinessInput) {
+  async registerBusiness(
+    input: RegisterBusinessInput,
+    locale: SupportedLocale = 'es',
+  ) {
     try {
       const { email, password, businessName, businessType, sellerType } = input;
 
@@ -272,12 +288,13 @@ export class SellersService {
         email.toLowerCase(),
         '',
         businessName,
+        locale,
       );
 
       return result;
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
-      console.error('Error al registrar negocio:', error);
+      this.logger.error('Error al registrar negocio:', error);
       throw new InternalServerError('Error al registrar negocio');
     }
   }
@@ -303,7 +320,7 @@ export class SellersService {
       return result;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al actualizar usuario:', error);
+      this.logger.error('Error al actualizar usuario:', error);
       throw new InternalServerError('Error al actualizar usuario');
     }
   }
@@ -340,7 +357,7 @@ export class SellersService {
       return person;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al actualizar perfil de persona:', error);
+      this.logger.error('Error al actualizar perfil de persona:', error);
       throw new InternalServerError('Error al actualizar perfil de persona');
     }
   }
@@ -362,7 +379,7 @@ export class SellersService {
       return business;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al actualizar perfil de tienda:', error);
+      this.logger.error('Error al actualizar perfil de tienda:', error);
       throw new InternalServerError('Error al actualizar perfil de tienda');
     }
   }
@@ -388,7 +405,7 @@ export class SellersService {
       return preferences;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      console.error('Error al actualizar preferencias:', error);
+      this.logger.error('Error al actualizar preferencias:', error);
       throw new InternalServerError('Error al actualizar preferencias');
     }
   }

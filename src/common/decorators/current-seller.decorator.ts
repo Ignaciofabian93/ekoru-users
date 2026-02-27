@@ -1,5 +1,7 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext, Logger } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
+
+const logger = new Logger('CurrentSellerDecorator');
 
 interface RequestWithHeaders {
   headers: Record<string, string | string[] | undefined>;
@@ -24,7 +26,7 @@ function decodeJWT(token: string): JWTPayload | null {
 
     return JSON.parse(jsonPayload) as JWTPayload;
   } catch (error) {
-    console.error('Error decoding JWT:', error);
+    logger.error('Error decoding JWT:', error);
     return null;
   }
 }
@@ -47,12 +49,12 @@ export const CurrentSeller = createParamDecorator(
       const payload = decodeJWT(token);
 
       if (payload?.sellerId) {
-        console.log('Extracted sellerId from JWT:', payload.sellerId);
+        logger.debug(`Extracted sellerId from JWT: ${payload.sellerId}`);
         return payload.sellerId;
       }
     }
 
-    console.log('No sellerId found in headers or JWT token');
+    logger.debug('No sellerId found in headers or JWT token');
     return undefined;
   },
 );
