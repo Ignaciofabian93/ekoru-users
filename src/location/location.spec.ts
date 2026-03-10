@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Language } from '@prisma/client';
+import { Language } from '../graphql/enums';
 import { LocationService } from './location.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UnAuthorizedError } from '../common/exceptions';

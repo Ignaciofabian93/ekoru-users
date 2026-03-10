@@ -16,6 +16,7 @@ import {
   UpdateSellerPreferencesInput,
 } from './dto';
 import { Language, SellerType } from '../graphql/enums';
+import { sellerMessages } from './sellers.i18n';
 
 @Injectable()
 export class SellersService {
@@ -39,15 +40,17 @@ export class SellersService {
 
   async getSellers(
     sellerId: string,
+    language: Language,
     sellerType?: SellerType,
     isActive?: boolean,
     isVerified?: boolean,
     limit?: number,
     offset?: number,
   ) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const where: Record<string, any> = {};
@@ -67,14 +70,15 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al obtener usuarios:', error);
-      throw new InternalServerError('Error al obtener usuarios');
+      throw new InternalServerError(t.errorGetSellers);
     }
   }
 
-  async getSellerById(id: string, sellerId: string) {
+  async getSellerById(id: string, sellerId: string, language: Language) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.findUnique({
@@ -86,7 +90,7 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al obtener usuario por ID:', error);
-      throw new InternalServerError('Error al obtener usuario por ID');
+      throw new InternalServerError(t.errorGetSellerById);
     }
   }
 
@@ -105,9 +109,10 @@ export class SellersService {
   }
 
   async getMe(sellerId: string, language: Language) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const sellerType = await this.prisma.seller.findUnique({
@@ -176,11 +181,12 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al obtener usuario actual:', error);
-      throw new InternalServerError('Error al obtener usuario actual');
+      throw new InternalServerError(t.errorGetMe);
     }
   }
 
-  async getSellerLevels() {
+  async getSellerLevels(language: Language) {
+    const t = sellerMessages[language];
     try {
       const levels = await this.prisma.sellerLevel.findMany({
         orderBy: { levelName: 'asc' },
@@ -188,11 +194,12 @@ export class SellersService {
       return levels;
     } catch (error) {
       this.logger.error('Error al obtener niveles de vendedor:', error);
-      throw new InternalServerError('Error al obtener niveles de vendedor');
+      throw new InternalServerError(t.errorGetSellerLevels);
     }
   }
 
-  async getSellerLevel(id: string) {
+  async getSellerLevel(id: string, language: Language) {
+    const t = sellerMessages[language];
     try {
       const level = await this.prisma.sellerLevel.findUnique({
         where: { id: Number(id) },
@@ -200,11 +207,12 @@ export class SellersService {
       return level;
     } catch (error) {
       this.logger.error('Error al obtener nivel de vendedor:', error);
-      throw new InternalServerError('Error al obtener nivel de vendedor');
+      throw new InternalServerError(t.errorGetSellerLevel);
     }
   }
 
   async registerPerson(input: RegisterPersonInput, language: Language) {
+    const t = sellerMessages[language];
     try {
       const { email, password, firstName, lastName } = input;
 
@@ -213,7 +221,7 @@ export class SellersService {
       });
 
       if (existingUser) {
-        throw new BadRequestError('Ya existe un usuario con este email');
+        throw new BadRequestError(t.emailAlreadyExists);
       }
 
       const salt = await genSalt(12);
@@ -257,11 +265,12 @@ export class SellersService {
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
       this.logger.error('Error al registrar persona:', error);
-      throw new InternalServerError('Error al registrar persona');
+      throw new InternalServerError(t.errorRegisterPerson);
     }
   }
 
   async registerBusiness(input: RegisterBusinessInput, language: Language) {
+    const t = sellerMessages[language];
     try {
       const { email, password, businessName, businessType, sellerType } = input;
 
@@ -270,7 +279,7 @@ export class SellersService {
       });
 
       if (existingUser) {
-        throw new BadRequestError('Ya existe un usuario con este email');
+        throw new BadRequestError(t.emailAlreadyExists);
       }
 
       const salt = await genSalt(12);
@@ -309,14 +318,19 @@ export class SellersService {
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
       this.logger.error('Error al registrar negocio:', error);
-      throw new InternalServerError('Error al registrar negocio');
+      throw new InternalServerError(t.errorRegisterBusiness);
     }
   }
 
-  async updateSeller(sellerId: string, input: UpdateSellerInput) {
+  async updateSeller(
+    sellerId: string,
+    input: UpdateSellerInput,
+    language: Language,
+  ) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const result = await this.prisma.seller.update({
@@ -335,14 +349,19 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al actualizar usuario:', error);
-      throw new InternalServerError('Error al actualizar usuario');
+      throw new InternalServerError(t.errorUpdateSeller);
     }
   }
 
-  async updatePersonProfile(sellerId: string, input: UpdatePersonProfileInput) {
+  async updatePersonProfile(
+    sellerId: string,
+    input: UpdatePersonProfileInput,
+    language: Language,
+  ) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const processedInput: UpdatePersonProfileInput & {
@@ -372,17 +391,19 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al actualizar perfil de persona:', error);
-      throw new InternalServerError('Error al actualizar perfil de persona');
+      throw new InternalServerError(t.errorUpdatePersonProfile);
     }
   }
 
   async updateBusinessProfile(
     sellerId: string,
     input: UpdateBusinessProfileInput,
+    language: Language,
   ) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const business = await this.prisma.businessProfile.update({
@@ -394,17 +415,19 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al actualizar perfil de tienda:', error);
-      throw new InternalServerError('Error al actualizar perfil de tienda');
+      throw new InternalServerError(t.errorUpdateBusinessProfile);
     }
   }
 
   async updateSellerPreferences(
     sellerId: string,
     input: UpdateSellerPreferencesInput,
+    language: Language,
   ) {
+    const t = sellerMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const preferences = await this.prisma.sellerPreferences.upsert({
@@ -420,7 +443,7 @@ export class SellersService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al actualizar preferencias:', error);
-      throw new InternalServerError('Error al actualizar preferencias');
+      throw new InternalServerError(t.errorUpdatePreferences);
     }
   }
 

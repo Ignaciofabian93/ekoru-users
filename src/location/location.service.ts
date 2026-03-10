@@ -6,7 +6,7 @@ import {
   NotFoundError,
   InternalServerError,
 } from '../common/exceptions';
-import { Language } from '@prisma/client';
+import { Language } from '../graphql/enums';
 import { locationMessages } from './location.i18n';
 
 @Injectable()

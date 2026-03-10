@@ -42,6 +42,8 @@ export class SellersResolver {
   @Query(() => [Seller], { name: 'sellers' })
   async getSellers(
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
     @Args('sellerType', { type: () => String, nullable: true })
     sellerType?: SellerType,
     @Args('isActive', { nullable: true }) isActive?: boolean,
@@ -51,6 +53,7 @@ export class SellersResolver {
   ) {
     return this.sellersService.getSellers(
       sellerId,
+      language,
       sellerType,
       isActive,
       isVerified,
@@ -60,8 +63,13 @@ export class SellersResolver {
   }
 
   @Query(() => Seller, { name: 'seller', nullable: true })
-  async getSeller(@Args('id') id: string, @CurrentSeller() sellerId: string) {
-    return this.sellersService.getSellerById(id, sellerId);
+  async getSeller(
+    @Args('id') id: string,
+    @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.getSellerById(id, sellerId, language);
   }
 
   @Query(() => Seller, { name: 'me', nullable: true })
@@ -74,13 +82,20 @@ export class SellersResolver {
   }
 
   @Query(() => [SellerLevel], { name: 'sellerLevels' })
-  async getSellerLevels() {
-    return this.sellersService.getSellerLevels();
+  async getSellerLevels(
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.getSellerLevels(language);
   }
 
   @Query(() => SellerLevel, { name: 'sellerLevel', nullable: true })
-  async getSellerLevel(@Args('id') id: string) {
-    return this.sellersService.getSellerLevel(id);
+  async getSellerLevel(
+    @Args('id') id: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.getSellerLevel(id, language);
   }
 
   // Mutations
@@ -106,32 +121,44 @@ export class SellersResolver {
   async updateSeller(
     @Args('input') input: UpdateSellerInput,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.updateSeller(sellerId, input);
+    return this.sellersService.updateSeller(sellerId, input, language);
   }
 
   @Mutation(() => PersonProfile)
   async updatePersonProfile(
     @Args('input') input: UpdatePersonProfileInput,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.updatePersonProfile(sellerId, input);
+    return this.sellersService.updatePersonProfile(sellerId, input, language);
   }
 
   @Mutation(() => BusinessProfile)
   async updateBusinessProfile(
     @Args('input') input: UpdateBusinessProfileInput,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.updateBusinessProfile(sellerId, input);
+    return this.sellersService.updateBusinessProfile(sellerId, input, language);
   }
 
   @Mutation(() => SellerPreferences)
   async updateSellerPreferences(
     @Args('input') input: UpdateSellerPreferencesInput,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.updateSellerPreferences(sellerId, input);
+    return this.sellersService.updateSellerPreferences(
+      sellerId,
+      input,
+      language,
+    );
   }
 
   // Field resolvers
