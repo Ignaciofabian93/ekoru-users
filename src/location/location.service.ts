@@ -6,24 +6,40 @@ import {
   NotFoundError,
   InternalServerError,
 } from '../common/exceptions';
+import { Language } from '@prisma/client';
+import { locationMessages } from './location.i18n';
 
 @Injectable()
 export class LocationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCountries(sellerId: string) {
+  async getCountries(sellerId: string, language: Language) {
+    const t = locationMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
-      const countries = await this.prisma.country.findMany();
+      const countries = await this.prisma.country.findMany({
+        include: {
+          translation: {
+            where: { language },
+          },
+        },
+      });
 
       if (!countries) {
-        throw new NotFoundError('No hay países disponibles');
+        throw new NotFoundError(t.noCountries);
       }
 
-      return countries;
+      const mappedCountries = countries.map((c) => ({
+        id: c.id,
+        country: c.translation[0]?.name,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      }));
+
+      return mappedCountries;
     } catch (error) {
       if (
         error instanceof UnAuthorizedError ||
@@ -31,18 +47,23 @@ export class LocationService {
       ) {
         throw error;
       }
-      throw new InternalServerError('Error al obtener los países');
+      throw new InternalServerError(t.errorCountries);
     }
   }
 
-  async getRegionsByCountry(countryId: number, sellerId: string) {
+  async getRegionsByCountry(
+    countryId: number,
+    sellerId: string,
+    language: Language,
+  ) {
+    const t = locationMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       if (!countryId) {
-        throw new BadRequestError('No se proporcionó un ID de país válido');
+        throw new BadRequestError(t.invalidCountryId);
       }
 
       const parsedId = Number(countryId);
@@ -51,7 +72,7 @@ export class LocationService {
       });
 
       if (!regions) {
-        throw new NotFoundError('No hay regiones disponibles');
+        throw new NotFoundError(t.noRegions);
       }
 
       return regions;
@@ -63,18 +84,23 @@ export class LocationService {
       ) {
         throw error;
       }
-      throw new InternalServerError('Error al obtener las regiones');
+      throw new InternalServerError(t.errorRegions);
     }
   }
 
-  async getCitiesByRegion(regionId: number, sellerId: string) {
+  async getCitiesByRegion(
+    regionId: number,
+    sellerId: string,
+    language: Language,
+  ) {
+    const t = locationMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       if (!regionId) {
-        throw new BadRequestError('No se proporcionó un ID de región válido');
+        throw new BadRequestError(t.invalidRegionId);
       }
 
       const parsedId = Number(regionId);
@@ -83,7 +109,7 @@ export class LocationService {
       });
 
       if (!cities) {
-        throw new NotFoundError('No hay ciudades disponibles');
+        throw new NotFoundError(t.noCities);
       }
 
       return cities;
@@ -95,18 +121,23 @@ export class LocationService {
       ) {
         throw error;
       }
-      throw new InternalServerError('Error al obtener las ciudades');
+      throw new InternalServerError(t.errorCities);
     }
   }
 
-  async getCountiesByCity(cityId: number, sellerId: string) {
+  async getCountiesByCity(
+    cityId: number,
+    sellerId: string,
+    language: Language,
+  ) {
+    const t = locationMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       if (!cityId) {
-        throw new BadRequestError('No se proporcionó un ID de ciudad válido');
+        throw new BadRequestError(t.invalidCityId);
       }
 
       const parsedId = Number(cityId);
@@ -115,7 +146,7 @@ export class LocationService {
       });
 
       if (!counties) {
-        throw new NotFoundError('No hay comunas disponibles');
+        throw new NotFoundError(t.noCounties);
       }
 
       return counties;
@@ -127,7 +158,7 @@ export class LocationService {
       ) {
         throw error;
       }
-      throw new InternalServerError('Error al obtener las comunas');
+      throw new InternalServerError(t.errorCounties);
     }
   }
 }

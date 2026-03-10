@@ -1,47 +1,31 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';
 
-type SupportedLocale = 'es' | 'en' | 'fr';
-const SUPPORTED: SupportedLocale[] = ['es', 'en', 'fr'];
-const DEFAULT_LOCALE: SupportedLocale = 'es';
+export type SupportedLocale = 'es' | 'en' | 'fr';
 
-/**
- * Resolves the user's locale from request headers.
- *
- * Priority:
- *   1. x-language  (e.g. "es-CL", "en-US", "fr")
- *   2. accept-language  (e.g. "es-CL,es;q=0.9,en;q=0.8")
- *
- * The region part is stripped; only the base language code is used.
- * Falls back to 'es' if the language is unsupported or absent.
- */
-function resolveLocale(
-  headers: Record<string, string | string[] | undefined>,
-): SupportedLocale {
-  const raw =
-    (headers['x-language'] as string | undefined) ||
-    (headers['accept-language'] as string | undefined);
-
-  if (!raw) return DEFAULT_LOCALE;
-
-  // Take the first token before any comma (accept-language can be a list)
-  const firstTag = raw.split(',')[0].trim();
-  // Strip region: "es-CL" → "es"
-  const lang = firstTag.split('-')[0].toLowerCase();
-
-  return (
-    SUPPORTED.includes(lang as SupportedLocale) ? lang : DEFAULT_LOCALE
-  ) as SupportedLocale;
-}
-
-export const CurrentLanguage = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): SupportedLocale => {
+export const Language = createParamDecorator(
+  (data: unknown, context: ExecutionContext): string => {
     const ctx = GqlExecutionContext.create(context);
-    const req = ctx.getContext<{
-      req: { headers: Record<string, string | string[] | undefined> };
-    }>().req;
-    return resolveLocale(req.headers);
+    const gqlContext = ctx.getContext();
+    const req = gqlContext.req;
+
+    // Try to get language from:
+    // 1. Query parameter
+    // 2. Accept-Language header
+    // 3. Default to 'es'
+    const queryLang = req?.query?.lang;
+    if (queryLang && ['es', 'en', 'fr'].includes(queryLang)) {
+      return queryLang;
+    }
+
+    const acceptLanguage = req?.headers?.['accept-language'];
+    if (acceptLanguage) {
+      const primaryLang = acceptLanguage.split(',')[0].split('-')[0];
+      if (['es', 'en', 'fr'].includes(primaryLang)) {
+        return primaryLang;
+      }
+    }
+
+    return 'es'; // Default language
   },
 );
-
-export type { SupportedLocale };

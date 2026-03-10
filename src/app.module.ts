@@ -11,6 +11,7 @@ import { LocationModule } from './location/location.module';
 import { SellersModule } from './sellers/sellers.module';
 import { AccountModule } from './account/account.module';
 import { MailModule } from './mail/mail.module';
+import { AdminsModule } from './admins/admins.module';
 import { DateTimeScalar, JSONScalar } from './graphql/scalars';
 import configuration from './config/configuration';
 
@@ -45,6 +46,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
         req,
         res,
         sellerId: req.headers['x-seller-id'] as string,
+        adminId: req.headers['x-admin-id'] as string,
         token: req.headers.authorization?.replace('Bearer ', '') as string,
       }),
       formatError: (error) => {
@@ -63,6 +65,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     SellersModule,
     AccountModule,
     MailModule,
+    AdminsModule,
   ],
   controllers: [HealthController],
   providers: [DateTimeScalar, JSONScalar],

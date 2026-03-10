@@ -418,12 +418,23 @@ model AdminActivityLog {
 
 model Country {
   id            Int            @id @default(autoincrement())
-  country       String
+  translation   CountryTranslation[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   admin         Admin[]
   region        Region[]
   seller        Seller[]
+}
+
+model CountryTranslation {
+  id        Int      @id @default(autoincrement())
+  countryId Int
+  language  Language
+  name      String
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@index([language])
+  @@index([countryId])
 }
 
 model Region {

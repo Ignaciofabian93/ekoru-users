@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { welcomeTemplates } from './welcome-templates';
-import type { SupportedLocale } from '../common/decorators/current-language.decorator';
 
 @Injectable()
 export class MailService {
@@ -25,7 +24,7 @@ export class MailService {
     email: string,
     name: string,
     businessName: string,
-    locale: SupportedLocale = 'es',
+    locale: string = 'es',
   ) {
     try {
       const displayName = name || businessName || 'usuario';

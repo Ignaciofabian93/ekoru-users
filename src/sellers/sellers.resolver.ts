@@ -25,9 +25,8 @@ import {
   UpdateSellerPreferencesInput,
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
-import { CurrentSeller, CurrentLanguage } from '../common/decorators';
-import type { SupportedLocale } from '../common/decorators';
-import { SellerType } from '../graphql/enums';
+import { CurrentSeller } from '../common/decorators';
+import { Language, SellerType } from '../graphql/enums';
 
 @Resolver(() => Seller)
 export class SellersResolver {
@@ -66,8 +65,12 @@ export class SellersResolver {
   }
 
   @Query(() => Seller, { name: 'me', nullable: true })
-  async getMe(@CurrentSeller() sellerId: string) {
-    return this.sellersService.getMe(sellerId);
+  async getMe(
+    @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.getMe(sellerId, language);
   }
 
   @Query(() => [SellerLevel], { name: 'sellerLevels' })
@@ -84,17 +87,19 @@ export class SellersResolver {
   @Mutation(() => Seller)
   async registerPerson(
     @Args('input') input: RegisterPersonInput,
-    @CurrentLanguage() locale: SupportedLocale,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.registerPerson(input, locale);
+    return this.sellersService.registerPerson(input, language);
   }
 
   @Mutation(() => Seller)
   async registerBusiness(
     @Args('input') input: RegisterBusinessInput,
-    @CurrentLanguage() locale: SupportedLocale,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.sellersService.registerBusiness(input, locale);
+    return this.sellersService.registerBusiness(input, language);
   }
 
   @Mutation(() => Seller)

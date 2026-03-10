@@ -1,11 +1,9 @@
-import type { SupportedLocale } from '../common/decorators/current-language.decorator';
-
 interface WelcomeTemplateData {
   name: string;
 }
 
 type TemplateMap = Record<
-  SupportedLocale,
+  string,
   (data: WelcomeTemplateData) => { subject: string; html: string; text: string }
 >;
 

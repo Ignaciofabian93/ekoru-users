@@ -1,4 +1,5 @@
 import { registerEnumType } from '@nestjs/graphql';
+import { Language } from '@prisma/client';
 
 // ============================
 // Subscription Plans
@@ -148,4 +149,11 @@ registerEnumType(BusinessType, {
 registerEnumType(ContactMethod, {
   name: 'ContactMethod',
   description: 'Preferred contact methods',
+});
+
+// Language
+export { Language };
+registerEnumType(Language, {
+  name: 'Language',
+  description: 'Supported languages (ES, EN, FR, PT, DE)',
 });

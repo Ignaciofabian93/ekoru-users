@@ -15,9 +15,7 @@ import {
   UpdateBusinessProfileInput,
   UpdateSellerPreferencesInput,
 } from './dto';
-import { Seller } from '../types/seller';
-import { SellerType } from '../graphql/enums';
-import type { SupportedLocale } from '../common/decorators';
+import { Language, SellerType } from '../graphql/enums';
 
 @Injectable()
 export class SellersService {
@@ -106,7 +104,7 @@ export class SellersService {
     }
   }
 
-  async getMe(sellerId: string) {
+  async getMe(sellerId: string, language: Language) {
     try {
       if (!sellerId) {
         throw new UnAuthorizedError('No autorizado');
@@ -122,7 +120,14 @@ export class SellersService {
           where: { id: sellerId },
           include: {
             personProfile: true,
-            country: true,
+            country: {
+              select: {
+                id: true,
+                createdAt: true,
+                updatedAt: true,
+                translation: { where: { language }, select: { name: true } },
+              },
+            },
             region: true,
             city: true,
             county: true,
@@ -131,7 +136,22 @@ export class SellersService {
           },
         });
 
-        return userProfile;
+        if (!userProfile) return null;
+
+        const { country, ...rest } = userProfile;
+        const mappedProfile = {
+          ...rest,
+          country: country
+            ? {
+                id: country.id,
+                country: country.translation?.[0]?.name ?? null,
+                createdAt: country.createdAt,
+                updatedAt: country.updatedAt,
+              }
+            : null,
+        };
+
+        return mappedProfile;
       } else if (
         sellerType?.sellerType === SellerType.STARTUP ||
         sellerType?.sellerType === SellerType.COMPANY
@@ -184,10 +204,7 @@ export class SellersService {
     }
   }
 
-  async registerPerson(
-    input: RegisterPersonInput,
-    locale: SupportedLocale = 'es',
-  ) {
+  async registerPerson(input: RegisterPersonInput, language: Language) {
     try {
       const { email, password, firstName, lastName } = input;
 
@@ -233,7 +250,7 @@ export class SellersService {
         email.toLowerCase(),
         firstName,
         '',
-        locale,
+        language,
       );
 
       return result;
@@ -244,10 +261,7 @@ export class SellersService {
     }
   }
 
-  async registerBusiness(
-    input: RegisterBusinessInput,
-    locale: SupportedLocale = 'es',
-  ) {
+  async registerBusiness(input: RegisterBusinessInput, language: Language) {
     try {
       const { email, password, businessName, businessType, sellerType } = input;
 
@@ -288,7 +302,7 @@ export class SellersService {
         email.toLowerCase(),
         '',
         businessName,
-        locale,
+        language,
       );
 
       return result;
@@ -410,17 +424,21 @@ export class SellersService {
     }
   }
 
-  resolveProfile(seller: Seller) {
-    if (seller && seller.sellerType === SellerType.PERSON && seller.profile) {
-      return { ...seller.profile, __typename: 'PersonProfile' };
+  resolveProfile(seller: any) {
+    if (
+      seller &&
+      seller.sellerType === SellerType.PERSON &&
+      seller.personProfile
+    ) {
+      return { ...seller.personProfile, __typename: 'PersonProfile' };
     }
     if (
       seller &&
       (seller.sellerType === SellerType.STARTUP ||
         seller.sellerType === SellerType.COMPANY) &&
-      seller.profile
+      seller.businessProfile
     ) {
-      return { ...seller.profile, __typename: 'BusinessProfile' };
+      return { ...seller.businessProfile, __typename: 'BusinessProfile' };
     }
     return null;
   }
