@@ -2,6 +2,7 @@ import { Resolver, Mutation, Args, Int } from '@nestjs/graphql';
 import { AccountService } from './account.service';
 import { Seller } from '../sellers/entities';
 import { CurrentSeller } from '../common/decorators';
+import { Language } from '../graphql/enums';
 
 @Resolver()
 export class AccountResolver {
@@ -12,11 +13,14 @@ export class AccountResolver {
     @Args('currentPassword') currentPassword: string,
     @Args('newPassword') newPassword: string,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
     return this.accountService.updatePassword(
       sellerId,
       currentPassword,
       newPassword,
+      language,
     );
   }
 
@@ -26,13 +30,21 @@ export class AccountResolver {
   }
 
   @Mutation(() => Seller)
-  async deactivateAccount(@CurrentSeller() sellerId: string) {
-    return this.accountService.deactivateAccount(sellerId);
+  async deactivateAccount(
+    @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.deactivateAccount(sellerId, language);
   }
 
   @Mutation(() => Seller)
-  async reactivateAccount(@CurrentSeller() sellerId: string) {
-    return this.accountService.reactivateAccount(sellerId);
+  async reactivateAccount(
+    @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.reactivateAccount(sellerId, language);
   }
 
   @Mutation(() => Seller)
@@ -40,8 +52,10 @@ export class AccountResolver {
     @Args('id') id: string,
     @Args('points', { type: () => Int }) points: number,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.accountService.addPoints(sellerId, id, points);
+    return this.accountService.addPoints(sellerId, id, points, language);
   }
 
   @Mutation(() => Seller)
@@ -49,8 +63,10 @@ export class AccountResolver {
     @Args('id') id: string,
     @Args('points', { type: () => Int }) points: number,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.accountService.deductPoints(sellerId, id, points);
+    return this.accountService.deductPoints(sellerId, id, points, language);
   }
 
   @Mutation(() => Seller)
@@ -58,7 +74,14 @@ export class AccountResolver {
     @Args('id') id: string,
     @Args('categoryId', { type: () => Int }) categoryId: number,
     @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
   ) {
-    return this.accountService.updateSellerCategory(sellerId, id, categoryId);
+    return this.accountService.updateSellerCategory(
+      sellerId,
+      id,
+      categoryId,
+      language,
+    );
   }
 }

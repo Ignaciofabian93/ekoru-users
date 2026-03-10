@@ -6,6 +6,8 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { hash, genSalt, compare } from 'bcrypt';
+import { Language } from '../graphql/enums';
+import { accountMessages } from './account.i18n';
 
 @Injectable()
 export class AccountService {
@@ -13,10 +15,11 @@ export class AccountService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async deactivateAccount(sellerId: string) {
+  async deactivateAccount(sellerId: string, language: Language) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.update({
@@ -27,15 +30,16 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al desactivar cuenta:', error);
-      throw new InternalServerError('Error al desactivar cuenta');
+      this.logger.error('Error deactivating account:', error);
+      throw new InternalServerError(t.errorDeactivateAccount);
     }
   }
 
-  async reactivateAccount(sellerId: string) {
+  async reactivateAccount(sellerId: string, language: Language) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.update({
@@ -47,14 +51,20 @@ export class AccountService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error reactivating account:', error);
-      throw new InternalServerError('Error al activar cuenta');
+      throw new InternalServerError(t.errorReactivateAccount);
     }
   }
 
-  async addPoints(sellerId: string, targetId: string, points: number) {
+  async addPoints(
+    sellerId: string,
+    targetId: string,
+    points: number,
+    language: Language,
+  ) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.update({
@@ -66,14 +76,20 @@ export class AccountService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error adding points:', error);
-      throw new InternalServerError('Error al incrementar puntos');
+      throw new InternalServerError(t.errorAddPoints);
     }
   }
 
-  async deductPoints(sellerId: string, targetId: string, points: number) {
+  async deductPoints(
+    sellerId: string,
+    targetId: string,
+    points: number,
+    language: Language,
+  ) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.update({
@@ -85,7 +101,7 @@ export class AccountService {
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error deducting points:', error);
-      throw new InternalServerError('Error al reducir puntos');
+      throw new InternalServerError(t.errorDeductPoints);
     }
   }
 
@@ -93,10 +109,12 @@ export class AccountService {
     sellerId: string,
     targetId: string,
     categoryId: number,
+    language: Language,
   ) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const parsedCategoryId = Number(categoryId);
@@ -108,8 +126,8 @@ export class AccountService {
       return seller;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error updating user category:', error);
-      throw new InternalServerError('Error updating user category');
+      this.logger.error('Error updating seller category:', error);
+      throw new InternalServerError(t.errorUpdateSellerCategory);
     }
   }
 
@@ -117,10 +135,12 @@ export class AccountService {
     sellerId: string,
     currentPassword: string,
     newPassword: string,
+    language: Language,
   ) {
+    const t = accountMessages[language];
     try {
       if (!sellerId) {
-        throw new UnAuthorizedError('No autorizado');
+        throw new UnAuthorizedError(t.unauthorized);
       }
 
       const seller = await this.prisma.seller.findUnique({
@@ -128,7 +148,7 @@ export class AccountService {
       });
 
       if (!seller || !(await compare(currentPassword, seller.password))) {
-        throw new BadRequestError('La contraseña actual es incorrecta');
+        throw new BadRequestError(t.incorrectPassword);
       }
 
       const salt = await genSalt(12);
@@ -146,8 +166,8 @@ export class AccountService {
         error instanceof BadRequestError
       )
         throw error;
-      this.logger.error('Error al actualizar contraseña:', error);
-      throw new InternalServerError('Error al actualizar contraseña');
+      this.logger.error('Error updating password:', error);
+      throw new InternalServerError(t.errorUpdatePassword);
     }
   }
 
