@@ -6,8 +6,14 @@ import {
   BadRequestError,
   InternalServerError,
 } from '../common/exceptions';
-import { AdminType, AdminRole, AdminPermission } from '../graphql/enums';
+import {
+  AdminType,
+  AdminRole,
+  AdminPermission,
+  Language,
+} from '../graphql/enums';
 import { RegisterAdminInput, UpdateAdminInput } from './dto';
+import { adminMessages } from './admins.i18n';
 
 const ADMIN_SELECT = {
   id: true,
@@ -55,12 +61,14 @@ export class AdminsService {
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
   async getAdmins(
+    language: Language,
     adminType?: AdminType,
     role?: AdminRole,
     isActive?: boolean,
     page: number = 1,
     pageSize: number = 10,
   ) {
+    const t = adminMessages[language];
     try {
       const where = {
         ...(adminType && { adminType }),
@@ -86,12 +94,13 @@ export class AdminsService {
         pageInfo: buildPageInfo(count, page, pageSize),
       };
     } catch (error) {
-      this.logger.error('Error al obtener administradores:', error);
-      throw new InternalServerError('Error al obtener administradores');
+      this.logger.error('Error fetching admins:', error);
+      throw new InternalServerError(t.errorGetAdmins);
     }
   }
 
-  async getAdmin(id: string) {
+  async getAdmin(id: string, language: Language) {
+    const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.findUnique({
         where: { id },
@@ -99,18 +108,19 @@ export class AdminsService {
       });
 
       if (!admin) {
-        throw new NotFoundError('Administrador no encontrado');
+        throw new NotFoundError(t.adminNotFound);
       }
 
       return admin;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
-      this.logger.error('Error al obtener administrador:', error);
-      throw new InternalServerError('Error al obtener administrador');
+      this.logger.error('Error fetching admin:', error);
+      throw new InternalServerError(t.errorGetAdmin);
     }
   }
 
-  async getMyData(adminId: string) {
+  async getMyData(adminId: string, language: Language) {
+    const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.findUnique({
         where: { id: adminId },
@@ -129,33 +139,32 @@ export class AdminsService {
       });
 
       if (!admin) {
-        throw new NotFoundError('Administrador no encontrado');
+        throw new NotFoundError(t.adminNotFound);
       }
 
       return admin;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
-      this.logger.error('Error al obtener datos del administrador:', error);
-      throw new InternalServerError('Error al obtener datos del administrador');
+      this.logger.error('Error fetching admin data:', error);
+      throw new InternalServerError(t.errorGetMyData);
     }
   }
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
-  async createAdmin(input: RegisterAdminInput) {
+  async createAdmin(input: RegisterAdminInput, language: Language) {
+    const t = adminMessages[language];
     try {
       const existing = await this.prisma.admin.findUnique({
         where: { email: input.email.toLowerCase() },
       });
 
       if (existing) {
-        throw new BadRequestError('Ya existe un administrador con ese email');
+        throw new BadRequestError(t.emailAlreadyExists);
       }
 
       if (input.adminType === AdminType.BUSINESS && !input.sellerId) {
-        throw new BadRequestError(
-          'El ID de negocio es requerido para administradores de negocio',
-        );
+        throw new BadRequestError(t.businessIdRequired);
       }
 
       const passwordHash = await hash(input.password, 10);
@@ -177,26 +186,25 @@ export class AdminsService {
       return admin;
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
-      this.logger.error('Error al crear administrador:', error);
-      throw new InternalServerError('Error al crear administrador');
+      this.logger.error('Error creating admin:', error);
+      throw new InternalServerError(t.errorCreateAdmin);
     }
   }
 
-  async updateAdmin(id: string, input: UpdateAdminInput) {
+  async updateAdmin(id: string, input: UpdateAdminInput, language: Language) {
+    const t = adminMessages[language];
     try {
       const existing = await this.prisma.admin.findUnique({ where: { id } });
 
       if (!existing) {
-        throw new NotFoundError('Administrador no encontrado');
+        throw new NotFoundError(t.adminNotFound);
       }
 
       if (
         (input.adminType ?? existing.adminType) === AdminType.BUSINESS &&
         !(input.sellerId ?? existing.sellerId)
       ) {
-        throw new BadRequestError(
-          'El ID de negocio es requerido para administradores de negocio',
-        );
+        throw new BadRequestError(t.businessIdRequired);
       }
 
       const admin = await this.prisma.admin.update({
@@ -220,12 +228,13 @@ export class AdminsService {
     } catch (error) {
       if (error instanceof NotFoundError || error instanceof BadRequestError)
         throw error;
-      this.logger.error('Error al actualizar administrador:', error);
-      throw new InternalServerError('Error al actualizar administrador');
+      this.logger.error('Error updating admin:', error);
+      throw new InternalServerError(t.errorUpdateAdmin);
     }
   }
 
-  async deleteAdmin(id: string) {
+  async deleteAdmin(id: string, language: Language) {
+    const t = adminMessages[language];
     try {
       const existing = await this.prisma.admin.findUnique({
         where: { id },
@@ -233,7 +242,7 @@ export class AdminsService {
       });
 
       if (!existing) {
-        throw new NotFoundError('Administrador no encontrado');
+        throw new NotFoundError(t.adminNotFound);
       }
 
       await this.prisma.admin.delete({ where: { id } });
@@ -241,12 +250,13 @@ export class AdminsService {
       return existing;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
-      this.logger.error('Error al eliminar administrador:', error);
-      throw new InternalServerError('Error al eliminar administrador');
+      this.logger.error('Error deleting admin:', error);
+      throw new InternalServerError(t.errorDeleteAdmin);
     }
   }
 
-  async toggleAdminStatus(id: string, isActive: boolean) {
+  async toggleAdminStatus(id: string, isActive: boolean, language: Language) {
+    const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.update({
         where: { id },
@@ -256,14 +266,17 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
-      this.logger.error('Error al cambiar estado del administrador:', error);
-      throw new InternalServerError(
-        'Error al cambiar estado del administrador',
-      );
+      this.logger.error('Error toggling admin status:', error);
+      throw new InternalServerError(t.errorToggleAdminStatus);
     }
   }
 
-  async assignPermissions(id: string, permissions: AdminPermission[]) {
+  async assignPermissions(
+    id: string,
+    permissions: AdminPermission[],
+    language: Language,
+  ) {
+    const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.update({
         where: { id },
@@ -273,8 +286,8 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
-      this.logger.error('Error al asignar permisos:', error);
-      throw new InternalServerError('Error al asignar permisos');
+      this.logger.error('Error assigning permissions:', error);
+      throw new InternalServerError(t.errorAssignPermissions);
     }
   }
 }

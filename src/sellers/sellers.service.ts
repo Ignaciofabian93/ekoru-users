@@ -258,7 +258,7 @@ export class SellersService {
         email.toLowerCase(),
         firstName,
         '',
-        language,
+        language.toLowerCase() as Language,
       );
 
       return result;
@@ -311,7 +311,7 @@ export class SellersService {
         email.toLowerCase(),
         '',
         businessName,
-        language,
+        language.toLowerCase() as Language,
       );
 
       return result;
