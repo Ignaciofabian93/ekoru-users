@@ -27,16 +27,42 @@ export class SellersService {
     private readonly mailService: MailService,
   ) {}
 
-  private readonly sellerInclude = {
-    personProfile: true,
-    businessProfile: true,
-    country: true,
-    region: true,
-    city: true,
-    county: true,
-    sellerLevel: true,
-    sellerPreferences: true,
-  };
+  private getSellerInclude(language: Language) {
+    return {
+      personProfile: true,
+      businessProfile: true,
+      country: {
+        select: {
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+          translation: { where: { language }, select: { name: true } },
+        },
+      },
+      region: true,
+      city: true,
+      county: true,
+      sellerLevel: true,
+      sellerPreferences: true,
+    };
+  }
+
+  private mapCountry(
+    country: {
+      id: number;
+      createdAt: Date;
+      updatedAt: Date;
+      translation?: { name: string }[];
+    } | null,
+  ) {
+    if (!country) return null;
+    return {
+      id: country.id,
+      country: country.translation?.[0]?.name ?? null,
+      createdAt: country.createdAt,
+      updatedAt: country.updatedAt,
+    };
+  }
 
   async getSellers(
     sellerId: string,
@@ -60,13 +86,16 @@ export class SellersService {
 
       const sellers = await this.prisma.seller.findMany({
         where,
-        include: this.sellerInclude,
+        include: this.getSellerInclude(language),
         orderBy: { createdAt: 'desc' },
         take: limit || undefined,
         skip: offset || undefined,
       });
 
-      return sellers;
+      return sellers.map((seller) => ({
+        ...seller,
+        country: this.mapCountry(seller.country),
+      }));
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al obtener usuarios:', error);
@@ -83,10 +112,11 @@ export class SellersService {
 
       const seller = await this.prisma.seller.findUnique({
         where: { id },
-        include: this.sellerInclude,
+        include: this.getSellerInclude(language),
       });
 
-      return seller;
+      if (!seller) return null;
+      return { ...seller, country: this.mapCountry(seller.country) };
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al obtener usuario por ID:', error);
@@ -98,10 +128,11 @@ export class SellersService {
     try {
       const seller = await this.prisma.seller.findUnique({
         where: { id },
-        include: this.sellerInclude,
+        include: this.getSellerInclude(Language.ES),
       });
 
-      return seller;
+      if (!seller) return null;
+      return { ...seller, country: this.mapCountry(seller.country) };
     } catch (error) {
       this.logger.error('Error al obtener seller para federación:', error);
       return null;
@@ -165,7 +196,14 @@ export class SellersService {
           where: { id: sellerId },
           include: {
             businessProfile: true,
-            country: true,
+            country: {
+              select: {
+                id: true,
+                createdAt: true,
+                updatedAt: true,
+                translation: { where: { language }, select: { name: true } },
+              },
+            },
             region: true,
             city: true,
             county: true,
@@ -174,7 +212,9 @@ export class SellersService {
           },
         });
 
-        return businessProfile;
+        if (!businessProfile) return null;
+        const { country, ...businessRest } = businessProfile;
+        return { ...businessRest, country: this.mapCountry(country) };
       }
 
       return null;
@@ -337,7 +377,14 @@ export class SellersService {
         where: { id: sellerId },
         data: input,
         include: {
-          country: true,
+          country: {
+            select: {
+              id: true,
+              createdAt: true,
+              updatedAt: true,
+              translation: { where: { language }, select: { name: true } },
+            },
+          },
           region: true,
           city: true,
           county: true,
@@ -345,7 +392,8 @@ export class SellersService {
         },
       });
 
-      return result;
+      const { country, ...updateRest } = result;
+      return { ...updateRest, country: this.mapCountry(country) };
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error al actualizar usuario:', error);
