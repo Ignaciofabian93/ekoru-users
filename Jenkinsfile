@@ -1,5 +1,10 @@
 pipeline {
-  agent any
+  agent {
+    docker {
+      image 'node:22-alpine'
+      args '-u root'
+    }
+  }
 
   environment {
     SERVICE_NAME = 'ekoru-users'
