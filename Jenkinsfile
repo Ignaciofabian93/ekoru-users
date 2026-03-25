@@ -1,10 +1,5 @@
 pipeline {
-  agent {
-    docker {
-      image 'node:22-alpine'
-      args '-u root'
-    }
-  }
+  agent none
 
   environment {
     SERVICE_NAME = 'ekoru-users'
@@ -13,24 +8,48 @@ pipeline {
   stages {
 
     stage('Install') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       steps {
         sh 'npm ci'
       }
     }
 
     stage('Prisma Generate') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       steps {
         sh 'npm run prisma:gen'
       }
     }
 
     stage('Build') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       steps {
         sh 'npm run build'
       }
     }
 
     stage('Test') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       steps {
         sh 'npm test -- --passWithNoTests'
       }
@@ -39,6 +58,7 @@ pipeline {
     // ── Staging flow ──────────────────────────────────────────────────────────
 
     stage('Deploy Staging') {
+      agent any
       when { branch 'staging' }
       steps {
         sh '''
@@ -51,6 +71,12 @@ pipeline {
     }
 
     stage('E2E Tests') {
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       when { branch 'staging' }
       steps {
         sh 'npm run test:e2e'
@@ -60,6 +86,7 @@ pipeline {
     // ── Manual gate (staging → prod, or hotfix main → prod) ───────────────────
 
     stage('Approve Production Deploy') {
+      agent none
       when { anyOf { branch 'staging'; branch 'main' } }
       steps {
         timeout(time: 24, unit: 'HOURS') {
@@ -72,6 +99,7 @@ pipeline {
     // ── Production deploy ─────────────────────────────────────────────────────
 
     stage('Deploy Production') {
+      agent any
       when { anyOf { branch 'staging'; branch 'main' } }
       steps {
         sh '''
