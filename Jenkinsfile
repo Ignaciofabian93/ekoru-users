@@ -2,11 +2,7 @@ pipeline {
   agent any
 
   environment {
-    SERVICE_NAME    = 'ekoru-users'
-    SERVICE_PORT    = '4001'
-    ACR_NAME        = credentials('acr-name')           // secret text: your ACR name (e.g. ekoruregistry)
-    ACR_LOGIN_SERVER = "${ACR_NAME}.azurecr.io"
-    IMAGE_TAG       = "${ACR_LOGIN_SERVER}/${SERVICE_NAME}:${GIT_COMMIT}"
+    SERVICE_NAME = 'ekoru-users'
   }
 
   stages {
@@ -35,58 +31,48 @@ pipeline {
       }
     }
 
-    stage('Docker Build & Push') {
-      when { branch 'main' }
+    // ── Staging flow ──────────────────────────────────────────────────────────
+
+    stage('Deploy Staging') {
+      when { branch 'staging' }
       steps {
-        withCredentials([
-          usernamePassword(
-            credentialsId: 'azure-acr-sp',
-            usernameVariable: 'ACR_CLIENT_ID',
-            passwordVariable: 'ACR_CLIENT_SECRET'
-          )
-        ]) {
-          sh """
-            docker login ${ACR_LOGIN_SERVER} \
-              --username ${ACR_CLIENT_ID} \
-              --password ${ACR_CLIENT_SECRET}
-            docker build -t ${IMAGE_TAG} .
-            docker push ${IMAGE_TAG}
-            docker rmi ${IMAGE_TAG} || true
-          """
+        sh '''
+          docker compose -f compose.staging.yml build --no-cache
+          docker compose -f compose.staging.yml up -d --force-recreate
+          docker image prune -f
+        '''
+      }
+    }
+
+    stage('E2E Tests') {
+      when { branch 'staging' }
+      steps {
+        sh 'npm run test:e2e'
+      }
+    }
+
+    // ── Manual gate (staging → prod, or hotfix main → prod) ───────────────────
+
+    stage('Approve Production Deploy') {
+      when { anyOf { branch 'staging'; branch 'main' } }
+      steps {
+        timeout(time: 24, unit: 'HOURS') {
+          input message: "Deploy ${SERVICE_NAME} to production? (commit: ${GIT_COMMIT})",
+                ok: 'Deploy to Production'
         }
       }
     }
 
-    stage('Deploy to Ionos') {
-      when { branch 'main' }
+    // ── Production deploy ─────────────────────────────────────────────────────
+
+    stage('Deploy Production') {
+      when { anyOf { branch 'staging'; branch 'main' } }
       steps {
-        withCredentials([
-          sshUserPrivateKey(credentialsId: 'ionos-ssh-key', keyFileVariable: 'SSH_KEY'),
-          string(credentialsId: 'ionos-host', variable: 'IONOS_HOST'),
-          string(credentialsId: 'ionos-user', variable: 'IONOS_USER'),
-          usernamePassword(
-            credentialsId: 'azure-acr-sp',
-            usernameVariable: 'ACR_CLIENT_ID',
-            passwordVariable: 'ACR_CLIENT_SECRET'
-          )
-        ]) {
-          sh """
-            ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${IONOS_USER}@${IONOS_HOST} '
-              docker login ${ACR_LOGIN_SERVER} \
-                --username ${ACR_CLIENT_ID} \
-                --password ${ACR_CLIENT_SECRET}
-              docker pull ${IMAGE_TAG}
-              docker stop ${SERVICE_NAME} || true
-              docker rm   ${SERVICE_NAME} || true
-              docker run -d \
-                --name ${SERVICE_NAME} \
-                --restart unless-stopped \
-                -p ${SERVICE_PORT}:${SERVICE_PORT} \
-                --env-file /etc/ekoru/${SERVICE_NAME}.env \
-                ${IMAGE_TAG}
-            '
-          """
-        }
+        sh '''
+          docker compose -f compose.prod.yml build --no-cache
+          docker compose -f compose.prod.yml up -d --force-recreate
+          docker image prune -f
+        '''
       }
     }
 
@@ -94,10 +80,10 @@ pipeline {
 
   post {
     failure {
-      echo "Pipeline failed for ${SERVICE_NAME}"
+      echo "Pipeline failed for ${SERVICE_NAME} on branch ${GIT_BRANCH}"
     }
     success {
-      echo "Deployed ${SERVICE_NAME}:${GIT_COMMIT} successfully"
+      echo "Pipeline completed for ${SERVICE_NAME} (${GIT_BRANCH}) — commit ${GIT_COMMIT}"
     }
   }
 }
