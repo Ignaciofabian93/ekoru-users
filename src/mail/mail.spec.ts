@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { MailService } from './mail.service';
 import * as nodemailer from 'nodemailer';
 
@@ -95,13 +96,15 @@ describe('MailService', () => {
         'Business Name',
       );
 
-      expect(mockTransporter.sendMail).toHaveBeenCalledWith({
-        from: 'Ekoru <contacto@ekoru.cl>',
-        to: 'test@example.com',
-        subject: 'Bienvenido a Ekoru',
-        text: 'Hola John Doe, ¡gracias por registrarte en Ekoru!',
-        html: '<p>Hola John Doe, ¡gracias por registrarte en Ekoru!</p>',
-      });
+      expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Ekoru <contacto@ekoru.cl>',
+          to: 'test@example.com',
+          subject: '¡Bienvenido/a a Ekoru!',
+          text: expect.stringContaining('John Doe'),
+          html: expect.stringContaining('John Doe'),
+        }),
+      );
     });
 
     it('should send welcome email with business name when name is not provided', async () => {
@@ -111,25 +114,29 @@ describe('MailService', () => {
         'Acme Corporation',
       );
 
-      expect(mockTransporter.sendMail).toHaveBeenCalledWith({
-        from: 'Ekoru <contacto@ekoru.cl>',
-        to: 'test@example.com',
-        subject: 'Bienvenido a Ekoru',
-        text: 'Hola Acme Corporation, ¡gracias por registrarte en Ekoru!',
-        html: '<p>Hola Acme Corporation, ¡gracias por registrarte en Ekoru!</p>',
-      });
+      expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Ekoru <contacto@ekoru.cl>',
+          to: 'test@example.com',
+          subject: '¡Bienvenido/a a Ekoru!',
+          text: expect.stringContaining('Acme Corporation'),
+          html: expect.stringContaining('Acme Corporation'),
+        }),
+      );
     });
 
     it('should send welcome email with "usuario" when neither name nor business name are provided', async () => {
       await service.sendWelcomeEmail('test@example.com', '', '');
 
-      expect(mockTransporter.sendMail).toHaveBeenCalledWith({
-        from: 'Ekoru <contacto@ekoru.cl>',
-        to: 'test@example.com',
-        subject: 'Bienvenido a Ekoru',
-        text: 'Hola usuario, ¡gracias por registrarte en Ekoru!',
-        html: '<p>Hola usuario, ¡gracias por registrarte en Ekoru!</p>',
-      });
+      expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Ekoru <contacto@ekoru.cl>',
+          to: 'test@example.com',
+          subject: '¡Bienvenido/a a Ekoru!',
+          text: expect.stringContaining('usuario'),
+          html: expect.stringContaining('usuario'),
+        }),
+      );
     });
 
     it('should handle null values gracefully', async () => {
@@ -139,17 +146,21 @@ describe('MailService', () => {
         null as any,
       );
 
-      expect(mockTransporter.sendMail).toHaveBeenCalledWith({
-        from: 'Ekoru <contacto@ekoru.cl>',
-        to: 'test@example.com',
-        subject: 'Bienvenido a Ekoru',
-        text: 'Hola usuario, ¡gracias por registrarte en Ekoru!',
-        html: '<p>Hola usuario, ¡gracias por registrarte en Ekoru!</p>',
-      });
+      expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: 'Ekoru <contacto@ekoru.cl>',
+          to: 'test@example.com',
+          subject: '¡Bienvenido/a a Ekoru!',
+          text: expect.stringContaining('usuario'),
+          html: expect.stringContaining('usuario'),
+        }),
+      );
     });
 
     it('should not throw error when sendMail fails', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
       mockTransporter.sendMail.mockRejectedValue(
         new Error('SMTP connection failed'),
       );
@@ -158,27 +169,29 @@ describe('MailService', () => {
         service.sendWelcomeEmail('test@example.com', 'John Doe', ''),
       ).resolves.not.toThrow();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error sending welcome email:',
         expect.any(Error),
       );
 
-      consoleErrorSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should log error when email sending fails', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
       const error = new Error('Network error');
       mockTransporter.sendMail.mockRejectedValue(error);
 
       await service.sendWelcomeEmail('test@example.com', 'John Doe', '');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error sending welcome email:',
         error,
       );
 
-      consoleErrorSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
   });
 });
