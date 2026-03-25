@@ -23,6 +23,7 @@ describe('SellersService', () => {
     isVerified: false,
     points: 0,
     sellerLevelId: 1,
+    country: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -513,7 +514,7 @@ describe('SellersService', () => {
         'test@example.com',
         'John',
         '',
-        Language.ES,
+        Language.ES.toLowerCase(),
       );
     });
 
@@ -534,7 +535,7 @@ describe('SellersService', () => {
         'test@example.com',
         'John',
         '',
-        Language.EN,
+        Language.EN.toLowerCase(),
       );
     });
 
@@ -604,7 +605,7 @@ describe('SellersService', () => {
         'business@example.com',
         '',
         'Acme Corp',
-        Language.ES,
+        Language.ES.toLowerCase(),
       );
     });
 
@@ -626,7 +627,7 @@ describe('SellersService', () => {
         'business@example.com',
         '',
         'Acme Corp',
-        Language.EN,
+        Language.EN.toLowerCase(),
       );
     });
 
