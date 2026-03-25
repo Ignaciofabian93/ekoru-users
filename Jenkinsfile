@@ -37,6 +37,7 @@ pipeline {
       when { branch 'staging' }
       steps {
         sh '''
+          cp /opt/ekoru/secrets/ekoru-users/.env.staging ${WORKSPACE}/.env.staging
           docker compose -f compose.staging.yml build --no-cache
           docker compose -f compose.staging.yml up -d --force-recreate
           docker image prune -f
@@ -69,6 +70,7 @@ pipeline {
       when { anyOf { branch 'staging'; branch 'main' } }
       steps {
         sh '''
+          cp /opt/ekoru/secrets/ekoru-users/.env.staging ${WORKSPACE}/.env.staging
           docker compose -f compose.prod.yml build --no-cache
           docker compose -f compose.prod.yml up -d --force-recreate
           docker image prune -f
