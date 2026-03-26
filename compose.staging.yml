@@ -1,3 +1,5 @@
+name: 'ekoru-users-staging'
+
 services:
   ekoru-users-staging:
     image: ekoru-users:staging
