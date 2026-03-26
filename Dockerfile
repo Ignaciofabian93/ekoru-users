@@ -9,6 +9,10 @@ COPY package-lock.json ./
 
 RUN npm ci
 
+COPY prisma ./prisma
+
+RUN ./node_modules/.bin/prisma generate
+
 COPY . .
 
 RUN npm run build
