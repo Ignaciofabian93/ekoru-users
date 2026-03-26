@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx husky:*)"
+      "Bash(npx husky:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }
