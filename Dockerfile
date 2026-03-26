@@ -49,6 +49,6 @@ RUN addgroup -g 1001 appgroup && \
 
 USER appuser
 
-CMD [ "node", "dist/main.js" ]
+CMD [ "node", "dist/src/main.js" ]
 
 EXPOSE 4001
