@@ -31,7 +31,7 @@ COPY package.json ./
 COPY package-lock.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copy prisma schema for runtime
 COPY prisma ./prisma
