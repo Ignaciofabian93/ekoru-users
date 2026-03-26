@@ -7,6 +7,20 @@ pipeline {
 
   stages {
 
+    // Prevents the version-bump commit from re-triggering the full pipeline
+    stage('Skip CI check') {
+      agent any
+      steps {
+        script {
+          def msg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+          if (msg.contains('[skip ci]')) {
+            currentBuild.result = 'NOT_BUILT'
+            error('Version bump commit — skipping pipeline.')
+          }
+        }
+      }
+    }
+
     stage('Install') {
       agent {
         docker {
@@ -57,6 +71,26 @@ pipeline {
 
     // ── Staging flow ──────────────────────────────────────────────────────────
 
+    stage('Bump Version') {
+      agent any
+      when { branch 'main' }
+      steps {
+        // Use the already-pulled node image to bump package.json + package-lock.json
+        sh "docker run --rm -v '${WORKSPACE}:/app' -w /app node:22-alpine npm version patch --no-git-tag-version"
+        sshagent(['github-deploy-key']) {
+          sh '''
+            git config user.email "ci@ekoru.org"
+            git config user.name "Jenkins CI"
+            VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
+            git add package.json package-lock.json
+            git commit -m "ci: bump version to ${VERSION} [skip ci]"
+            git tag "v${VERSION}"
+            git push origin HEAD:main "v${VERSION}"
+          '''
+        }
+      }
+    }
+
     stage('Deploy Staging') {
       agent any
       when { branch 'main' }
@@ -67,6 +101,13 @@ pipeline {
           docker compose -f compose.staging.yml up -d --force-recreate
           docker image prune -f
         '''
+        sshagent(['github-deploy-key']) {
+          sh '''
+            VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
+            git tag "staging/v${VERSION}"
+            git push origin "staging/v${VERSION}"
+          '''
+        }
       }
     }
 
@@ -93,6 +134,13 @@ pipeline {
           docker compose -f compose.prod.yml up -d --force-recreate
           docker image prune -f
         '''
+        sshagent(['github-deploy-key']) {
+          sh '''
+            VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
+            git tag "prod/v${VERSION}"
+            git push origin "prod/v${VERSION}"
+          '''
+        }
       }
     }
 
