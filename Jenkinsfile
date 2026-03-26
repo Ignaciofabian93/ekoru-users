@@ -90,7 +90,7 @@ pipeline {
       when { anyOf { branch 'staging'; branch 'main' } }
       steps {
         timeout(time: 24, unit: 'HOURS') {
-          input message: "Deploy ${SERVICE_NAME} to production? (commit: ${GIT_COMMIT})",
+          input message: "Deploy ${SERVICE_NAME} to production? (branch: ${env.BRANCH_NAME})",
                 ok: 'Deploy to Production'
         }
       }
@@ -103,7 +103,7 @@ pipeline {
       when { anyOf { branch 'staging'; branch 'main' } }
       steps {
         sh '''
-          cp /opt/ekoru/secrets/ekoru-users/.env.staging ${WORKSPACE}/.env.staging
+          cp /opt/ekoru/secrets/ekoru-users/.env.prod ${WORKSPACE}/.env.prod
           docker compose -f compose.prod.yml build --no-cache
           docker compose -f compose.prod.yml up -d --force-recreate
           docker image prune -f
@@ -114,11 +114,11 @@ pipeline {
   }
 
   post {
-    failure {
-      echo "Pipeline failed for ${SERVICE_NAME} on branch ${GIT_BRANCH}"
-    }
-    success {
-      echo "Pipeline completed for ${SERVICE_NAME} (${GIT_BRANCH}) — commit ${GIT_COMMIT}"
-    }
+      failure {
+          echo "Pipeline failed for ${SERVICE_NAME} on branch ${env.BRANCH_NAME}"
+      }
+      success {
+          echo "Pipeline completed for ${SERVICE_NAME} (${env.BRANCH_NAME}) — commit ${env.GIT_COMMIT}"
+      }
   }
 }
