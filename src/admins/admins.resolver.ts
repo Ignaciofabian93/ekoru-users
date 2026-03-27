@@ -23,7 +23,10 @@ export class AdminsResolver {
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
-  @Query(() => AdminConnection, { name: 'getAdmins' })
+  @Query(() => AdminConnection, {
+    name: 'getAdmins',
+    description: 'Get a paginated list of admins',
+  })
   async getAdmins(
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
@@ -46,7 +49,11 @@ export class AdminsResolver {
     );
   }
 
-  @Query(() => Admin, { name: 'getAdmin', nullable: true })
+  @Query(() => Admin, {
+    name: 'getAdmin',
+    nullable: true,
+    description: 'Get a specific admin by ID',
+  })
   async getAdmin(
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -55,7 +62,11 @@ export class AdminsResolver {
     return this.adminsService.getAdmin(id, language);
   }
 
-  @Query(() => Admin, { name: 'getMyData', nullable: true })
+  @Query(() => Admin, {
+    name: 'getMyData',
+    nullable: true,
+    description: 'Get the data of the current admin',
+  })
   async getMyData(
     @Context() ctx: { adminId?: string },
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -67,7 +78,10 @@ export class AdminsResolver {
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
-  @Mutation(() => Admin, { name: 'createAdmin' })
+  @Mutation(() => Admin, {
+    name: 'createAdmin',
+    description: 'Create a new admin',
+  })
   async createAdmin(
     @Args('input') input: RegisterAdminInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -76,7 +90,10 @@ export class AdminsResolver {
     return this.adminsService.createAdmin(input, language);
   }
 
-  @Mutation(() => Admin, { name: 'updateAdmin' })
+  @Mutation(() => Admin, {
+    name: 'updateAdmin',
+    description: 'Update an existing admin',
+  })
   async updateAdmin(
     @Args('id', { type: () => ID }) id: string,
     @Args('input') input: UpdateAdminInput,
@@ -86,7 +103,10 @@ export class AdminsResolver {
     return this.adminsService.updateAdmin(id, input, language);
   }
 
-  @Mutation(() => Admin, { name: 'deleteAdmin' })
+  @Mutation(() => Admin, {
+    name: 'deleteAdmin',
+    description: 'Delete an existing admin',
+  })
   async deleteAdmin(
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -95,7 +115,10 @@ export class AdminsResolver {
     return this.adminsService.deleteAdmin(id, language);
   }
 
-  @Mutation(() => Admin, { name: 'toggleAdminStatus' })
+  @Mutation(() => Admin, {
+    name: 'toggleAdminStatus',
+    description: 'Toggle the status of an admin',
+  })
   async toggleAdminStatus(
     @Args('id', { type: () => ID }) id: string,
     @Args('isActive') isActive: boolean,
@@ -105,7 +128,10 @@ export class AdminsResolver {
     return this.adminsService.toggleAdminStatus(id, isActive, language);
   }
 
-  @Mutation(() => Admin, { name: 'assignPermissions' })
+  @Mutation(() => Admin, {
+    name: 'assignPermissions',
+    description: 'Assign permissions to an admin',
+  })
   async assignPermissions(
     @Args('id', { type: () => ID }) id: string,
     @Args('permissions', { type: () => [AdminPermission] })

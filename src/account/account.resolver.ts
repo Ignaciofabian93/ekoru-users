@@ -8,7 +8,10 @@ import { Language } from '../graphql/enums';
 export class AccountResolver {
   constructor(private readonly accountService: AccountService) {}
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'updatePassword',
+    description: 'Update the password of the current seller',
+  })
   async updatePassword(
     @Args('currentPassword') currentPassword: string,
     @Args('newPassword') newPassword: string,
@@ -24,12 +27,18 @@ export class AccountResolver {
     );
   }
 
-  @Mutation(() => Boolean)
+  @Mutation(() => Boolean, {
+    name: 'requestPasswordReset',
+    description: 'Request a password reset for a seller',
+  })
   requestPasswordReset(@Args('email') email: string) {
     return this.accountService.requestPasswordReset(email);
   }
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'deactivateAccount',
+    description: 'Deactivate the account of the current seller',
+  })
   async deactivateAccount(
     @CurrentSeller() sellerId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -38,7 +47,10 @@ export class AccountResolver {
     return this.accountService.deactivateAccount(sellerId, language);
   }
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'reactivateAccount',
+    description: 'Reactivate the account of the current seller',
+  })
   async reactivateAccount(
     @CurrentSeller() sellerId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -47,7 +59,10 @@ export class AccountResolver {
     return this.accountService.reactivateAccount(sellerId, language);
   }
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'addPoints',
+    description: 'Add points to a seller',
+  })
   async addPoints(
     @Args('id') id: string,
     @Args('points', { type: () => Int }) points: number,
@@ -58,7 +73,10 @@ export class AccountResolver {
     return this.accountService.addPoints(sellerId, id, points, language);
   }
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'deductPoints',
+    description: 'Deduct points from a seller',
+  })
   async deductPoints(
     @Args('id') id: string,
     @Args('points', { type: () => Int }) points: number,
@@ -69,7 +87,10 @@ export class AccountResolver {
     return this.accountService.deductPoints(sellerId, id, points, language);
   }
 
-  @Mutation(() => Seller)
+  @Mutation(() => Seller, {
+    name: 'updateSellerCategory',
+    description: 'Update the category of a seller',
+  })
   async updateSellerCategory(
     @Args('id') id: string,
     @Args('categoryId', { type: () => Int }) categoryId: number,
