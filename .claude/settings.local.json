@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx husky:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm test:*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(npm run:*)",
+      "Bash(echo \"Exit code: $?\")"
     ]
   }
 }

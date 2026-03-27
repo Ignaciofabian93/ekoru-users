@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Language } from '../graphql/enums';
+import { AdminType, Language } from '../graphql/enums';
 import { LocationService } from './location.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UnAuthorizedError } from '../common/exceptions';
@@ -41,17 +41,24 @@ describe('LocationService', () => {
 
   beforeEach(async () => {
     const mockPrismaService = {
+      admin: {
+        findUnique: jest.fn(),
+      },
       country: {
         findMany: jest.fn(),
+        create: jest.fn(),
       },
       region: {
         findMany: jest.fn(),
+        create: jest.fn(),
       },
       city: {
         findMany: jest.fn(),
+        create: jest.fn(),
       },
       county: {
         findMany: jest.fn(),
+        create: jest.fn(),
       },
     };
 
@@ -373,6 +380,169 @@ describe('LocationService', () => {
       await expect(
         service.getCountiesByCity(1, 'seller-123', Language.EN),
       ).rejects.toThrow(locationMessages[Language.EN].errorCounties);
+    });
+  });
+
+  // ─── Create mutations ────────────────────────────────────────────────────────
+
+  const platformAdmin = { adminType: AdminType.PLATFORM };
+  const businessAdmin = { adminType: AdminType.BUSINESS };
+
+  describe('createCountry', () => {
+    const input = {
+      translations: [
+        { language: Language.ES, name: 'Chile' },
+        { language: Language.EN, name: 'Chile' },
+      ],
+    };
+
+    it('should create a country when called by a platform admin', async () => {
+      const created = { id: 1, translation: input.translations };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.create.mockResolvedValue(created);
+
+      const result = await service.createCountry('admin-1', input, Language.ES);
+
+      expect(result).toEqual(created);
+      expect(prisma.country.create).toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.createCountry('', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.country.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.createCountry('admin-biz', input, Language.ES),
+      ).rejects.toThrow(
+        locationMessages[Language.ES].forbiddenNotPlatformAdmin,
+      );
+      expect(prisma.country.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw InternalServerError on database error', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.create.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createCountry('admin-1', input, Language.ES),
+      ).rejects.toThrow(locationMessages[Language.ES].errorCreateCountry);
+    });
+  });
+
+  describe('createRegion', () => {
+    const input = { region: 'Metropolitana', countryId: 1 };
+
+    it('should create a region when called by a platform admin', async () => {
+      const created = { id: 1, region: 'Metropolitana', countryId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.create.mockResolvedValue(created);
+
+      const result = await service.createRegion('admin-1', input, Language.ES);
+
+      expect(result).toEqual(created);
+    });
+
+    it('should throw UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.createRegion('', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.createRegion('admin-biz', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+    });
+
+    it('should throw InternalServerError on database error', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.create.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createRegion('admin-1', input, Language.ES),
+      ).rejects.toThrow(locationMessages[Language.ES].errorCreateRegion);
+    });
+  });
+
+  describe('createCity', () => {
+    const input = { city: 'Santiago', regionId: 1 };
+
+    it('should create a city when called by a platform admin', async () => {
+      const created = { id: 1, city: 'Santiago', regionId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.create.mockResolvedValue(created);
+
+      const result = await service.createCity('admin-1', input, Language.ES);
+
+      expect(result).toEqual(created);
+    });
+
+    it('should throw UnAuthorizedError when adminId is empty', async () => {
+      await expect(service.createCity('', input, Language.ES)).rejects.toThrow(
+        UnAuthorizedError,
+      );
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.createCity('admin-biz', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+    });
+
+    it('should throw InternalServerError on database error', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.create.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createCity('admin-1', input, Language.ES),
+      ).rejects.toThrow(locationMessages[Language.ES].errorCreateCity);
+    });
+  });
+
+  describe('createCounty', () => {
+    const input = { county: 'Las Condes', cityId: 1 };
+
+    it('should create a county when called by a platform admin', async () => {
+      const created = { id: 1, county: 'Las Condes', cityId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.create.mockResolvedValue(created);
+
+      const result = await service.createCounty('admin-1', input, Language.ES);
+
+      expect(result).toEqual(created);
+    });
+
+    it('should throw UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.createCounty('', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.createCounty('admin-biz', input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+    });
+
+    it('should throw InternalServerError on database error', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.create.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createCounty('admin-1', input, Language.ES),
+      ).rejects.toThrow(locationMessages[Language.ES].errorCreateCounty);
     });
   });
 });
