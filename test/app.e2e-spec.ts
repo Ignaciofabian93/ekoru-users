@@ -1,4 +1,4 @@
-import * as request from 'supertest';
+import request from 'supertest';
 
 // Targets the live staging instance by default.
 // Override with TEST_BASE_URL env var when needed (e.g. for production smoke tests).
@@ -33,7 +33,9 @@ async function waitForReady(retries = 10, delayMs = 3000): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, delayMs));
   }
-  throw new Error(`Service at ${BASE_URL} did not become ready after ${retries} retries`);
+  throw new Error(
+    `Service at ${BASE_URL} did not become ready after ${retries} retries`,
+  );
 }
 
 // ─── Suite ────────────────────────────────────────────────────────────────────
@@ -101,14 +103,17 @@ describe('Location', () => {
     const countriesRes = await gql('{ countries(language: ES) { id } }');
     const firstId: number = countriesRes.body.data.countries[0].id;
 
-    const res = await gql(`
+    const res = await gql(
+      `
       query ($id: Int!) {
         regionsByCountryId(countryId: $id, language: ES) {
           id
           region
         }
       }
-    `, { id: firstId });
+    `,
+      { id: firstId },
+    );
 
     expect(res.status).toBe(200);
     expect(res.body.errors).toBeUndefined();
