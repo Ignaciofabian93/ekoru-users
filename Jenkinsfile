@@ -72,13 +72,23 @@ pipeline {
     // ── Staging flow ──────────────────────────────────────────────────────────
 
     stage('Bump Version') {
-      agent any
+      agent {
+        docker {
+          image 'node:22-alpine'
+          args '-u root'
+        }
+      }
       when { branch 'main' }
       steps {
-        // Use the already-pulled node image to bump package.json + package-lock.json
-        sh "docker run --rm -v '${WORKSPACE}:/app' -w /app node:22-alpine npm version patch --no-git-tag-version"
+        // Install git (not present in node:22-alpine by default) and bump version
+        sh '''
+          apk add --no-cache git openssh-client
+          npm version patch --no-git-tag-version
+        '''
         sshagent(['github-deploy-key']) {
           sh '''
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
             git config user.email "ci@ekoru.org"
             git config user.name "Jenkins CI"
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
