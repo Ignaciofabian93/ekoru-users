@@ -85,9 +85,15 @@ pipeline {
           apk add --no-cache git openssh-client
           npm version patch --no-git-tag-version
         '''
-        sshagent(['github-deploy-key']) {
+        // withCredentials writes the key to a workspace file, which IS accessible
+        // inside the Docker container (workspace is mounted). sshagent cannot be
+        // used here because its socket lives inside the Jenkins container and the
+        // host Docker daemon cannot bind-mount it into a sibling container (DinD).
+        withCredentials([sshUserPrivateKey(credentialsId: 'github-deploy-key-users', keyFileVariable: 'SSH_KEY')]) {
           sh '''
             mkdir -p ~/.ssh
+            cp "$SSH_KEY" ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
             ssh-keyscan github.com >> ~/.ssh/known_hosts
             git config user.email "ci@ekoru.org"
             git config user.name "Jenkins CI"
@@ -111,7 +117,7 @@ pipeline {
           docker compose -f compose.staging.yml up -d --force-recreate
           docker image prune -f
         '''
-        sshagent(['github-deploy-key']) {
+        sshagent(['github-deploy-key-users']) {
           sh '''
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
             git tag "staging/v${VERSION}"
@@ -144,7 +150,7 @@ pipeline {
           docker compose -f compose.prod.yml up -d --force-recreate
           docker image prune -f
         '''
-        sshagent(['github-deploy-key']) {
+        sshagent(['github-deploy-key-users']) {
           sh '''
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
             git tag "prod/v${VERSION}"
