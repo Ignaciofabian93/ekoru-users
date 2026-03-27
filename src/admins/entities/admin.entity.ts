@@ -1,10 +1,6 @@
 import { ObjectType, Field, ID, Directive } from '@nestjs/graphql';
 import { DateTimeScalar } from '../../graphql/scalars';
-import {
-  AdminType,
-  AdminRole,
-  AdminPermission,
-} from '../../graphql/enums';
+import { AdminType, AdminRole, AdminPermission } from '../../graphql/enums';
 import { Country } from '../../location/entities/country.entity';
 import { Region } from '../../location/entities/region.entity';
 import { City } from '../../location/entities/city.entity';
