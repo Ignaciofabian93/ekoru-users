@@ -85,8 +85,8 @@ pipeline {
           sh '''
             git remote set-url origin "$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')"
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
-            git tag "staging/v${VERSION}"
-            git push origin "staging/v${VERSION}"
+            git tag -f "staging/v${VERSION}"
+            git push -f origin "staging/v${VERSION}"
           '''
         }
       }
@@ -119,8 +119,8 @@ pipeline {
           sh '''
             git remote set-url origin "$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')"
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
-            git tag "prod/v${VERSION}"
-            git push origin "prod/v${VERSION}"
+            git tag -f "prod/v${VERSION}"
+            git push -f origin "prod/v${VERSION}"
           '''
         }
       }
