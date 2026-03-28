@@ -95,6 +95,7 @@ pipeline {
             cp "$SSH_KEY" ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
             ssh-keyscan github.com >> ~/.ssh/known_hosts
+            git remote set-url origin "$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')"
             git config user.email "ci@ekoru.org"
             git config user.name "Jenkins CI"
             git checkout -B main
