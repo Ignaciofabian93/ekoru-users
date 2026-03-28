@@ -83,6 +83,7 @@ pipeline {
         '''
         sshagent(['github-deploy-key-users']) {
           sh '''
+            git remote set-url origin "$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')"
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
             git tag "staging/v${VERSION}"
             git push origin "staging/v${VERSION}"
@@ -116,6 +117,7 @@ pipeline {
         '''
         sshagent(['github-deploy-key-users']) {
           sh '''
+            git remote set-url origin "$(git remote get-url origin | sed 's|https://github.com/|git@github.com:|')"
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
             git tag "prod/v${VERSION}"
             git push origin "prod/v${VERSION}"
