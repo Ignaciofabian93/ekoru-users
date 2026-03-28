@@ -97,11 +97,13 @@ pipeline {
             ssh-keyscan github.com >> ~/.ssh/known_hosts
             git config user.email "ci@ekoru.org"
             git config user.name "Jenkins CI"
+            git checkout -B main
             VERSION=$(grep -m1 '"version"' package.json | awk -F'"' '{print $4}')
             git add package.json package-lock.json
             git commit -m "ci: bump version to ${VERSION} [skip ci]"
-            git tag "v${VERSION}"
-            git push origin HEAD:main "v${VERSION}"
+            git tag -f "v${VERSION}"
+            git push origin HEAD:main
+            git push -f origin "v${VERSION}"
           '''
         }
       }
