@@ -1,6 +1,6 @@
 {
   "name": "ekoru-users",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Ekoru Users Subgraph - NestJS GraphQL Federation",
   "author": "Ignacio Rodríguez Rulas - EKORU CTO",
   "private": true,
