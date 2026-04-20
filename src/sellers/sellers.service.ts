@@ -98,7 +98,7 @@ export class SellersService {
       }));
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al obtener usuarios:', error);
+      this.logger.error(t.errorGetSellers, error);
       throw new InternalServerError(t.errorGetSellers);
     }
   }
@@ -119,7 +119,7 @@ export class SellersService {
       return { ...seller, country: this.mapCountry(seller.country) };
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al obtener usuario por ID:', error);
+      this.logger.error(t.errorGetSellerById, error);
       throw new InternalServerError(t.errorGetSellerById);
     }
   }
@@ -220,7 +220,7 @@ export class SellersService {
       return null;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al obtener usuario actual:', error);
+      this.logger.error(t.errorGetMe, error);
       throw new InternalServerError(t.errorGetMe);
     }
   }
@@ -233,7 +233,7 @@ export class SellersService {
       });
       return levels;
     } catch (error) {
-      this.logger.error('Error al obtener niveles de vendedor:', error);
+      this.logger.error(t.errorGetSellerLevels, error);
       throw new InternalServerError(t.errorGetSellerLevels);
     }
   }
@@ -246,7 +246,7 @@ export class SellersService {
       });
       return level;
     } catch (error) {
-      this.logger.error('Error al obtener nivel de vendedor:', error);
+      this.logger.error(t.errorGetSellerLevel, error);
       throw new InternalServerError(t.errorGetSellerLevel);
     }
   }
@@ -304,7 +304,7 @@ export class SellersService {
       return result;
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
-      this.logger.error('Error al registrar persona:', error);
+      this.logger.error(t.errorRegisterPerson, error);
       throw new InternalServerError(t.errorRegisterPerson);
     }
   }
@@ -325,6 +325,11 @@ export class SellersService {
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
+      const pointsForRegistration =
+        await this.prisma.pointsByTransactionKind.findFirst({
+          where: { transactionKind: 'REGISTRATION' },
+        });
+
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.seller.create({
           data: {
@@ -332,6 +337,7 @@ export class SellersService {
             password: hashedPassword,
             sellerType,
             updatedAt: new Date(),
+            points: pointsForRegistration?.pointsAwarded || 10,
           },
         });
 
@@ -357,7 +363,7 @@ export class SellersService {
       return result;
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
-      this.logger.error('Error al registrar negocio:', error);
+      this.logger.error(t.errorRegisterBusiness, error);
       throw new InternalServerError(t.errorRegisterBusiness);
     }
   }
@@ -396,7 +402,7 @@ export class SellersService {
       return { ...updateRest, country: this.mapCountry(country) };
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al actualizar usuario:', error);
+      this.logger.error(t.errorUpdateSeller, error);
       throw new InternalServerError(t.errorUpdateSeller);
     }
   }
@@ -438,7 +444,7 @@ export class SellersService {
       return person;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al actualizar perfil de persona:', error);
+      this.logger.error(t.errorUpdatePersonProfile, error);
       throw new InternalServerError(t.errorUpdatePersonProfile);
     }
   }
@@ -462,7 +468,7 @@ export class SellersService {
       return business;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al actualizar perfil de tienda:', error);
+      this.logger.error(t.errorUpdateBusinessProfile, error);
       throw new InternalServerError(t.errorUpdateBusinessProfile);
     }
   }
@@ -490,7 +496,7 @@ export class SellersService {
       return preferences;
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
-      this.logger.error('Error al actualizar preferencias:', error);
+      this.logger.error(t.errorUpdatePreferences, error);
       throw new InternalServerError(t.errorUpdatePreferences);
     }
   }

@@ -28,11 +28,11 @@ export class RegisterBusinessInput {
   @IsOptional()
   displayName?: string;
 
-  @Field(() => String)
+  @Field(() => SellerType)
   @IsEnum(SellerType)
   sellerType: SellerType;
 
-  @Field(() => String)
+  @Field(() => BusinessType)
   @IsEnum(BusinessType)
   businessType: BusinessType;
 }
