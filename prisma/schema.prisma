@@ -183,6 +183,8 @@ model Seller {
   sellerLevel                                      SellerLevel?                @relation(fields: [sellerLevelId], references: [id])
   achievedLabels                                   SellerAchievedLabel[]
   sellerPreferences                                SellerPreferences?
+  personMembershipSubscription                     PersonMembershipSubscription[]
+  businessMembershipSubscription                   BusinessMembershipSubscription[]
 
   @@index([cityId])
   @@index([email])
@@ -223,13 +225,13 @@ model PersonProfile {
   profileImage       String?
   coverImage         String?
   allowExchanges     Boolean           @default(true)
-  personMembershipId Int?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  personMembership   PersonMembership? @relation(fields: [personMembershipId], references: [id])
-  seller             Seller            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  personMembershipSubscriptionId Int?
+  createdAt                      DateTime                       @default(now())
+  updatedAt                      DateTime                       @updatedAt
+  personMembershipSubscription   PersonMembershipSubscription?  @relation(fields: [personMembershipSubscriptionId], references: [id])
+  seller                         Seller                         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
-  @@index([personMembershipId])
+  @@index([personMembershipSubscriptionId])
   @@index([sellerId])
 }
 
@@ -255,13 +257,13 @@ model BusinessProfile {
   businessHours            Json?
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
-  businessMembershipId     Int?
-  businessMembership       BusinessMembership? @relation(fields: [businessMembershipId], references: [id])
-  seller                   Seller              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  businessMembershipSubscriptionId Int?
+  businessMembershipSubscription   BusinessMembershipSubscription? @relation(fields: [businessMembershipSubscriptionId], references: [id])
+  seller                           Seller                          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
   @@index([taxId])
   @@index([businessType])
-  @@index([businessMembershipId])
+  @@index([businessMembershipSubscriptionId])
   @@index([sellerId])
 }
 
@@ -323,39 +325,137 @@ model PointsByTransactionKind {
 }
 
 model PersonMembership {
-  id             Int                    @id @default(autoincrement())
-  membershipType PersonSubscriptionPlan @default(FREEMIUM)
-  price          Int
-  description    String[]
+  id             Int                            @id @default(autoincrement())
+  membershipType PersonSubscriptionPlan         @default(FREEMIUM)
   durationMonths Int
-  startDate      DateTime               @default(now())
-  endDate        DateTime?
-  isActive       Boolean                @default(true)
-  autoRenew      Boolean                @default(false)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  personProfiles PersonProfile[]
+  isActive       Boolean                        @default(true)
+  createdAt      DateTime                       @default(now())
+  updatedAt      DateTime                       @updatedAt
+  subscriptions  PersonMembershipSubscription[]
+  translations   PersonMembershipTranslation[]
+  pricing        PersonMembershipPricing[]
 
   @@index([membershipType])
   @@index([isActive])
 }
 
+model PersonMembershipTranslation {
+  id                 Int              @id @default(autoincrement())
+  personMembershipId Int
+  language           Language
+  name               String
+  description        String[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  personMembership   PersonMembership @relation(fields: [personMembershipId], references: [id], onDelete: Cascade)
+
+  @@unique([personMembershipId, language])
+  @@index([language, personMembershipId])
+}
+
+model PersonMembershipPricing {
+  id                 Int              @id @default(autoincrement())
+  personMembershipId Int
+  countryId          Int
+  currency           String
+  price              Float
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  personMembership   PersonMembership @relation(fields: [personMembershipId], references: [id], onDelete: Cascade)
+  country            Country          @relation(fields: [countryId], references: [id])
+
+  @@unique([personMembershipId, countryId])
+  @@index([personMembershipId])
+  @@index([countryId])
+}
+
+model PersonMembershipSubscription {
+  id                 Int              @id @default(autoincrement())
+  sellerId           String
+  personMembershipId Int
+  startDate          DateTime         @default(now())
+  endDate            DateTime?
+  isActive           Boolean          @default(true)
+  autoRenew          Boolean          @default(false)
+  paymentId          Int?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  personMembership   PersonMembership @relation(fields: [personMembershipId], references: [id])
+  seller             Seller           @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  personProfiles     PersonProfile[]
+
+  @@index([sellerId])
+  @@index([personMembershipId])
+  @@index([isActive])
+  @@index([endDate])
+}
+
 model BusinessMembership {
-  id               Int                      @id @default(autoincrement())
-  membershipType   BusinessSubscriptionPlan @default(FREEMIUM)
-  price            Int
-  description      String[]
+  id               Int                               @id @default(autoincrement())
+  membershipType   BusinessSubscriptionPlan          @default(FREEMIUM)
   durationMonths   Int
-  startDate        DateTime                 @default(now())
-  endDate          DateTime?
-  isActive         Boolean                  @default(true)
-  autoRenew        Boolean                  @default(false)
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
-  businessProfiles BusinessProfile[]
+  isActive         Boolean                           @default(true)
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+  subscriptions    BusinessMembershipSubscription[]
+  translations     BusinessMembershipTranslation[]
+  pricing          BusinessMembershipPricing[]
 
   @@index([membershipType])
   @@index([isActive])
+}
+
+model BusinessMembershipTranslation {
+  id                   Int                @id @default(autoincrement())
+  businessMembershipId Int
+  language             Language
+  name                 String
+  description          String[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  businessMembership   BusinessMembership @relation(fields: [businessMembershipId], references: [id], onDelete: Cascade)
+
+  @@unique([businessMembershipId, language])
+  @@index([language, businessMembershipId])
+}
+
+model BusinessMembershipPricing {
+  id                   Int                @id @default(autoincrement())
+  businessMembershipId Int
+  countryId            Int
+  currency             String
+  price                Float
+  isActive             Boolean            @default(true)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  businessMembership   BusinessMembership @relation(fields: [businessMembershipId], references: [id], onDelete: Cascade)
+  country              Country            @relation(fields: [countryId], references: [id])
+
+  @@unique([businessMembershipId, countryId])
+  @@index([businessMembershipId])
+  @@index([countryId])
+}
+
+model BusinessMembershipSubscription {
+  id                   Int                @id @default(autoincrement())
+  sellerId             String
+  businessMembershipId Int
+  startDate            DateTime           @default(now())
+  endDate              DateTime?
+  isActive             Boolean            @default(true)
+  autoRenew            Boolean            @default(false)
+  paymentId            Int?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  businessMembership   BusinessMembership @relation(fields: [businessMembershipId], references: [id])
+  seller               Seller             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  businessProfiles     BusinessProfile[]
+
+  @@index([sellerId])
+  @@index([businessMembershipId])
+  @@index([isActive])
+  @@index([endDate])
 }
 
 model Admin {
@@ -417,13 +517,15 @@ model AdminActivityLog {
 }
 
 model Country {
-  id            Int            @id @default(autoincrement())
-  translation   CountryTranslation[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  admin         Admin[]
-  region        Region[]
-  seller        Seller[]
+  id                      Int                       @id @default(autoincrement())
+  translation             CountryTranslation[]
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  admin                   Admin[]
+  region                  Region[]
+  seller                  Seller[]
+  personMembershipPricing PersonMembershipPricing[]
+  businessMembershipPricing BusinessMembershipPricing[]
 }
 
 model CountryTranslation {

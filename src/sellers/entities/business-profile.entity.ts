@@ -1,6 +1,7 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { BusinessType } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
+import { BusinessMembership } from '../../subscription/entities/business-membership.entity';
 
 @ObjectType()
 export class BusinessProfile {
@@ -66,4 +67,10 @@ export class BusinessProfile {
 
   @Field(() => DateTimeScalar)
   updatedAt: Date;
+
+  @Field(() => Int, { nullable: true })
+  businessMembershipSubscriptionId?: number;
+
+  @Field(() => BusinessMembership, { nullable: true })
+  membership?: BusinessMembership;
 }

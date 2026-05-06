@@ -15,7 +15,7 @@ export type PersonProfile = {
   profileImage?: string | null;
   coverImage?: string | null;
   allowExchanges: boolean;
-  personMembershipId?: number | null;
+  personMembershipSubscriptionId?: number | null;
 };
 
 export type BusinessProfile = {
@@ -38,7 +38,7 @@ export type BusinessProfile = {
   certifications: string[];
   travelRadius?: number | null;
   businessHours?: any;
-  businessMembershipId?: number | null;
+  businessMembershipSubscriptionId?: number | null;
   createdAt: Date;
   updatedAt: Date;
 };

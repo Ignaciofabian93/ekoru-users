@@ -15,6 +15,7 @@ import { SellersModule } from './sellers/sellers.module';
 import { AccountModule } from './account/account.module';
 import { MailModule } from './mail/mail.module';
 import { AdminsModule } from './admins/admins.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { DateTimeScalar, JSONScalar } from './graphql/scalars';
 import configuration from './config/configuration';
 
@@ -77,6 +78,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     AccountModule,
     MailModule,
     AdminsModule,
+    SubscriptionModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,5 +1,6 @@
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { DateTimeScalar } from '../../graphql/scalars';
+import { PersonMembership } from '../../subscription/entities/person-membership.entity';
 
 @ObjectType()
 export class PersonProfile {
@@ -32,4 +33,10 @@ export class PersonProfile {
 
   @Field()
   allowExchanges: boolean;
+
+  @Field(() => Int, { nullable: true })
+  personMembershipSubscriptionId?: number;
+
+  @Field(() => PersonMembership, { nullable: true })
+  membership?: PersonMembership;
 }
