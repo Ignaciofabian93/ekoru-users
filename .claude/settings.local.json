@@ -10,7 +10,18 @@
       "Bash(npm test:*)",
       "Bash(echo \"Exit: $?\")",
       "Bash(npm run:*)",
-      "Bash(echo \"Exit code: $?\")"
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(Get-ChildItem \"C:\\\\Dev\\\\ekoru-repos\\\\ekoru-users\\\\.git\\\\worktrees\" -ErrorAction SilentlyContinue)",
+      "Bash(Get-Content \"C:\\\\Dev\\\\ekoru-repos\\\\ekoru-users\\\\.git\\\\config\")",
+      "Bash(cmd /c \"dir /aL C:\\\\Dev\\\\ekoru-repos\")",
+      "Bash(printenv)",
+      "Bash(GIT_TRACE=1 git status)",
+      "Bash(GIT_TRACE_SETUP=1 git status)",
+      "Bash(GIT_TRACE2=1 git status)",
+      "Bash(GIT_DIR=\"C:/Dev/ekoru-repos/ekoru-users/.git\" GIT_WORK_TREE=\"C:/Dev/ekoru-repos/ekoru-users\" git status)",
+      "Bash(git -C \"C:/Dev/ekoru-repos/ekoru-users\" status)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.jest, null, 2\\)\\)\")",
+      "Bash(npx jest *)"
     ]
   }
 }
