@@ -2,7 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminType, Language } from '../graphql/enums';
 import { LocationService } from './location.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UnAuthorizedError } from '../common/exceptions';
+import {
+  UnAuthorizedError,
+  NotFoundError,
+  ConflictError,
+} from '../common/exceptions';
 import { locationMessages } from './location.i18n';
 
 describe('LocationService', () => {
@@ -43,22 +47,47 @@ describe('LocationService', () => {
     const mockPrismaService = {
       admin: {
         findUnique: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      seller: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      personMembershipPricing: {
+        count: jest.fn().mockResolvedValue(0),
+      },
+      businessMembershipPricing: {
+        count: jest.fn().mockResolvedValue(0),
       },
       country: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
       },
       region: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       city: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       county: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
         create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
     };
 
@@ -543,6 +572,270 @@ describe('LocationService', () => {
       await expect(
         service.createCounty('admin-1', input, Language.ES),
       ).rejects.toThrow(locationMessages[Language.ES].errorCreateCounty);
+    });
+  });
+
+  // ─── Update mutations ────────────────────────────────────────────────────────
+
+  describe('updateCountry', () => {
+    const input = {
+      translations: [{ language: Language.ES, name: 'Chile' }],
+    };
+
+    it('should replace translations when called by a platform admin', async () => {
+      const updated = { id: 1, translation: input.translations };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.findUnique.mockResolvedValue({ id: 1 });
+      prisma.country.update.mockResolvedValue(updated);
+
+      const result = await service.updateCountry(
+        'admin-1',
+        1,
+        input,
+        Language.ES,
+      );
+
+      expect(result).toEqual(updated);
+      expect(prisma.country.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: expect.objectContaining({
+            translation: expect.objectContaining({ deleteMany: {} }),
+          }),
+        }),
+      );
+    });
+
+    it('should throw NotFoundError when the country does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateCountry('admin-1', 99, input, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.country.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.updateCountry('admin-biz', 1, input, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.country.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateRegion', () => {
+    const input = { region: 'Metropolitana', countryId: 1 };
+
+    it('should update a region when called by a platform admin', async () => {
+      const updated = { id: 1, ...input };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.findUnique.mockResolvedValue({ id: 1 });
+      prisma.region.update.mockResolvedValue(updated);
+
+      const result = await service.updateRegion(
+        'admin-1',
+        1,
+        input,
+        Language.ES,
+      );
+
+      expect(result).toEqual(updated);
+    });
+
+    it('should throw NotFoundError when the region does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateRegion('admin-1', 99, input, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.region.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateCity', () => {
+    const input = { city: 'Santiago', regionId: 1 };
+
+    it('should update a city when called by a platform admin', async () => {
+      const updated = { id: 1, ...input };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.findUnique.mockResolvedValue({ id: 1 });
+      prisma.city.update.mockResolvedValue(updated);
+
+      const result = await service.updateCity('admin-1', 1, input, Language.ES);
+
+      expect(result).toEqual(updated);
+    });
+
+    it('should throw NotFoundError when the city does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateCity('admin-1', 99, input, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.city.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateCounty', () => {
+    const input = { county: 'Las Condes', cityId: 1 };
+
+    it('should update a county when called by a platform admin', async () => {
+      const updated = { id: 1, ...input };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.findUnique.mockResolvedValue({ id: 1 });
+      prisma.county.update.mockResolvedValue(updated);
+
+      const result = await service.updateCounty(
+        'admin-1',
+        1,
+        input,
+        Language.ES,
+      );
+
+      expect(result).toEqual(updated);
+    });
+
+    it('should throw NotFoundError when the county does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateCounty('admin-1', 99, input, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.county.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Delete mutations ────────────────────────────────────────────────────────
+
+  describe('deleteCountry', () => {
+    it('should delete a country with no references', async () => {
+      const existing = { id: 1, translation: [] };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.findUnique.mockResolvedValue(existing);
+      prisma.country.delete.mockResolvedValue(existing);
+
+      const result = await service.deleteCountry('admin-1', 1, Language.ES);
+
+      expect(result).toEqual(existing);
+      expect(prisma.country.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    });
+
+    it('should throw NotFoundError when the country does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteCountry('admin-1', 99, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.country.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw ConflictError when the country still has regions', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.country.findUnique.mockResolvedValue({ id: 1, translation: [] });
+      prisma.region.count.mockResolvedValue(2);
+
+      await expect(
+        service.deleteCountry('admin-1', 1, Language.ES),
+      ).rejects.toThrow(ConflictError);
+      expect(prisma.country.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.deleteCountry('admin-biz', 1, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.country.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteRegion', () => {
+    it('should delete a region with no references', async () => {
+      const existing = { id: 1, region: 'Metropolitana', countryId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.findUnique.mockResolvedValue(existing);
+      prisma.region.delete.mockResolvedValue(existing);
+
+      const result = await service.deleteRegion('admin-1', 1, Language.ES);
+
+      expect(result).toEqual(existing);
+    });
+
+    it('should throw ConflictError when the region still has cities', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.region.findUnique.mockResolvedValue({ id: 1 });
+      prisma.city.count.mockResolvedValue(3);
+
+      await expect(
+        service.deleteRegion('admin-1', 1, Language.ES),
+      ).rejects.toThrow(ConflictError);
+      expect(prisma.region.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteCity', () => {
+    it('should delete a city with no references', async () => {
+      const existing = { id: 1, city: 'Santiago', regionId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.findUnique.mockResolvedValue(existing);
+      prisma.city.delete.mockResolvedValue(existing);
+
+      const result = await service.deleteCity('admin-1', 1, Language.ES);
+
+      expect(result).toEqual(existing);
+    });
+
+    it('should throw ConflictError when the city still has counties', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.city.findUnique.mockResolvedValue({ id: 1 });
+      prisma.county.count.mockResolvedValue(1);
+
+      await expect(
+        service.deleteCity('admin-1', 1, Language.ES),
+      ).rejects.toThrow(ConflictError);
+      expect(prisma.city.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteCounty', () => {
+    it('should delete a county with no references', async () => {
+      const existing = { id: 1, county: 'Las Condes', cityId: 1 };
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.findUnique.mockResolvedValue(existing);
+      prisma.county.delete.mockResolvedValue(existing);
+
+      const result = await service.deleteCounty('admin-1', 1, Language.ES);
+
+      expect(result).toEqual(existing);
+    });
+
+    it('should throw ConflictError when the county is referenced by a seller', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.findUnique.mockResolvedValue({ id: 1 });
+      prisma.seller.count.mockResolvedValue(5);
+
+      await expect(
+        service.deleteCounty('admin-1', 1, Language.ES),
+      ).rejects.toThrow(ConflictError);
+      expect(prisma.county.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundError when the county does not exist', async () => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.county.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteCounty('admin-1', 99, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.county.delete).not.toHaveBeenCalled();
     });
   });
 });

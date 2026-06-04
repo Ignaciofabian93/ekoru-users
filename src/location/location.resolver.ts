@@ -77,6 +77,25 @@ export class LocationResolver {
     );
   }
 
+  @Mutation(() => Country, {
+    name: 'updateCountry',
+    description: 'Update country data and translations. Platform admins only.',
+  })
+  updateCountry(
+    @Context() ctx: { adminId?: string },
+    @Args('countryId', { type: () => Int }) countryId: number,
+    @Args('input') input: CreateCountryInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.updateCountry(
+      ctx.adminId ?? '',
+      countryId,
+      input,
+      language,
+    );
+  }
+
   @Mutation(() => Region, {
     name: 'createRegion',
     description: 'Create a new region. Platform admins only.',
@@ -107,6 +126,25 @@ export class LocationResolver {
     return this.locationService.createCity(ctx.adminId ?? '', input, language);
   }
 
+  @Mutation(() => City, {
+    name: 'updateCity',
+    description: 'Update an existing city. Platform admins only.',
+  })
+  updateCity(
+    @Context() ctx: { adminId?: string },
+    @Args('cityId', { type: () => Int }) cityId: number,
+    @Args('input') input: CreateCityInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.updateCity(
+      ctx.adminId ?? '',
+      cityId,
+      input,
+      language,
+    );
+  }
+
   @Mutation(() => County, {
     name: 'createCounty',
     description: 'Create a new county. Platform admins only.',
@@ -120,6 +158,93 @@ export class LocationResolver {
     return this.locationService.createCounty(
       ctx.adminId ?? '',
       input,
+      language,
+    );
+  }
+
+  @Mutation(() => County, {
+    name: 'updateCounty',
+    description: 'Update an existing county. Platform admins only.',
+  })
+  updateCounty(
+    @Context() ctx: { adminId?: string },
+    @Args('countyId', { type: () => Int }) countyId: number,
+    @Args('input') input: CreateCountyInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.updateCounty(
+      ctx.adminId ?? '',
+      countyId,
+      input,
+      language,
+    );
+  }
+
+  @Mutation(() => Country, {
+    name: 'deleteCountry',
+    description:
+      'Delete a country and its translations. Fails if the country is still in use. Platform admins only.',
+  })
+  deleteCountry(
+    @Context() ctx: { adminId?: string },
+    @Args('countryId', { type: () => Int }) countryId: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.deleteCountry(
+      ctx.adminId ?? '',
+      countryId,
+      language,
+    );
+  }
+
+  @Mutation(() => Region, {
+    name: 'deleteRegion',
+    description:
+      'Delete a region. Fails if the region is still in use. Platform admins only.',
+  })
+  deleteRegion(
+    @Context() ctx: { adminId?: string },
+    @Args('regionId', { type: () => Int }) regionId: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.deleteRegion(
+      ctx.adminId ?? '',
+      regionId,
+      language,
+    );
+  }
+
+  @Mutation(() => City, {
+    name: 'deleteCity',
+    description:
+      'Delete a city. Fails if the city is still in use. Platform admins only.',
+  })
+  deleteCity(
+    @Context() ctx: { adminId?: string },
+    @Args('cityId', { type: () => Int }) cityId: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.deleteCity(ctx.adminId ?? '', cityId, language);
+  }
+
+  @Mutation(() => County, {
+    name: 'deleteCounty',
+    description:
+      'Delete a county. Fails if the county is still in use. Platform admins only.',
+  })
+  deleteCounty(
+    @Context() ctx: { adminId?: string },
+    @Args('countyId', { type: () => Int }) countyId: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.deleteCounty(
+      ctx.adminId ?? '',
+      countyId,
       language,
     );
   }

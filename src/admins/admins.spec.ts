@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   NotFoundError,
   BadRequestError,
+  UnAuthorizedError,
   InternalServerError,
 } from '../common/exceptions';
 import {
@@ -86,6 +87,28 @@ describe('AdminsService', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  // Caller used for management mutations: an active platform super admin.
+  const CALLER_ID = 'caller-1';
+  const platformManager = {
+    id: CALLER_ID,
+    adminType: AdminType.PLATFORM,
+    role: AdminRole.SUPER_ADMIN,
+    permissions: [],
+    isActive: true,
+  };
+
+  // Routes prisma.admin.findUnique calls: the guard looks up the caller by id,
+  // while the mutations look up a target by id or an email for uniqueness.
+  function mockLookups(opts: { target?: any; email?: any; caller?: any } = {}) {
+    const { target = null, email = null, caller = platformManager } = opts;
+    prisma.admin.findUnique.mockImplementation((args: any) => {
+      if (args.where?.id === CALLER_ID) return Promise.resolve(caller);
+      if (args.where?.email !== undefined) return Promise.resolve(email);
+      if (args.where?.id !== undefined) return Promise.resolve(target);
+      return Promise.resolve(null);
+    });
+  }
 
   // ─── getAdmins ────────────────────────────────────────────────────────────────
 
@@ -223,10 +246,14 @@ describe('AdminsService', () => {
     });
 
     it('should create admin successfully', async () => {
-      prisma.admin.findUnique.mockResolvedValue(null);
+      mockLookups({ email: null });
       prisma.admin.create.mockResolvedValue(mockAdmin);
 
-      const result = await service.createAdmin(mockRegisterInput, Language.ES);
+      const result = await service.createAdmin(
+        CALLER_ID,
+        mockRegisterInput,
+        Language.ES,
+      );
 
       expect(result).toEqual(mockAdmin);
       expect(prisma.admin.create).toHaveBeenCalledWith(
@@ -239,19 +266,85 @@ describe('AdminsService', () => {
       );
     });
 
-    it('should throw BadRequestError when email already exists', async () => {
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
+    it('should allow a platform admin holding MANAGE_ADMINS (not super admin)', async () => {
+      mockLookups({
+        email: null,
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [AdminPermission.MANAGE_ADMINS],
+          isActive: true,
+        },
+      });
+      prisma.admin.create.mockResolvedValue(mockAdmin);
+
+      const result = await service.createAdmin(
+        CALLER_ID,
+        mockRegisterInput,
+        Language.ES,
+      );
+
+      expect(result).toEqual(mockAdmin);
+    });
+
+    it('should throw UnAuthorizedError when caller lacks MANAGE_ADMINS', async () => {
+      mockLookups({
+        email: null,
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+          isActive: true,
+        },
+      });
 
       await expect(
-        service.createAdmin(mockRegisterInput, Language.ES),
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when caller is a business admin', async () => {
+      mockLookups({
+        email: null,
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.BUSINESS,
+          role: AdminRole.SUPER_ADMIN,
+          permissions: [AdminPermission.MANAGE_ADMINS],
+          isActive: true,
+        },
+      });
+
+      await expect(
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when callerId is empty', async () => {
+      await expect(
+        service.createAdmin('', mockRegisterInput, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestError when email already exists', async () => {
+      mockLookups({ email: mockAdmin });
+
+      await expect(
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.ES),
       ).rejects.toThrow(BadRequestError);
     });
 
     it('should throw BadRequestError when BUSINESS admin has no sellerId', async () => {
-      prisma.admin.findUnique.mockResolvedValue(null);
+      mockLookups({ email: null });
 
       await expect(
         service.createAdmin(
+          CALLER_ID,
           { ...mockRegisterInput, adminType: AdminType.BUSINESS },
           Language.ES,
         ),
@@ -259,22 +352,22 @@ describe('AdminsService', () => {
     });
 
     it('should throw InternalServerError on database error', async () => {
-      prisma.admin.findUnique.mockResolvedValue(null);
+      mockLookups({ email: null });
       prisma.admin.create.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.createAdmin(mockRegisterInput, Language.ES),
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.ES),
       ).rejects.toThrow(InternalServerError);
     });
 
     it('should use language-specific error message for email exists', async () => {
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
+      mockLookups({ email: mockAdmin });
 
       await expect(
-        service.createAdmin(mockRegisterInput, Language.EN),
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.EN),
       ).rejects.toThrow('An admin with this email already exists');
       await expect(
-        service.createAdmin(mockRegisterInput, Language.ES),
+        service.createAdmin(CALLER_ID, mockRegisterInput, Language.ES),
       ).rejects.toThrow('Ya existe un administrador con ese email');
     });
   });
@@ -284,10 +377,11 @@ describe('AdminsService', () => {
   describe('updateAdmin', () => {
     it('should update admin successfully', async () => {
       const updated = { ...mockAdmin, name: 'Updated' };
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
+      mockLookups({ target: mockAdmin });
       prisma.admin.update.mockResolvedValue(updated);
 
       const result = await service.updateAdmin(
+        CALLER_ID,
         'admin-123',
         mockUpdateInput,
         Language.ES,
@@ -299,22 +393,43 @@ describe('AdminsService', () => {
       );
     });
 
-    it('should throw NotFoundError when admin does not exist', async () => {
-      prisma.admin.findUnique.mockResolvedValue(null);
-
-      await expect(
-        service.updateAdmin('unknown', mockUpdateInput, Language.ES),
-      ).rejects.toThrow(NotFoundError);
-    });
-
-    it('should throw BadRequestError when changing to BUSINESS type without sellerId', async () => {
-      prisma.admin.findUnique.mockResolvedValue({
-        ...mockAdmin,
-        sellerId: null,
+    it('should throw UnAuthorizedError when caller lacks MANAGE_ADMINS', async () => {
+      mockLookups({
+        target: mockAdmin,
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+          isActive: true,
+        },
       });
 
       await expect(
         service.updateAdmin(
+          CALLER_ID,
+          'admin-123',
+          mockUpdateInput,
+          Language.ES,
+        ),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundError when admin does not exist', async () => {
+      mockLookups({ target: null });
+
+      await expect(
+        service.updateAdmin(CALLER_ID, 'unknown', mockUpdateInput, Language.ES),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('should throw BadRequestError when changing to BUSINESS type without sellerId', async () => {
+      mockLookups({ target: { ...mockAdmin, sellerId: null } });
+
+      await expect(
+        service.updateAdmin(
+          CALLER_ID,
           'admin-123',
           { adminType: AdminType.BUSINESS },
           Language.ES,
@@ -323,11 +438,16 @@ describe('AdminsService', () => {
     });
 
     it('should throw InternalServerError on database error', async () => {
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
+      mockLookups({ target: mockAdmin });
       prisma.admin.update.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.updateAdmin('admin-123', mockUpdateInput, Language.ES),
+        service.updateAdmin(
+          CALLER_ID,
+          'admin-123',
+          mockUpdateInput,
+          Language.ES,
+        ),
       ).rejects.toThrow(InternalServerError);
     });
   });
@@ -335,32 +455,67 @@ describe('AdminsService', () => {
   // ─── deleteAdmin ──────────────────────────────────────────────────────────────
 
   describe('deleteAdmin', () => {
-    it('should delete admin and return it', async () => {
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
-      prisma.admin.delete.mockResolvedValue(mockAdmin);
+    it('should soft delete (deactivate) the admin and keep the record', async () => {
+      const deactivated = { ...mockAdmin, isActive: false };
+      mockLookups({ target: mockAdmin });
+      prisma.admin.update.mockResolvedValue(deactivated);
 
-      const result = await service.deleteAdmin('admin-123', Language.ES);
+      const result = await service.deleteAdmin(
+        CALLER_ID,
+        'admin-123',
+        Language.ES,
+      );
 
-      expect(result).toEqual(mockAdmin);
-      expect(prisma.admin.delete).toHaveBeenCalledWith({
+      expect(result).toEqual(deactivated);
+      expect(prisma.admin.update).toHaveBeenCalledWith({
         where: { id: 'admin-123' },
+        data: { isActive: false },
+        select: expect.any(Object),
       });
+      expect(prisma.admin.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when caller lacks MANAGE_ADMINS', async () => {
+      mockLookups({
+        target: mockAdmin,
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+          isActive: true,
+        },
+      });
+
+      await expect(
+        service.deleteAdmin(CALLER_ID, 'admin-123', Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestError when deactivating own account', async () => {
+      mockLookups({ target: platformManager });
+
+      await expect(
+        service.deleteAdmin(CALLER_ID, CALLER_ID, Language.ES),
+      ).rejects.toThrow(BadRequestError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundError when admin does not exist', async () => {
-      prisma.admin.findUnique.mockResolvedValue(null);
+      mockLookups({ target: null });
 
-      await expect(service.deleteAdmin('unknown', Language.ES)).rejects.toThrow(
-        NotFoundError,
-      );
+      await expect(
+        service.deleteAdmin(CALLER_ID, 'unknown', Language.ES),
+      ).rejects.toThrow(NotFoundError);
     });
 
     it('should throw InternalServerError on database error', async () => {
-      prisma.admin.findUnique.mockResolvedValue(mockAdmin);
-      prisma.admin.delete.mockRejectedValue(new Error('Database error'));
+      mockLookups({ target: mockAdmin });
+      prisma.admin.update.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.deleteAdmin('admin-123', Language.ES),
+        service.deleteAdmin(CALLER_ID, 'admin-123', Language.ES),
       ).rejects.toThrow(InternalServerError);
     });
   });
@@ -370,9 +525,11 @@ describe('AdminsService', () => {
   describe('toggleAdminStatus', () => {
     it('should deactivate admin', async () => {
       const deactivated = { ...mockAdmin, isActive: false };
+      mockLookups({ target: { id: 'admin-123' } });
       prisma.admin.update.mockResolvedValue(deactivated);
 
       const result = await service.toggleAdminStatus(
+        CALLER_ID,
         'admin-123',
         false,
         Language.ES,
@@ -388,9 +545,11 @@ describe('AdminsService', () => {
 
     it('should activate admin', async () => {
       const activated = { ...mockAdmin, isActive: true };
+      mockLookups({ target: { id: 'admin-123' } });
       prisma.admin.update.mockResolvedValue(activated);
 
       const result = await service.toggleAdminStatus(
+        CALLER_ID,
         'admin-123',
         true,
         Language.EN,
@@ -399,11 +558,39 @@ describe('AdminsService', () => {
       expect(result).toEqual(activated);
     });
 
+    it('should throw BadRequestError when deactivating own account', async () => {
+      mockLookups({ target: platformManager });
+
+      await expect(
+        service.toggleAdminStatus(CALLER_ID, CALLER_ID, false, Language.ES),
+      ).rejects.toThrow(BadRequestError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw UnAuthorizedError when caller lacks MANAGE_ADMINS', async () => {
+      mockLookups({
+        target: { id: 'admin-123' },
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+          isActive: true,
+        },
+      });
+
+      await expect(
+        service.toggleAdminStatus(CALLER_ID, 'admin-123', false, Language.ES),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
+    });
+
     it('should throw InternalServerError on database error', async () => {
+      mockLookups({ target: { id: 'admin-123' } });
       prisma.admin.update.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.toggleAdminStatus('admin-123', false, Language.ES),
+        service.toggleAdminStatus(CALLER_ID, 'admin-123', false, Language.ES),
       ).rejects.toThrow(InternalServerError);
     });
   });
@@ -416,9 +603,11 @@ describe('AdminsService', () => {
         ...mockAdmin,
         permissions: [AdminPermission.APPROVE_PRODUCTS],
       };
+      mockLookups({ target: { id: 'admin-123' } });
       prisma.admin.update.mockResolvedValue(withPerms);
 
       const result = await service.assignPermissions(
+        CALLER_ID,
         'admin-123',
         [AdminPermission.APPROVE_PRODUCTS],
         Language.ES,
@@ -432,11 +621,49 @@ describe('AdminsService', () => {
       });
     });
 
+    it('should throw UnAuthorizedError when caller lacks MANAGE_ADMINS', async () => {
+      mockLookups({
+        target: { id: 'admin-123' },
+        caller: {
+          id: CALLER_ID,
+          adminType: AdminType.PLATFORM,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+          isActive: true,
+        },
+      });
+
+      await expect(
+        service.assignPermissions(
+          CALLER_ID,
+          'admin-123',
+          [AdminPermission.APPROVE_PRODUCTS],
+          Language.ES,
+        ),
+      ).rejects.toThrow(UnAuthorizedError);
+      expect(prisma.admin.update).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundError when admin does not exist', async () => {
+      mockLookups({ target: null });
+
+      await expect(
+        service.assignPermissions(
+          CALLER_ID,
+          'unknown',
+          [AdminPermission.APPROVE_PRODUCTS],
+          Language.ES,
+        ),
+      ).rejects.toThrow(NotFoundError);
+    });
+
     it('should throw InternalServerError on database error', async () => {
+      mockLookups({ target: { id: 'admin-123' } });
       prisma.admin.update.mockRejectedValue(new Error('Database error'));
 
       await expect(
         service.assignPermissions(
+          CALLER_ID,
           'admin-123',
           [AdminPermission.APPROVE_PRODUCTS],
           Language.ES,

@@ -1,6 +1,9 @@
 import { Language } from '../graphql/enums';
 
 export type AdminMessages = {
+  unauthorized: string;
+  forbiddenManageAdmins: string;
+  cannotDeactivateSelf: string;
   adminNotFound: string;
   emailAlreadyExists: string;
   businessIdRequired: string;
@@ -16,6 +19,10 @@ export type AdminMessages = {
 
 export const adminMessages: Record<Language, AdminMessages> = {
   [Language.ES]: {
+    unauthorized: 'No autorizado',
+    forbiddenManageAdmins:
+      'Solo los administradores de plataforma con el permiso MANAGE_ADMINS pueden gestionar administradores',
+    cannotDeactivateSelf: 'No puedes desactivar tu propia cuenta',
     adminNotFound: 'Administrador no encontrado',
     emailAlreadyExists: 'Ya existe un administrador con ese email',
     businessIdRequired:
@@ -30,6 +37,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     errorAssignPermissions: 'Error al asignar permisos',
   },
   [Language.EN]: {
+    unauthorized: 'Unauthorized',
+    forbiddenManageAdmins:
+      'Only platform admins with the MANAGE_ADMINS permission can manage admins',
+    cannotDeactivateSelf: 'You cannot deactivate your own account',
     adminNotFound: 'Admin not found',
     emailAlreadyExists: 'An admin with this email already exists',
     businessIdRequired: 'Business ID is required for business administrators',
@@ -43,6 +54,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     errorAssignPermissions: 'Error assigning permissions',
   },
   [Language.FR]: {
+    unauthorized: 'Non autorisé',
+    forbiddenManageAdmins:
+      'Seuls les administrateurs de plateforme disposant de la permission MANAGE_ADMINS peuvent gérer les administrateurs',
+    cannotDeactivateSelf: 'Vous ne pouvez pas désactiver votre propre compte',
     adminNotFound: 'Administrateur non trouvé',
     emailAlreadyExists: 'Un administrateur avec cet email existe déjà',
     businessIdRequired:
@@ -59,6 +74,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     errorAssignPermissions: "Erreur lors de l'attribution des permissions",
   },
   [Language.PT]: {
+    unauthorized: 'Não autorizado',
+    forbiddenManageAdmins:
+      'Apenas administradores de plataforma com a permissão MANAGE_ADMINS podem gerenciar administradores',
+    cannotDeactivateSelf: 'Você não pode desativar a sua própria conta',
     adminNotFound: 'Administrador não encontrado',
     emailAlreadyExists: 'Já existe um administrador com esse email',
     businessIdRequired:
@@ -73,6 +92,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     errorAssignPermissions: 'Erro ao atribuir permissões',
   },
   [Language.DE]: {
+    unauthorized: 'Nicht autorisiert',
+    forbiddenManageAdmins:
+      'Nur Plattform-Administratoren mit der Berechtigung MANAGE_ADMINS können Administratoren verwalten',
+    cannotDeactivateSelf: 'Sie können Ihr eigenes Konto nicht deaktivieren',
     adminNotFound: 'Administrator nicht gefunden',
     emailAlreadyExists: 'Ein Administrator mit dieser E-Mail existiert bereits',
     businessIdRequired:

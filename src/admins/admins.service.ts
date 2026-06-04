@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   NotFoundError,
   BadRequestError,
+  UnAuthorizedError,
   InternalServerError,
 } from '../common/exceptions';
 import {
@@ -13,7 +14,7 @@ import {
   Language,
 } from '../graphql/enums';
 import { RegisterAdminInput, UpdateAdminInput } from './dto';
-import { adminMessages } from './admins.i18n';
+import { adminMessages, AdminMessages } from './admins.i18n';
 
 const ADMIN_SELECT = {
   id: true,
@@ -152,9 +153,49 @@ export class AdminsService {
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
-  async createAdmin(input: RegisterAdminInput, language: Language) {
+  /**
+   * Ensures the calling admin is allowed to manage admins.
+   * Only active PLATFORM admins who are SUPER_ADMIN or hold the MANAGE_ADMINS
+   * permission may create, update or deactivate admins (of any type).
+   */
+  private async assertCanManageAdmins(callerId: string, t: AdminMessages) {
+    if (!callerId) {
+      throw new UnAuthorizedError(t.unauthorized);
+    }
+
+    const caller = await this.prisma.admin.findUnique({
+      where: { id: callerId },
+      select: {
+        adminType: true,
+        role: true,
+        permissions: true,
+        isActive: true,
+      },
+    });
+
+    const canManage =
+      !!caller &&
+      caller.isActive &&
+      (caller.adminType as AdminType) === AdminType.PLATFORM &&
+      ((caller.role as AdminRole) === AdminRole.SUPER_ADMIN ||
+        (caller.permissions as AdminPermission[]).includes(
+          AdminPermission.MANAGE_ADMINS,
+        ));
+
+    if (!canManage) {
+      throw new UnAuthorizedError(t.forbiddenManageAdmins);
+    }
+  }
+
+  async createAdmin(
+    callerId: string,
+    input: RegisterAdminInput,
+    language: Language,
+  ) {
     const t = adminMessages[language];
     try {
+      await this.assertCanManageAdmins(callerId, t);
+
       const existing = await this.prisma.admin.findUnique({
         where: { email: input.email.toLowerCase() },
       });
@@ -185,15 +226,26 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
-      if (error instanceof BadRequestError) throw error;
+      if (
+        error instanceof BadRequestError ||
+        error instanceof UnAuthorizedError
+      )
+        throw error;
       this.logger.error('Error creating admin:', error);
       throw new InternalServerError(t.errorCreateAdmin);
     }
   }
 
-  async updateAdmin(id: string, input: UpdateAdminInput, language: Language) {
+  async updateAdmin(
+    callerId: string,
+    id: string,
+    input: UpdateAdminInput,
+    language: Language,
+  ) {
     const t = adminMessages[language];
     try {
+      await this.assertCanManageAdmins(callerId, t);
+
       const existing = await this.prisma.admin.findUnique({ where: { id } });
 
       if (!existing) {
@@ -226,16 +278,27 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
-      if (error instanceof NotFoundError || error instanceof BadRequestError)
+      if (
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError ||
+        error instanceof UnAuthorizedError
+      )
         throw error;
       this.logger.error('Error updating admin:', error);
       throw new InternalServerError(t.errorUpdateAdmin);
     }
   }
 
-  async deleteAdmin(id: string, language: Language) {
+  /**
+   * Soft delete: deactivates the admin (isActive = false) but keeps the record
+   * so audit logs, foreign-key references and history stay intact. Re-enable
+   * with toggleAdminStatus. The caller cannot deactivate their own account.
+   */
+  async deleteAdmin(callerId: string, id: string, language: Language) {
     const t = adminMessages[language];
     try {
+      await this.assertCanManageAdmins(callerId, t);
+
       const existing = await this.prisma.admin.findUnique({
         where: { id },
         select: ADMIN_SELECT,
@@ -245,19 +308,52 @@ export class AdminsService {
         throw new NotFoundError(t.adminNotFound);
       }
 
-      await this.prisma.admin.delete({ where: { id } });
+      if (id === callerId) {
+        throw new BadRequestError(t.cannotDeactivateSelf);
+      }
 
-      return existing;
+      const admin = await this.prisma.admin.update({
+        where: { id },
+        data: { isActive: false },
+        select: ADMIN_SELECT,
+      });
+
+      return admin;
     } catch (error) {
-      if (error instanceof NotFoundError) throw error;
+      if (
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError ||
+        error instanceof UnAuthorizedError
+      )
+        throw error;
       this.logger.error('Error deleting admin:', error);
       throw new InternalServerError(t.errorDeleteAdmin);
     }
   }
 
-  async toggleAdminStatus(id: string, isActive: boolean, language: Language) {
+  async toggleAdminStatus(
+    callerId: string,
+    id: string,
+    isActive: boolean,
+    language: Language,
+  ) {
     const t = adminMessages[language];
     try {
+      await this.assertCanManageAdmins(callerId, t);
+
+      const existing = await this.prisma.admin.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        throw new NotFoundError(t.adminNotFound);
+      }
+
+      if (id === callerId && !isActive) {
+        throw new BadRequestError(t.cannotDeactivateSelf);
+      }
+
       const admin = await this.prisma.admin.update({
         where: { id },
         data: { isActive },
@@ -266,18 +362,36 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
+      if (
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError ||
+        error instanceof UnAuthorizedError
+      )
+        throw error;
       this.logger.error('Error toggling admin status:', error);
       throw new InternalServerError(t.errorToggleAdminStatus);
     }
   }
 
   async assignPermissions(
+    callerId: string,
     id: string,
     permissions: AdminPermission[],
     language: Language,
   ) {
     const t = adminMessages[language];
     try {
+      await this.assertCanManageAdmins(callerId, t);
+
+      const existing = await this.prisma.admin.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        throw new NotFoundError(t.adminNotFound);
+      }
+
       const admin = await this.prisma.admin.update({
         where: { id },
         data: { permissions },
@@ -286,6 +400,8 @@ export class AdminsService {
 
       return admin;
     } catch (error) {
+      if (error instanceof NotFoundError || error instanceof UnAuthorizedError)
+        throw error;
       this.logger.error('Error assigning permissions:', error);
       throw new InternalServerError(t.errorAssignPermissions);
     }

@@ -49,3 +49,13 @@ export class UserError extends GraphQLError {
     });
   }
 }
+
+export class ConflictError extends GraphQLError {
+  constructor(message: string) {
+    super(message, {
+      extensions: {
+        code: 'CONFLICT',
+      },
+    });
+  }
+}
