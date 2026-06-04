@@ -16,16 +16,34 @@ const mockPrisma = {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
   businessMembership: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
-  personMembershipTranslation: { upsert: jest.fn() },
-  businessMembershipTranslation: { upsert: jest.fn() },
-  personMembershipPricing: { upsert: jest.fn() },
-  businessMembershipPricing: { upsert: jest.fn() },
+  personMembershipTranslation: {
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
+  businessMembershipTranslation: {
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
+  personMembershipPricing: {
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
+  businessMembershipPricing: {
+    upsert: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
   personMembershipSubscription: { create: jest.fn() },
   businessMembershipSubscription: { create: jest.fn() },
   personProfile: { update: jest.fn() },
@@ -195,6 +213,187 @@ describe('SubscriptionService', () => {
       await expect(
         service.createPersonMembership(input, adminId, lang),
       ).rejects.toBeInstanceOf(InternalServerError);
+    });
+  });
+
+  describe('updatePersonMembership', () => {
+    const input = { durationMonths: 24, isActive: false };
+
+    it('updates only provided fields and returns mapped membership', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(
+        personMembershipRaw,
+      );
+      mockPrisma.personMembership.update.mockResolvedValue({
+        ...personMembershipRaw,
+        durationMonths: 24,
+        isActive: false,
+      });
+
+      const result = await service.updatePersonMembership(
+        1,
+        input,
+        adminId,
+        lang,
+      );
+
+      expect(result.durationMonths).toBe(24);
+      expect(mockPrisma.personMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { durationMonths: 24, isActive: false },
+        }),
+      );
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.updatePersonMembership(1, input, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+      expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when membership does not exist', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updatePersonMembership(99, input, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
+    });
+
+    it('throws InternalServerError on prisma failure', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(
+        personMembershipRaw,
+      );
+      mockPrisma.personMembership.update.mockRejectedValue(
+        new Error('db error'),
+      );
+
+      await expect(
+        service.updatePersonMembership(1, input, adminId, lang),
+      ).rejects.toBeInstanceOf(InternalServerError);
+    });
+  });
+
+  describe('deletePersonMembership', () => {
+    it('soft deletes by setting isActive=false and returns mapped membership', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(
+        personMembershipRaw,
+      );
+      mockPrisma.personMembership.update.mockResolvedValue({
+        ...personMembershipRaw,
+        isActive: false,
+      });
+
+      const result = await service.deletePersonMembership(1, adminId, lang);
+
+      expect(result.isActive).toBe(false);
+      expect(mockPrisma.personMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: { isActive: false },
+        }),
+      );
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.deletePersonMembership(1, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+    });
+
+    it('throws NotFoundError when membership does not exist', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deletePersonMembership(99, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deletePersonMembershipTranslation', () => {
+    it('deletes the translation by composite key and returns it', async () => {
+      const translation = { id: 10, personMembershipId: 1, language: lang };
+      mockPrisma.personMembershipTranslation.findUnique.mockResolvedValue(
+        translation,
+      );
+      mockPrisma.personMembershipTranslation.delete.mockResolvedValue(
+        translation,
+      );
+
+      const result = await service.deletePersonMembershipTranslation(
+        1,
+        lang,
+        adminId,
+        lang,
+      );
+
+      expect(result).toEqual(translation);
+      expect(
+        mockPrisma.personMembershipTranslation.delete,
+      ).toHaveBeenCalledWith({
+        where: {
+          personMembershipId_language: {
+            personMembershipId: 1,
+            language: lang,
+          },
+        },
+      });
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.deletePersonMembershipTranslation(1, lang, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+    });
+
+    it('throws NotFoundError when translation does not exist', async () => {
+      mockPrisma.personMembershipTranslation.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deletePersonMembershipTranslation(1, lang, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(
+        mockPrisma.personMembershipTranslation.delete,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deletePersonMembershipPricing', () => {
+    it('deletes the pricing by composite key and returns it', async () => {
+      const pricing = { id: 20, personMembershipId: 1, countryId: 1 };
+      mockPrisma.personMembershipPricing.findUnique.mockResolvedValue(pricing);
+      mockPrisma.personMembershipPricing.delete.mockResolvedValue(pricing);
+
+      const result = await service.deletePersonMembershipPricing(
+        1,
+        1,
+        adminId,
+        lang,
+      );
+
+      expect(result).toEqual(pricing);
+      expect(mockPrisma.personMembershipPricing.delete).toHaveBeenCalledWith({
+        where: {
+          personMembershipId_countryId: { personMembershipId: 1, countryId: 1 },
+        },
+      });
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.deletePersonMembershipPricing(1, 1, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+    });
+
+    it('throws NotFoundError when pricing does not exist', async () => {
+      mockPrisma.personMembershipPricing.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deletePersonMembershipPricing(1, 1, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(mockPrisma.personMembershipPricing.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -493,6 +692,169 @@ describe('SubscriptionService', () => {
       await expect(
         service.createBusinessMembership(input, adminId, lang),
       ).rejects.toBeInstanceOf(InternalServerError);
+    });
+  });
+
+  describe('updateBusinessMembership', () => {
+    const input = { durationMonths: 3, isActive: false };
+
+    it('updates only provided fields and returns mapped membership', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+      mockPrisma.businessMembership.update.mockResolvedValue({
+        ...businessMembershipRaw,
+        durationMonths: 3,
+        isActive: false,
+      });
+
+      const result = await service.updateBusinessMembership(
+        2,
+        input,
+        adminId,
+        lang,
+      );
+
+      expect(result.durationMonths).toBe(3);
+      expect(mockPrisma.businessMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 2 },
+          data: { durationMonths: 3, isActive: false },
+        }),
+      );
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.updateBusinessMembership(2, input, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+    });
+
+    it('throws NotFoundError when membership does not exist', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateBusinessMembership(99, input, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(mockPrisma.businessMembership.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteBusinessMembership', () => {
+    it('soft deletes by setting isActive=false and returns mapped membership', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+      mockPrisma.businessMembership.update.mockResolvedValue({
+        ...businessMembershipRaw,
+        isActive: false,
+      });
+
+      const result = await service.deleteBusinessMembership(2, adminId, lang);
+
+      expect(result.isActive).toBe(false);
+      expect(mockPrisma.businessMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 2 },
+          data: { isActive: false },
+        }),
+      );
+    });
+
+    it('throws NotFoundError when membership does not exist', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteBusinessMembership(99, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+
+  describe('deleteBusinessMembershipTranslation', () => {
+    it('deletes the translation by composite key and returns it', async () => {
+      const translation = { id: 11, businessMembershipId: 2, language: lang };
+      mockPrisma.businessMembershipTranslation.findUnique.mockResolvedValue(
+        translation,
+      );
+      mockPrisma.businessMembershipTranslation.delete.mockResolvedValue(
+        translation,
+      );
+
+      const result = await service.deleteBusinessMembershipTranslation(
+        2,
+        lang,
+        adminId,
+        lang,
+      );
+
+      expect(result).toEqual(translation);
+      expect(
+        mockPrisma.businessMembershipTranslation.delete,
+      ).toHaveBeenCalledWith({
+        where: {
+          businessMembershipId_language: {
+            businessMembershipId: 2,
+            language: lang,
+          },
+        },
+      });
+    });
+
+    it('throws NotFoundError when translation does not exist', async () => {
+      mockPrisma.businessMembershipTranslation.findUnique.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.deleteBusinessMembershipTranslation(2, lang, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(
+        mockPrisma.businessMembershipTranslation.delete,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteBusinessMembershipPricing', () => {
+    it('deletes the pricing by composite key and returns it', async () => {
+      const pricing = { id: 21, businessMembershipId: 2, countryId: 1 };
+      mockPrisma.businessMembershipPricing.findUnique.mockResolvedValue(
+        pricing,
+      );
+      mockPrisma.businessMembershipPricing.delete.mockResolvedValue(pricing);
+
+      const result = await service.deleteBusinessMembershipPricing(
+        2,
+        1,
+        adminId,
+        lang,
+      );
+
+      expect(result).toEqual(pricing);
+      expect(mockPrisma.businessMembershipPricing.delete).toHaveBeenCalledWith({
+        where: {
+          businessMembershipId_countryId: {
+            businessMembershipId: 2,
+            countryId: 1,
+          },
+        },
+      });
+    });
+
+    it('throws UnAuthorizedError when adminId is empty', async () => {
+      await expect(
+        service.deleteBusinessMembershipPricing(2, 1, '', lang),
+      ).rejects.toBeInstanceOf(UnAuthorizedError);
+    });
+
+    it('throws NotFoundError when pricing does not exist', async () => {
+      mockPrisma.businessMembershipPricing.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.deleteBusinessMembershipPricing(2, 1, adminId, lang),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(
+        mockPrisma.businessMembershipPricing.delete,
+      ).not.toHaveBeenCalled();
     });
   });
 
