@@ -268,18 +268,33 @@ model BusinessProfile {
 }
 
 model SellerLabel {
-  id                   Int                   @id @default(autoincrement())
-  labelName            String                @unique
+  id                   Int                        @id @default(autoincrement())
+  labelName            String                     @unique
   transactionKind      TransactionKind
   transactionsRequired Int
   description          String?
   badgeIcon            String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
   achievedBy           SellerAchievedLabel[]
+  translations         SellerLabelTranslation[]
 
   @@index([transactionKind])
   @@index([transactionsRequired])
+}
+
+model SellerLabelTranslation {
+  id            Int         @id @default(autoincrement())
+  sellerLabelId Int
+  language      Language
+  labelName     String
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  sellerLabel   SellerLabel @relation(fields: [sellerLabelId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerLabelId, language])
+  @@index([language])
 }
 
 model SellerAchievedLabel {
@@ -300,17 +315,31 @@ model SellerAchievedLabel {
 }
 
 model SellerLevel {
-  id        Int      @id @default(autoincrement())
-  levelName String   @unique
-  minPoints Int      @unique
-  maxPoints Int?
-  benefits  Json?
-  badgeIcon String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sellers   Seller[]
+  id           Int                        @id @default(autoincrement())
+  levelName    String                     @unique
+  minPoints    Int                        @unique
+  maxPoints    Int?
+  benefits     Json?
+  badgeIcon    String?
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  sellers      Seller[]
+  translations SellerLevelTranslation[]
 
   @@index([minPoints])
+}
+
+model SellerLevelTranslation {
+  id            Int         @id @default(autoincrement())
+  sellerLevelId Int
+  language      Language
+  levelName     String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  sellerLevel   SellerLevel @relation(fields: [sellerLevelId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerLevelId, language])
+  @@index([language])
 }
 
 model PointsByTransactionKind {
@@ -540,38 +569,38 @@ model CountryTranslation {
 }
 
 model Region {
-  id        Int      @id @default(autoincrement())
-  region    String
-  countryId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  admin     Admin[]
-  city      City[]
-  country   Country  @relation(fields: [countryId], references: [id])
-  seller    Seller[]
+  id              Int               @id @default(autoincrement())
+  region          String
+  countryId       Int
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  admin           Admin[]
+  city            City[]
+  country         Country           @relation(fields: [countryId], references: [id])
+  seller          Seller[]
 }
 
 model City {
-  id        Int      @id @default(autoincrement())
-  city      String
-  regionId  Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  admin     Admin[]
-  region    Region   @relation(fields: [regionId], references: [id])
-  county    County[]
-  seller    Seller[]
+  id              Int               @id @default(autoincrement())
+  city            String
+  regionId        Int
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  admin           Admin[]
+  region          Region            @relation(fields: [regionId], references: [id])
+  county          County[]
+  seller          Seller[]
 }
 
 model County {
-  id        Int      @id @default(autoincrement())
-  county    String
-  cityId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  admin     Admin[]
-  city      City     @relation(fields: [cityId], references: [id])
-  seller    Seller[]
+  id              Int               @id @default(autoincrement())
+  county          String
+  cityId          Int
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  admin           Admin[]
+  city            City              @relation(fields: [cityId], references: [id])
+  seller          Seller[]
 }
 
 model Notification {
@@ -597,15 +626,30 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id        Int              @id @default(autoincrement())
-  type      NotificationType @unique
-  title     String
-  message   String
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id           Int                               @id @default(autoincrement())
+  type         NotificationType                  @unique
+  title        String
+  message      String
+  isActive     Boolean                           @default(true)
+  createdAt    DateTime                          @default(now())
+  updatedAt    DateTime                          @updatedAt
+  translations NotificationTemplateTranslation[]
 
   @@index([type])
+}
+
+model NotificationTemplateTranslation {
+  id                     Int                  @id @default(autoincrement())
+  notificationTemplateId Int
+  language               Language
+  title                  String
+  message                String
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  notificationTemplate   NotificationTemplate @relation(fields: [notificationTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationTemplateId, language])
+  @@index([language])
 }
 
 model Match {
