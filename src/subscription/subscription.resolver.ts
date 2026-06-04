@@ -24,6 +24,8 @@ import {
 import {
   CreatePersonMembershipInput,
   CreateBusinessMembershipInput,
+  UpdatePersonMembershipInput,
+  UpdateBusinessMembershipInput,
   CreatePersonMembershipSubscriptionInput,
   CreateBusinessMembershipSubscriptionInput,
   UpsertPersonMembershipTranslationInput,
@@ -172,6 +174,140 @@ export class SubscriptionResolver {
   ) {
     return this.subscriptionService.upsertBusinessMembershipPricing(
       input,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => PersonMembership)
+  updatePersonMembership(
+    @Args('id', { type: () => Int }) id: number,
+    @Args('input') input: UpdatePersonMembershipInput,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.updatePersonMembership(
+      id,
+      input,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => BusinessMembership)
+  updateBusinessMembership(
+    @Args('id', { type: () => Int }) id: number,
+    @Args('input') input: UpdateBusinessMembershipInput,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.updateBusinessMembership(
+      id,
+      input,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => PersonMembership, {
+    description:
+      'Soft delete (deactivate) a person membership plan. Keeps the record and existing subscriptions.',
+  })
+  deletePersonMembership(
+    @Args('id', { type: () => Int }) id: number,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deletePersonMembership(
+      id,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => BusinessMembership, {
+    description:
+      'Soft delete (deactivate) a business membership plan. Keeps the record and existing subscriptions.',
+  })
+  deleteBusinessMembership(
+    @Args('id', { type: () => Int }) id: number,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deleteBusinessMembership(
+      id,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => PersonMembershipTranslation)
+  deletePersonMembershipTranslation(
+    @Args('personMembershipId', { type: () => Int }) personMembershipId: number,
+    @Args('translationLanguage', { type: () => Language })
+    translationLanguage: Language,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deletePersonMembershipTranslation(
+      personMembershipId,
+      translationLanguage,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => BusinessMembershipTranslation)
+  deleteBusinessMembershipTranslation(
+    @Args('businessMembershipId', { type: () => Int })
+    businessMembershipId: number,
+    @Args('translationLanguage', { type: () => Language })
+    translationLanguage: Language,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deleteBusinessMembershipTranslation(
+      businessMembershipId,
+      translationLanguage,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => PersonMembershipPricing)
+  deletePersonMembershipPricing(
+    @Args('personMembershipId', { type: () => Int }) personMembershipId: number,
+    @Args('countryId', { type: () => Int }) countryId: number,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deletePersonMembershipPricing(
+      personMembershipId,
+      countryId,
+      ctx.adminId ?? '',
+      language,
+    );
+  }
+
+  @Mutation(() => BusinessMembershipPricing)
+  deleteBusinessMembershipPricing(
+    @Args('businessMembershipId', { type: () => Int })
+    businessMembershipId: number,
+    @Args('countryId', { type: () => Int }) countryId: number,
+    @Context() ctx: { adminId?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.deleteBusinessMembershipPricing(
+      businessMembershipId,
+      countryId,
       ctx.adminId ?? '',
       language,
     );

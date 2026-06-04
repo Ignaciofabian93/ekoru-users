@@ -10,6 +10,8 @@ import { subscriptionMessages } from './subscription.i18n';
 import {
   CreatePersonMembershipInput,
   CreateBusinessMembershipInput,
+  UpdatePersonMembershipInput,
+  UpdateBusinessMembershipInput,
   CreatePersonMembershipSubscriptionInput,
   CreateBusinessMembershipSubscriptionInput,
   UpsertPersonMembershipTranslationInput,
@@ -120,6 +122,84 @@ export class SubscriptionService {
     }
   }
 
+  async updatePersonMembership(
+    id: number,
+    input: UpdatePersonMembershipInput,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.personMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundError(t.membershipNotFound);
+
+      const membership = await this.prisma.personMembership.update({
+        where: { id },
+        data: {
+          ...(input.membershipType !== undefined && {
+            membershipType: input.membershipType,
+          }),
+          ...(input.durationMonths !== undefined && {
+            durationMonths: input.durationMonths,
+          }),
+          ...(input.isActive !== undefined && { isActive: input.isActive }),
+        },
+        include: this.personMembershipInclude(language),
+      });
+      return this.mapPersonMembership(membership);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorUpdateMembership, error);
+      throw new InternalServerError(t.errorUpdateMembership);
+    }
+  }
+
+  /**
+   * Soft delete: deactivates the plan (isActive = false) instead of removing it,
+   * so existing subscriptions and history stay intact. Deactivated plans are
+   * excluded from the public listings; reactivate via updatePersonMembership.
+   */
+  async deletePersonMembership(
+    id: number,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.personMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundError(t.membershipNotFound);
+
+      const membership = await this.prisma.personMembership.update({
+        where: { id },
+        data: { isActive: false },
+        include: this.personMembershipInclude(language),
+      });
+      return this.mapPersonMembership(membership);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeleteMembership, error);
+      throw new InternalServerError(t.errorDeleteMembership);
+    }
+  }
+
   async upsertPersonMembershipTranslation(
     input: UpsertPersonMembershipTranslationInput,
     adminId: string,
@@ -147,6 +227,48 @@ export class SubscriptionService {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorUpsertTranslation, error);
       throw new InternalServerError(t.errorUpsertTranslation);
+    }
+  }
+
+  async deletePersonMembershipTranslation(
+    personMembershipId: number,
+    translationLanguage: Language,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.personMembershipTranslation.findUnique(
+        {
+          where: {
+            personMembershipId_language: {
+              personMembershipId,
+              language: translationLanguage,
+            },
+          },
+        },
+      );
+      if (!existing) throw new NotFoundError(t.translationNotFound);
+
+      return await this.prisma.personMembershipTranslation.delete({
+        where: {
+          personMembershipId_language: {
+            personMembershipId,
+            language: translationLanguage,
+          },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeleteTranslation, error);
+      throw new InternalServerError(t.errorDeleteTranslation);
     }
   }
 
@@ -182,6 +304,40 @@ export class SubscriptionService {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorUpsertPricing, error);
       throw new InternalServerError(t.errorUpsertPricing);
+    }
+  }
+
+  async deletePersonMembershipPricing(
+    personMembershipId: number,
+    countryId: number,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.personMembershipPricing.findUnique({
+        where: {
+          personMembershipId_countryId: { personMembershipId, countryId },
+        },
+      });
+      if (!existing) throw new NotFoundError(t.pricingNotFound);
+
+      return await this.prisma.personMembershipPricing.delete({
+        where: {
+          personMembershipId_countryId: { personMembershipId, countryId },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeletePricing, error);
+      throw new InternalServerError(t.errorDeletePricing);
     }
   }
 
@@ -293,6 +449,84 @@ export class SubscriptionService {
     }
   }
 
+  async updateBusinessMembership(
+    id: number,
+    input: UpdateBusinessMembershipInput,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.businessMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundError(t.membershipNotFound);
+
+      const membership = await this.prisma.businessMembership.update({
+        where: { id },
+        data: {
+          ...(input.membershipType !== undefined && {
+            membershipType: input.membershipType,
+          }),
+          ...(input.durationMonths !== undefined && {
+            durationMonths: input.durationMonths,
+          }),
+          ...(input.isActive !== undefined && { isActive: input.isActive }),
+        },
+        include: this.businessMembershipInclude(language),
+      });
+      return this.mapBusinessMembership(membership);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorUpdateMembership, error);
+      throw new InternalServerError(t.errorUpdateMembership);
+    }
+  }
+
+  /**
+   * Soft delete: deactivates the plan (isActive = false) instead of removing it,
+   * so existing subscriptions and history stay intact. Deactivated plans are
+   * excluded from the public listings; reactivate via updateBusinessMembership.
+   */
+  async deleteBusinessMembership(
+    id: number,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.businessMembership.findUnique({
+        where: { id },
+      });
+      if (!existing) throw new NotFoundError(t.membershipNotFound);
+
+      const membership = await this.prisma.businessMembership.update({
+        where: { id },
+        data: { isActive: false },
+        include: this.businessMembershipInclude(language),
+      });
+      return this.mapBusinessMembership(membership);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeleteMembership, error);
+      throw new InternalServerError(t.errorDeleteMembership);
+    }
+  }
+
   async upsertBusinessMembershipTranslation(
     input: UpsertBusinessMembershipTranslationInput,
     adminId: string,
@@ -320,6 +554,47 @@ export class SubscriptionService {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorUpsertTranslation, error);
       throw new InternalServerError(t.errorUpsertTranslation);
+    }
+  }
+
+  async deleteBusinessMembershipTranslation(
+    businessMembershipId: number,
+    translationLanguage: Language,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing =
+        await this.prisma.businessMembershipTranslation.findUnique({
+          where: {
+            businessMembershipId_language: {
+              businessMembershipId,
+              language: translationLanguage,
+            },
+          },
+        });
+      if (!existing) throw new NotFoundError(t.translationNotFound);
+
+      return await this.prisma.businessMembershipTranslation.delete({
+        where: {
+          businessMembershipId_language: {
+            businessMembershipId,
+            language: translationLanguage,
+          },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeleteTranslation, error);
+      throw new InternalServerError(t.errorDeleteTranslation);
     }
   }
 
@@ -355,6 +630,40 @@ export class SubscriptionService {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorUpsertPricing, error);
       throw new InternalServerError(t.errorUpsertPricing);
+    }
+  }
+
+  async deleteBusinessMembershipPricing(
+    businessMembershipId: number,
+    countryId: number,
+    adminId: string,
+    language: Language,
+  ) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+
+      const existing = await this.prisma.businessMembershipPricing.findUnique({
+        where: {
+          businessMembershipId_countryId: { businessMembershipId, countryId },
+        },
+      });
+      if (!existing) throw new NotFoundError(t.pricingNotFound);
+
+      return await this.prisma.businessMembershipPricing.delete({
+        where: {
+          businessMembershipId_countryId: { businessMembershipId, countryId },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error(t.errorDeletePricing, error);
+      throw new InternalServerError(t.errorDeletePricing);
     }
   }
 

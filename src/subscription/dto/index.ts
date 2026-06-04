@@ -1,6 +1,10 @@
 export { CreatePersonMembershipInput } from './create-person-membership.input';
 export { CreateBusinessMembershipInput } from './create-business-membership.input';
 export {
+  UpdatePersonMembershipInput,
+  UpdateBusinessMembershipInput,
+} from './update-membership.input';
+export {
   CreatePersonMembershipSubscriptionInput,
   CreateBusinessMembershipSubscriptionInput,
 } from './create-membership-subscription.input';

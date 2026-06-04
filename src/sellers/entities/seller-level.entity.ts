@@ -1,5 +1,6 @@
 import { ObjectType, Field, Int } from '@nestjs/graphql';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
+import { SellerLevelTranslation } from './seller-level-translation.entity';
 
 @ObjectType()
 export class SellerLevel {
@@ -26,4 +27,7 @@ export class SellerLevel {
 
   @Field(() => DateTimeScalar, { nullable: true })
   updatedAt?: Date;
+
+  @Field(() => [SellerLevelTranslation], { nullable: true })
+  translations?: SellerLevelTranslation[];
 }

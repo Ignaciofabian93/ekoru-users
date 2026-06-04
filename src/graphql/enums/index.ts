@@ -91,6 +91,22 @@ export enum BusinessType {
 }
 
 // ============================
+// Gamification
+// ============================
+export enum TransactionKind {
+  PURCHASE = 'PURCHASE',
+  SELL = 'SELL',
+  STOREPURCHASE = 'STOREPURCHASE',
+  EXCHANGE = 'EXCHANGE',
+  RECYCLE = 'RECYCLE',
+  REPAIR = 'REPAIR',
+  ATTENDTOWORKSHOP = 'ATTENDTOWORKSHOP',
+  ATTENDTOEVENT = 'ATTENDTOEVENT',
+  REGISTRATION = 'REGISTRATION',
+  BONUS = 'BONUS',
+}
+
+// ============================
 // Communication & Notifications
 // ============================
 export enum ContactMethod {
@@ -143,6 +159,12 @@ registerEnumType(SellerType, {
 registerEnumType(BusinessType, {
   name: 'BusinessType',
   description: 'Business type (Retail, Services, Mixed)',
+});
+
+// Gamification
+registerEnumType(TransactionKind, {
+  name: 'TransactionKind',
+  description: 'Kinds of transactions that can award points or labels',
 });
 
 // Communication & Notifications
