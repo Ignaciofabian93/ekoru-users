@@ -11,6 +11,7 @@ import {
 import { SellersService } from './sellers.service';
 import {
   Seller,
+  SellerConnection,
   SellerLevel,
   PersonProfile,
   BusinessProfile,
@@ -39,7 +40,10 @@ export class SellersResolver {
   }
 
   // Queries
-  @Query(() => [Seller], { name: 'sellers' })
+  @Query(() => SellerConnection, {
+    name: 'sellers',
+    description: 'Get a paginated list of sellers',
+  })
   async getSellers(
     @CurrentSeller() sellerId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
@@ -48,8 +52,9 @@ export class SellersResolver {
     sellerType?: SellerType,
     @Args('isActive', { nullable: true }) isActive?: boolean,
     @Args('isVerified', { nullable: true }) isVerified?: boolean,
-    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
-    @Args('offset', { type: () => Int, nullable: true }) offset?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
   ) {
     return this.sellersService.getSellers(
       sellerId,
@@ -57,8 +62,8 @@ export class SellersResolver {
       sellerType,
       isActive,
       isVerified,
-      limit,
-      offset,
+      page,
+      pageSize,
     );
   }
 

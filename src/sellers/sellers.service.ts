@@ -17,6 +17,10 @@ import {
 } from './dto';
 import { Language, SellerType } from '../graphql/enums';
 import { sellerMessages } from './sellers.i18n';
+import {
+  calculatePrismaParams,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 @Injectable()
 export class SellersService {
@@ -70,8 +74,8 @@ export class SellersService {
     sellerType?: SellerType,
     isActive?: boolean,
     isVerified?: boolean,
-    limit?: number,
-    offset?: number,
+    page: number = 1,
+    pageSize: number = 10,
   ) {
     const t = sellerMessages[language];
     try {
@@ -84,18 +88,25 @@ export class SellersService {
       if (isActive !== undefined) where.isActive = isActive;
       if (isVerified !== undefined) where.isVerified = isVerified;
 
-      const sellers = await this.prisma.seller.findMany({
-        where,
-        include: this.getSellerInclude(language),
-        orderBy: { createdAt: 'desc' },
-        take: limit || undefined,
-        skip: offset || undefined,
-      });
+      const { skip, take } = calculatePrismaParams(page, pageSize);
 
-      return sellers.map((seller) => ({
+      const [count, sellers] = await Promise.all([
+        this.prisma.seller.count({ where }),
+        this.prisma.seller.findMany({
+          where,
+          include: this.getSellerInclude(language),
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take,
+        }),
+      ]);
+
+      const nodes = sellers.map((seller) => ({
         ...seller,
         country: this.mapCountry(seller.country),
       }));
+
+      return createPaginatedResponse(nodes, count, page, pageSize);
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorGetSellers, error);

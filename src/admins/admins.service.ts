@@ -15,6 +15,10 @@ import {
 } from '../graphql/enums';
 import { RegisterAdminInput, UpdateAdminInput } from './dto';
 import { adminMessages, AdminMessages } from './admins.i18n';
+import {
+  calculatePrismaParams,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 const ADMIN_SELECT = {
   id: true,
@@ -38,20 +42,6 @@ const ADMIN_SELECT = {
   countyId: true,
   regionId: true,
 } as const;
-
-function buildPageInfo(total: number, page: number, pageSize: number) {
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  return {
-    hasNextPage: page < totalPages,
-    hasPreviousPage: page > 1,
-    startCursor: null,
-    endCursor: null,
-    totalCount: total,
-    totalPages,
-    currentPage: page,
-    pageSize,
-  };
-}
 
 @Injectable()
 export class AdminsService {
@@ -77,7 +67,7 @@ export class AdminsService {
         ...(isActive !== undefined && { isActive }),
       };
 
-      const skip = (page - 1) * pageSize;
+      const { skip, take } = calculatePrismaParams(page, pageSize);
 
       const [count, admins] = await Promise.all([
         this.prisma.admin.count({ where }),
@@ -86,14 +76,11 @@ export class AdminsService {
           select: ADMIN_SELECT,
           orderBy: { createdAt: 'desc' },
           skip,
-          take: pageSize,
+          take,
         }),
       ]);
 
-      return {
-        nodes: admins,
-        pageInfo: buildPageInfo(count, page, pageSize),
-      };
+      return createPaginatedResponse(admins, count, page, pageSize);
     } catch (error) {
       this.logger.error('Error fetching admins:', error);
       throw new InternalServerError(t.errorGetAdmins);
