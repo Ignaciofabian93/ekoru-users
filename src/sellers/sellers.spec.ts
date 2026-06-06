@@ -55,6 +55,7 @@ describe('SellersService', () => {
       seller: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -110,19 +111,23 @@ describe('SellersService', () => {
   });
 
   describe('getSellers', () => {
-    it('should return all sellers successfully', async () => {
+    it('should return a paginated list of sellers successfully', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
+      prisma.seller.count.mockResolvedValue(1);
 
       const result = await service.getSellers('seller-123', Language.ES);
 
-      expect(result).toEqual(sellers);
+      expect(result.nodes).toEqual(sellers);
+      expect(result.pageInfo.totalCount).toBe(1);
+      expect(result.pageInfo.currentPage).toBe(1);
+      expect(result.pageInfo.pageSize).toBe(10);
       expect(prisma.seller.findMany).toHaveBeenCalledWith({
         where: {},
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
-        take: undefined,
-        skip: undefined,
+        take: 10,
+        skip: 0,
       });
     });
 
@@ -171,7 +176,7 @@ describe('SellersService', () => {
       );
     });
 
-    it('should apply limit and offset', async () => {
+    it('should apply page and pageSize', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
@@ -181,13 +186,13 @@ describe('SellersService', () => {
         undefined,
         undefined,
         undefined,
-        10,
+        2,
         5,
       );
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          take: 10,
+          take: 5,
           skip: 5,
         }),
       );

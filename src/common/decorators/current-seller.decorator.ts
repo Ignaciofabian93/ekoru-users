@@ -9,6 +9,7 @@ interface RequestWithHeaders {
 
 interface JWTPayload {
   sellerId: string;
+  adminId: string;
   iat?: number;
   exp?: number;
 }
@@ -55,6 +56,34 @@ export const CurrentSeller = createParamDecorator(
     }
 
     logger.debug('No sellerId found in headers or JWT token');
+    return undefined;
+  },
+);
+
+export const CurrentAdmin = createParamDecorator(
+  (data: unknown, context: ExecutionContext) => {
+    const ctx = GqlExecutionContext.create(context);
+    const request = ctx.getContext<{ req: RequestWithHeaders }>().req;
+
+    // Try to get from x-admin-id header first (if set by gateway)
+    const adminIdFromHeader = request.headers['x-admin-id'];
+    if (adminIdFromHeader) {
+      return adminIdFromHeader;
+    }
+
+    // Otherwise, decode from JWT token
+    const authHeader = request.headers['authorization'];
+    if (authHeader && typeof authHeader === 'string') {
+      const token = authHeader.replace('Bearer ', '');
+      const payload = decodeJWT(token);
+
+      if (payload?.adminId) {
+        logger.debug(`Extracted adminId from JWT: ${payload.adminId}`);
+        return payload.adminId;
+      }
+    }
+
+    logger.debug('No adminId found in headers or JWT token');
     return undefined;
   },
 );
