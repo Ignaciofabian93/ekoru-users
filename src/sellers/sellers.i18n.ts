@@ -14,6 +14,14 @@ export type SellerMessages = {
   errorUpdatePersonProfile: string;
   errorUpdateBusinessProfile: string;
   errorUpdatePreferences: string;
+  sellerNotFound: string;
+  forbidden: string;
+  errorVerifySeller: string;
+  errorBanSeller: string;
+  errorReinstateSeller: string;
+  sellerAlreadyBanned: string;
+  sellerNotBanned: string;
+  sellerHasPendingObligations: string;
 };
 
 export const sellerMessages: Record<Language, SellerMessages> = {
@@ -31,6 +39,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     errorUpdatePersonProfile: 'Error al actualizar perfil de persona',
     errorUpdateBusinessProfile: 'Error al actualizar perfil de tienda',
     errorUpdatePreferences: 'Error al actualizar preferencias',
+    sellerNotFound: 'Usuario no encontrado',
+    forbidden: 'No tienes permisos para realizar esta acción',
+    errorVerifySeller: 'Error al verificar usuario',
+    errorBanSeller: 'Error al bloquear usuario',
+    errorReinstateSeller: 'Error al reactivar usuario',
+    sellerAlreadyBanned: 'El usuario ya está bloqueado',
+    sellerNotBanned: 'El usuario no tiene un bloqueo activo',
+    sellerHasPendingObligations:
+      'No se puede bloquear: el usuario tiene operaciones pendientes (pedidos, pagos, reembolsos, cotizaciones, reservas o intercambios). Resuélvelas antes de bloquear.',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
@@ -46,6 +63,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     errorUpdatePersonProfile: 'Error updating person profile',
     errorUpdateBusinessProfile: 'Error updating business profile',
     errorUpdatePreferences: 'Error updating preferences',
+    sellerNotFound: 'Seller not found',
+    forbidden: 'You do not have permission to perform this action',
+    errorVerifySeller: 'Error verifying seller',
+    errorBanSeller: 'Error banning seller',
+    errorReinstateSeller: 'Error reinstating seller',
+    sellerAlreadyBanned: 'The seller is already banned',
+    sellerNotBanned: 'The seller does not have an active ban',
+    sellerHasPendingObligations:
+      'Cannot ban: the seller has pending activity (orders, payments, refunds, quotations, bookings or exchanges). Resolve them before banning.',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
@@ -64,6 +90,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     errorUpdateBusinessProfile:
       "Erreur lors de la mise à jour du profil d'entreprise",
     errorUpdatePreferences: 'Erreur lors de la mise à jour des préférences',
+    sellerNotFound: 'Vendeur introuvable',
+    forbidden: "Vous n'avez pas la permission d'effectuer cette action",
+    errorVerifySeller: 'Erreur lors de la vérification du vendeur',
+    errorBanSeller: 'Erreur lors du bannissement du vendeur',
+    errorReinstateSeller: 'Erreur lors de la réintégration du vendeur',
+    sellerAlreadyBanned: 'Le vendeur est déjà banni',
+    sellerNotBanned: "Le vendeur n'a pas de bannissement actif",
+    sellerHasPendingObligations:
+      'Bannissement impossible : le vendeur a des activités en cours (commandes, paiements, remboursements, devis, réservations ou échanges). Résolvez-les avant de bannir.',
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
@@ -79,6 +114,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     errorUpdatePersonProfile: 'Erro ao atualizar perfil pessoal',
     errorUpdateBusinessProfile: 'Erro ao atualizar perfil de negócio',
     errorUpdatePreferences: 'Erro ao atualizar preferências',
+    sellerNotFound: 'Vendedor não encontrado',
+    forbidden: 'Você não tem permissão para realizar esta ação',
+    errorVerifySeller: 'Erro ao verificar vendedor',
+    errorBanSeller: 'Erro ao banir vendedor',
+    errorReinstateSeller: 'Erro ao reativar vendedor',
+    sellerAlreadyBanned: 'O vendedor já está banido',
+    sellerNotBanned: 'O vendedor não tem um banimento ativo',
+    sellerHasPendingObligations:
+      'Não é possível banir: o vendedor tem atividades pendentes (pedidos, pagamentos, reembolsos, orçamentos, reservas ou trocas). Resolva-as antes de banir.',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
@@ -96,5 +140,14 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     errorUpdateBusinessProfile:
       'Fehler beim Aktualisieren des Geschäftsprofils',
     errorUpdatePreferences: 'Fehler beim Aktualisieren der Einstellungen',
+    sellerNotFound: 'Verkäufer nicht gefunden',
+    forbidden: 'Sie haben keine Berechtigung, diese Aktion auszuführen',
+    errorVerifySeller: 'Fehler beim Verifizieren des Verkäufers',
+    errorBanSeller: 'Fehler beim Sperren des Verkäufers',
+    errorReinstateSeller: 'Fehler beim Reaktivieren des Verkäufers',
+    sellerAlreadyBanned: 'Der Verkäufer ist bereits gesperrt',
+    sellerNotBanned: 'Der Verkäufer hat keine aktive Sperre',
+    sellerHasPendingObligations:
+      'Sperren nicht möglich: Der Verkäufer hat offene Vorgänge (Bestellungen, Zahlungen, Rückerstattungen, Angebote, Buchungen oder Tauschgeschäfte). Lösen Sie diese vor dem Sperren.',
   },
 };

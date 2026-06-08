@@ -52,20 +52,28 @@ export class AdminsService {
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
   async getAdmins(
+    adminId: string,
     language: Language,
     adminType?: AdminType,
     role?: AdminRole,
     isActive?: boolean,
     page: number = 1,
     pageSize: number = 10,
+    searchQuery?: string,
   ) {
     const t = adminMessages[language];
     try {
-      const where = {
-        ...(adminType && { adminType }),
-        ...(role && { role }),
-        ...(isActive !== undefined && { isActive }),
-      };
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where: Record<string, any> = {};
+      if (adminType) where.adminType = adminType;
+      if (role) where.role = role;
+      if (isActive !== undefined) where.isActive = isActive;
+      if (searchQuery) {
+        where.OR = [{ email: { contains: searchQuery, mode: 'insensitive' } }];
+      }
 
       const { skip, take } = calculatePrismaParams(page, pageSize);
 

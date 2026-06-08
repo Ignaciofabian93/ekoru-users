@@ -90,6 +90,20 @@ export enum BusinessType {
   MIXED = 'MIXED',
 }
 
+export enum BanReason {
+  FRAUD = 'FRAUD',
+  SCAM = 'SCAM',
+  PAYMENT_ABUSE = 'PAYMENT_ABUSE',
+  COUNTERFEIT = 'COUNTERFEIT',
+  PROHIBITED_ITEMS = 'PROHIBITED_ITEMS',
+  HARASSMENT = 'HARASSMENT',
+  SPAM = 'SPAM',
+  MULTIPLE_ACCOUNTS = 'MULTIPLE_ACCOUNTS',
+  POLICY_VIOLATION = 'POLICY_VIOLATION',
+  CHARGEBACK_ABUSE = 'CHARGEBACK_ABUSE',
+  OTHER = 'OTHER',
+}
+
 // ============================
 // Gamification
 // ============================
@@ -159,6 +173,11 @@ registerEnumType(SellerType, {
 registerEnumType(BusinessType, {
   name: 'BusinessType',
   description: 'Business type (Retail, Services, Mixed)',
+});
+
+registerEnumType(BanReason, {
+  name: 'BanReason',
+  description: 'Categorised reason a seller account was banned',
 });
 
 // Gamification

@@ -117,7 +117,7 @@ describe('AdminsService', () => {
       prisma.admin.count.mockResolvedValue(1);
       prisma.admin.findMany.mockResolvedValue([mockAdmin]);
 
-      const result = await service.getAdmins(Language.ES);
+      const result = await service.getAdmins(CALLER_ID, Language.ES);
 
       expect(result.nodes).toEqual([mockAdmin]);
       expect(result.pageInfo.totalCount).toBe(1);
@@ -129,6 +129,7 @@ describe('AdminsService', () => {
       prisma.admin.findMany.mockResolvedValue([]);
 
       await service.getAdmins(
+        CALLER_ID,
         Language.EN,
         AdminType.PLATFORM,
         AdminRole.SUPER_ADMIN,
@@ -153,7 +154,7 @@ describe('AdminsService', () => {
     it('should throw InternalServerError on database error', async () => {
       prisma.admin.count.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.getAdmins(Language.ES)).rejects.toThrow(
+      await expect(service.getAdmins(CALLER_ID, Language.ES)).rejects.toThrow(
         InternalServerError,
       );
     });

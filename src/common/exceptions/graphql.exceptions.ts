@@ -21,10 +21,11 @@ export class UnAuthorizedError extends GraphQLError {
 }
 
 export class BadRequestError extends GraphQLError {
-  constructor(message: string) {
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message, {
       extensions: {
         code: 'BAD_REQUEST',
+        ...(details ? { details } : {}),
       },
     });
   }
