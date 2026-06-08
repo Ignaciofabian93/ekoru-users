@@ -7,7 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { BanReason } from '../../graphql/enums';
-import { JSONScalar } from '../../graphql/scalars';
+import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 
 @InputType()
 export class BanSellerInput {
@@ -27,7 +27,7 @@ export class BanSellerInput {
   notes?: string;
 
   // null / omitted = permanent ban.
-  @Field(() => Date, { nullable: true })
+  @Field(() => DateTimeScalar, { nullable: true })
   @IsDate()
   @IsOptional()
   expiresAt?: Date;
