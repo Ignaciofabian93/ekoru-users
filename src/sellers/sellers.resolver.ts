@@ -24,9 +24,10 @@ import {
   UpdatePersonProfileInput,
   UpdateBusinessProfileInput,
   UpdateSellerPreferencesInput,
+  BanSellerInput,
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
-import { CurrentSeller } from '../common/decorators';
+import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language, SellerType } from '../graphql/enums';
 
 @Resolver(() => Seller)
@@ -41,11 +42,11 @@ export class SellersResolver {
 
   // Queries
   @Query(() => SellerConnection, {
-    name: 'sellers',
+    name: 'getSellers',
     description: 'Get a paginated list of sellers',
   })
   async getSellers(
-    @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
     @Args('sellerType', { type: () => String, nullable: true })
@@ -55,19 +56,21 @@ export class SellersResolver {
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
     @Args('pageSize', { type: () => Int, defaultValue: 10 })
     pageSize: number = 10,
+    @Args('searchQuery', { nullable: true }) searchQuery?: string,
   ) {
     return this.sellersService.getSellers(
-      sellerId,
+      adminId,
       language,
       sellerType,
       isActive,
       isVerified,
       page,
       pageSize,
+      searchQuery,
     );
   }
 
-  @Query(() => Seller, { name: 'seller', nullable: true })
+  @Query(() => Seller, { name: 'getSeller', nullable: true })
   async getSeller(
     @Args('id') id: string,
     @CurrentSeller() sellerId: string,
@@ -163,6 +166,58 @@ export class SellersResolver {
       sellerId,
       input,
       language,
+    );
+  }
+
+  @Mutation(() => Seller, {
+    name: 'verifySeller',
+    description:
+      "Toggle a seller's verified status after admin review. Requires MANAGE_USERS.",
+  })
+  async verifySeller(
+    @CurrentAdmin() adminId: string,
+    @Args('id') id: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.verifySeller(adminId, id, language);
+  }
+
+  @Mutation(() => Seller, {
+    name: 'banSeller',
+    description:
+      'Ban a seller. Hard-blocked if the seller still has open orders, payments, ' +
+      'refunds, quotations, bookings or exchanges. Deactivates and unverifies the ' +
+      'account and records a ban history row. Requires BAN_USERS.',
+  })
+  async banSeller(
+    @CurrentAdmin() adminId: string,
+    @Args('id') id: string,
+    @Args('input') input: BanSellerInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.banSeller(adminId, id, input, language);
+  }
+
+  @Mutation(() => Seller, {
+    name: 'reinstateSeller',
+    description:
+      "Lift a seller's active ban and reactivate the account. Verification is not " +
+      'restored automatically. Requires BAN_USERS.',
+  })
+  async reinstateSeller(
+    @CurrentAdmin() adminId: string,
+    @Args('id') id: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('unbanReason', { nullable: true }) unbanReason?: string,
+  ) {
+    return this.sellersService.reinstateSeller(
+      adminId,
+      id,
+      language,
+      unbanReason,
     );
   }
 

@@ -45,6 +45,20 @@ enum BusinessType {
   MIXED
 }
 
+enum BanReason {
+  FRAUD
+  SCAM
+  PAYMENT_ABUSE
+  COUNTERFEIT
+  PROHIBITED_ITEMS
+  HARASSMENT
+  SPAM
+  MULTIPLE_ACCOUNTS
+  POLICY_VIOLATION
+  CHARGEBACK_ABUSE
+  OTHER
+}
+
 enum TransactionKind {
   PURCHASE
   SELL
@@ -185,6 +199,7 @@ model Seller {
   sellerPreferences                                SellerPreferences?
   personMembershipSubscription                     PersonMembershipSubscription[]
   businessMembershipSubscription                   BusinessMembershipSubscription[]
+  bans                                             BannedSeller[]
 
   @@index([cityId])
   @@index([email])
@@ -265,6 +280,33 @@ model BusinessProfile {
   @@index([businessType])
   @@index([businessMembershipSubscriptionId])
   @@index([sellerId])
+}
+
+model BannedSeller {
+  id           String    @id @default(uuid())
+  sellerId     String
+  reasonCode   BanReason  @default(OTHER)
+  reason       String // Human-written explanation shown in moderation tooling
+  notes        String? // Internal-only admin notes
+  evidence     Json? // Links / screenshots / snapshot of obligations at ban time
+  bannedById   String // Admin who issued the ban
+  bannedAt     DateTime  @default(now())
+  expiresAt    DateTime? // null = permanent ban
+  isActive     Boolean   @default(true) // true = currently enforced
+  unbannedAt   DateTime?
+  unbannedById String? // Admin who lifted the ban
+  unbanReason  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  seller       Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  bannedBy     Admin     @relation("BansIssued", fields: [bannedById], references: [id])
+  unbannedBy   Admin?    @relation("BansLifted", fields: [unbannedById], references: [id])
+
+  @@index([sellerId])
+  @@index([sellerId, isActive])
+  @@index([isActive])
+  @@index([bannedById])
+  @@index([expiresAt])
 }
 
 model SellerLabel {
@@ -515,6 +557,8 @@ model Admin {
   region           Region?            @relation(fields: [regionId], references: [id])
   seller           Seller?            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   adminActivityLog     AdminActivityLog[]
+  bansIssued           BannedSeller[]     @relation("BansIssued")
+  bansLifted           BannedSeller[]     @relation("BansLifted")
 
   @@index([email])
   @@index([sellerId])

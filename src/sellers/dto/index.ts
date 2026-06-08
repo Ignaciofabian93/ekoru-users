@@ -4,3 +4,4 @@ export * from './update-seller.input';
 export * from './update-person-profile.input';
 export * from './update-business-profile.input';
 export * from './update-seller-preferences.input';
+export * from './ban-seller.input';

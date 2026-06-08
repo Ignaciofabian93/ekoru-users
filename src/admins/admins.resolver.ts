@@ -16,6 +16,7 @@ import {
   AdminPermission,
   Language,
 } from '../graphql/enums';
+import { CurrentAdmin } from '../common/decorators';
 
 @Resolver(() => Admin)
 export class AdminsResolver {
@@ -28,6 +29,7 @@ export class AdminsResolver {
     description: 'Get a paginated list of admins',
   })
   async getAdmins(
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
     @Args('adminType', { type: () => AdminType, nullable: true })
@@ -38,14 +40,17 @@ export class AdminsResolver {
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
     @Args('pageSize', { type: () => Int, defaultValue: 10 })
     pageSize: number = 10,
+    @Args('searchQuery', { nullable: true }) searchQuery?: string,
   ) {
     return this.adminsService.getAdmins(
+      adminId,
       language,
       adminType,
       role,
       isActive,
       page,
       pageSize,
+      searchQuery,
     );
   }
 
