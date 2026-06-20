@@ -1,4 +1,4 @@
-import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import { DateTimeScalar } from '../../graphql/scalars';
 import { PersonMembership } from './person-membership.entity';
 
@@ -7,7 +7,7 @@ export class PersonMembershipSubscription {
   @Field(() => Int)
   id: number;
 
-  @Field()
+  @Field(() => ID)
   sellerId: string;
 
   @Field(() => Int)

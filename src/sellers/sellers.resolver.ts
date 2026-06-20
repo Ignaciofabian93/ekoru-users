@@ -3,6 +3,7 @@ import {
   Query,
   Mutation,
   Args,
+  ID,
   Int,
   ResolveField,
   Parent,
@@ -58,7 +59,7 @@ export class SellersResolver {
     pageSize: number = 10,
     @Args('searchQuery', { nullable: true }) searchQuery?: string,
   ) {
-    return this.sellersService.getSellers(
+    return this.sellersService.getSellers({
       adminId,
       language,
       sellerType,
@@ -67,26 +68,33 @@ export class SellersResolver {
       page,
       pageSize,
       searchQuery,
-    );
+    });
   }
 
   @Query(() => Seller, { name: 'getSeller', nullable: true })
   async getSeller(
-    @Args('id') id: string,
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.getSellerById(id, sellerId, language);
+    return this.sellersService.getSellerById({
+      id,
+      sellerId,
+      language,
+      adminId,
+    });
   }
 
   @Query(() => Seller, { name: 'me', nullable: true })
   async getMe(
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.getMe(sellerId, language);
+    return this.sellersService.getMe({ sellerId, language, adminId });
   }
 
   @Query(() => [SellerLevel], { name: 'sellerLevels' })
@@ -99,11 +107,11 @@ export class SellersResolver {
 
   @Query(() => SellerLevel, { name: 'sellerLevel', nullable: true })
   async getSellerLevel(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.getSellerLevel(id, language);
+    return this.sellersService.getSellerLevel({ id, language });
   }
 
   // Mutations
@@ -113,7 +121,7 @@ export class SellersResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.registerPerson(input, language);
+    return this.sellersService.registerPerson({ input, language });
   }
 
   @Mutation(() => Seller)
@@ -122,51 +130,71 @@ export class SellersResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.registerBusiness(input, language);
+    return this.sellersService.registerBusiness({ input, language });
   }
 
   @Mutation(() => Seller)
   async updateSeller(
-    @Args('input') input: UpdateSellerInput,
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
+    @Args('input') input: UpdateSellerInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.updateSeller(sellerId, input, language);
+    return this.sellersService.updateSeller({
+      sellerId,
+      adminId,
+      input,
+      language,
+    });
   }
 
   @Mutation(() => PersonProfile)
   async updatePersonProfile(
-    @Args('input') input: UpdatePersonProfileInput,
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
+    @Args('input') input: UpdatePersonProfileInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.updatePersonProfile(sellerId, input, language);
+    return this.sellersService.updatePersonProfile({
+      sellerId,
+      adminId,
+      input,
+      language,
+    });
   }
 
   @Mutation(() => BusinessProfile)
   async updateBusinessProfile(
-    @Args('input') input: UpdateBusinessProfileInput,
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
+    @Args('input') input: UpdateBusinessProfileInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.updateBusinessProfile(sellerId, input, language);
+    return this.sellersService.updateBusinessProfile({
+      sellerId,
+      adminId,
+      input,
+      language,
+    });
   }
 
   @Mutation(() => SellerPreferences)
   async updateSellerPreferences(
-    @Args('input') input: UpdateSellerPreferencesInput,
     @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
+    @Args('input') input: UpdateSellerPreferencesInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.updateSellerPreferences(
+    return this.sellersService.updateSellerPreferences({
       sellerId,
+      adminId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => Seller, {
@@ -176,11 +204,11 @@ export class SellersResolver {
   })
   async verifySeller(
     @CurrentAdmin() adminId: string,
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.verifySeller(adminId, id, language);
+    return this.sellersService.verifySeller({ adminId, id, language });
   }
 
   @Mutation(() => Seller, {
@@ -192,12 +220,12 @@ export class SellersResolver {
   })
   async banSeller(
     @CurrentAdmin() adminId: string,
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('input') input: BanSellerInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.sellersService.banSeller(adminId, id, input, language);
+    return this.sellersService.banSeller({ adminId, id, input, language });
   }
 
   @Mutation(() => Seller, {
@@ -208,17 +236,17 @@ export class SellersResolver {
   })
   async reinstateSeller(
     @CurrentAdmin() adminId: string,
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
     @Args('unbanReason', { nullable: true }) unbanReason?: string,
   ) {
-    return this.sellersService.reinstateSeller(
+    return this.sellersService.reinstateSeller({
       adminId,
       id,
       language,
       unbanReason,
-    );
+    });
   }
 
   // Field resolvers

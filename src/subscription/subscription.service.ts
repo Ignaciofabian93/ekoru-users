@@ -26,7 +26,13 @@ export class SubscriptionService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private personMembershipInclude(language: Language, countryId?: number) {
+  private personMembershipInclude({
+    language,
+    countryId,
+  }: {
+    language: Language;
+    countryId?: number;
+  }) {
     return {
       translations: { where: { language } },
       pricing: countryId
@@ -35,7 +41,13 @@ export class SubscriptionService {
     };
   }
 
-  private businessMembershipInclude(language: Language, countryId?: number) {
+  private businessMembershipInclude({
+    language,
+    countryId,
+  }: {
+    language: Language;
+    countryId?: number;
+  }) {
     return {
       translations: { where: { language } },
       pricing: countryId
@@ -64,12 +76,18 @@ export class SubscriptionService {
 
   // ─── Person Memberships ───────────────────────────────────────────────────────
 
-  async getPersonMemberships(language: Language, countryId?: number) {
+  async getPersonMemberships({
+    language,
+    countryId,
+  }: {
+    language: Language;
+    countryId?: number;
+  }) {
     const t = subscriptionMessages[language];
     try {
       const memberships = await this.prisma.personMembership.findMany({
         where: { isActive: true },
-        include: this.personMembershipInclude(language, countryId),
+        include: this.personMembershipInclude({ language, countryId }),
         orderBy: { membershipType: 'asc' },
       });
       return memberships.map(this.mapPersonMembership);
@@ -79,16 +97,20 @@ export class SubscriptionService {
     }
   }
 
-  async getPersonMembershipById(
-    id: number,
-    language: Language,
-    countryId?: number,
-  ) {
+  async getPersonMembershipById({
+    id,
+    language,
+    countryId,
+  }: {
+    id: number;
+    language: Language;
+    countryId?: number;
+  }) {
     const t = subscriptionMessages[language];
     try {
       const membership = await this.prisma.personMembership.findUnique({
         where: { id },
-        include: this.personMembershipInclude(language, countryId),
+        include: this.personMembershipInclude({ language, countryId }),
       });
       if (!membership) throw new NotFoundError(t.membershipNotFound);
       return this.mapPersonMembership(membership);
@@ -99,11 +121,15 @@ export class SubscriptionService {
     }
   }
 
-  async createPersonMembership(
-    input: CreatePersonMembershipInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async createPersonMembership({
+    input,
+    adminId,
+    language,
+  }: {
+    input: CreatePersonMembershipInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -112,7 +138,7 @@ export class SubscriptionService {
           membershipType: input.membershipType,
           durationMonths: input.durationMonths,
         },
-        include: this.personMembershipInclude(language),
+        include: this.personMembershipInclude({ language }),
       });
       return this.mapPersonMembership(membership);
     } catch (error) {
@@ -122,12 +148,17 @@ export class SubscriptionService {
     }
   }
 
-  async updatePersonMembership(
-    id: number,
-    input: UpdatePersonMembershipInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async updatePersonMembership({
+    id,
+    input,
+    adminId,
+    language,
+  }: {
+    id: number;
+    input: UpdatePersonMembershipInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -148,7 +179,7 @@ export class SubscriptionService {
           }),
           ...(input.isActive !== undefined && { isActive: input.isActive }),
         },
-        include: this.personMembershipInclude(language),
+        include: this.personMembershipInclude({ language }),
       });
       return this.mapPersonMembership(membership);
     } catch (error) {
@@ -168,11 +199,15 @@ export class SubscriptionService {
    * so existing subscriptions and history stay intact. Deactivated plans are
    * excluded from the public listings; reactivate via updatePersonMembership.
    */
-  async deletePersonMembership(
-    id: number,
-    adminId: string,
-    language: Language,
-  ) {
+  async deletePersonMembership({
+    id,
+    adminId,
+    language,
+  }: {
+    id: number;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -185,7 +220,7 @@ export class SubscriptionService {
       const membership = await this.prisma.personMembership.update({
         where: { id },
         data: { isActive: false },
-        include: this.personMembershipInclude(language),
+        include: this.personMembershipInclude({ language }),
       });
       return this.mapPersonMembership(membership);
     } catch (error) {
@@ -200,11 +235,15 @@ export class SubscriptionService {
     }
   }
 
-  async upsertPersonMembershipTranslation(
-    input: UpsertPersonMembershipTranslationInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async upsertPersonMembershipTranslation({
+    input,
+    adminId,
+    language,
+  }: {
+    input: UpsertPersonMembershipTranslationInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -230,12 +269,17 @@ export class SubscriptionService {
     }
   }
 
-  async deletePersonMembershipTranslation(
-    personMembershipId: number,
-    translationLanguage: Language,
-    adminId: string,
-    language: Language,
-  ) {
+  async deletePersonMembershipTranslation({
+    personMembershipId,
+    translationLanguage,
+    adminId,
+    language,
+  }: {
+    personMembershipId: number;
+    translationLanguage: Language;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -272,11 +316,15 @@ export class SubscriptionService {
     }
   }
 
-  async upsertPersonMembershipPricing(
-    input: UpsertPersonMembershipPricingInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async upsertPersonMembershipPricing({
+    input,
+    adminId,
+    language,
+  }: {
+    input: UpsertPersonMembershipPricingInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -307,12 +355,17 @@ export class SubscriptionService {
     }
   }
 
-  async deletePersonMembershipPricing(
-    personMembershipId: number,
-    countryId: number,
-    adminId: string,
-    language: Language,
-  ) {
+  async deletePersonMembershipPricing({
+    personMembershipId,
+    countryId,
+    adminId,
+    language,
+  }: {
+    personMembershipId: number;
+    countryId: number;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -341,11 +394,15 @@ export class SubscriptionService {
     }
   }
 
-  async assignPersonMembership(
-    sellerId: string,
-    input: CreatePersonMembershipSubscriptionInput,
-    language: Language,
-  ) {
+  async assignPersonMembership({
+    sellerId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    input: CreatePersonMembershipSubscriptionInput;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!sellerId) throw new UnAuthorizedError(t.unauthorized);
@@ -391,12 +448,18 @@ export class SubscriptionService {
 
   // ─── Business Memberships ─────────────────────────────────────────────────────
 
-  async getBusinessMemberships(language: Language, countryId?: number) {
+  async getBusinessMemberships({
+    language,
+    countryId,
+  }: {
+    language: Language;
+    countryId?: number;
+  }) {
     const t = subscriptionMessages[language];
     try {
       const memberships = await this.prisma.businessMembership.findMany({
         where: { isActive: true },
-        include: this.businessMembershipInclude(language, countryId),
+        include: this.businessMembershipInclude({ language, countryId }),
         orderBy: { membershipType: 'asc' },
       });
       return memberships.map(this.mapBusinessMembership);
@@ -406,16 +469,20 @@ export class SubscriptionService {
     }
   }
 
-  async getBusinessMembershipById(
-    id: number,
-    language: Language,
-    countryId?: number,
-  ) {
+  async getBusinessMembershipById({
+    id,
+    language,
+    countryId,
+  }: {
+    id: number;
+    language: Language;
+    countryId?: number;
+  }) {
     const t = subscriptionMessages[language];
     try {
       const membership = await this.prisma.businessMembership.findUnique({
         where: { id },
-        include: this.businessMembershipInclude(language, countryId),
+        include: this.businessMembershipInclude({ language, countryId }),
       });
       if (!membership) throw new NotFoundError(t.membershipNotFound);
       return this.mapBusinessMembership(membership);
@@ -426,11 +493,15 @@ export class SubscriptionService {
     }
   }
 
-  async createBusinessMembership(
-    input: CreateBusinessMembershipInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async createBusinessMembership({
+    input,
+    adminId,
+    language,
+  }: {
+    input: CreateBusinessMembershipInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -439,7 +510,7 @@ export class SubscriptionService {
           membershipType: input.membershipType,
           durationMonths: input.durationMonths,
         },
-        include: this.businessMembershipInclude(language),
+        include: this.businessMembershipInclude({ language }),
       });
       return this.mapBusinessMembership(membership);
     } catch (error) {
@@ -449,12 +520,17 @@ export class SubscriptionService {
     }
   }
 
-  async updateBusinessMembership(
-    id: number,
-    input: UpdateBusinessMembershipInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async updateBusinessMembership({
+    id,
+    input,
+    adminId,
+    language,
+  }: {
+    id: number;
+    input: UpdateBusinessMembershipInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -475,7 +551,7 @@ export class SubscriptionService {
           }),
           ...(input.isActive !== undefined && { isActive: input.isActive }),
         },
-        include: this.businessMembershipInclude(language),
+        include: this.businessMembershipInclude({ language }),
       });
       return this.mapBusinessMembership(membership);
     } catch (error) {
@@ -495,11 +571,15 @@ export class SubscriptionService {
    * so existing subscriptions and history stay intact. Deactivated plans are
    * excluded from the public listings; reactivate via updateBusinessMembership.
    */
-  async deleteBusinessMembership(
-    id: number,
-    adminId: string,
-    language: Language,
-  ) {
+  async deleteBusinessMembership({
+    id,
+    adminId,
+    language,
+  }: {
+    id: number;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -512,7 +592,7 @@ export class SubscriptionService {
       const membership = await this.prisma.businessMembership.update({
         where: { id },
         data: { isActive: false },
-        include: this.businessMembershipInclude(language),
+        include: this.businessMembershipInclude({ language }),
       });
       return this.mapBusinessMembership(membership);
     } catch (error) {
@@ -527,11 +607,15 @@ export class SubscriptionService {
     }
   }
 
-  async upsertBusinessMembershipTranslation(
-    input: UpsertBusinessMembershipTranslationInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async upsertBusinessMembershipTranslation({
+    input,
+    adminId,
+    language,
+  }: {
+    input: UpsertBusinessMembershipTranslationInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -557,12 +641,17 @@ export class SubscriptionService {
     }
   }
 
-  async deleteBusinessMembershipTranslation(
-    businessMembershipId: number,
-    translationLanguage: Language,
-    adminId: string,
-    language: Language,
-  ) {
+  async deleteBusinessMembershipTranslation({
+    businessMembershipId,
+    translationLanguage,
+    adminId,
+    language,
+  }: {
+    businessMembershipId: number;
+    translationLanguage: Language;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -598,11 +687,15 @@ export class SubscriptionService {
     }
   }
 
-  async upsertBusinessMembershipPricing(
-    input: UpsertBusinessMembershipPricingInput,
-    adminId: string,
-    language: Language,
-  ) {
+  async upsertBusinessMembershipPricing({
+    input,
+    adminId,
+    language,
+  }: {
+    input: UpsertBusinessMembershipPricingInput;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -633,12 +726,17 @@ export class SubscriptionService {
     }
   }
 
-  async deleteBusinessMembershipPricing(
-    businessMembershipId: number,
-    countryId: number,
-    adminId: string,
-    language: Language,
-  ) {
+  async deleteBusinessMembershipPricing({
+    businessMembershipId,
+    countryId,
+    adminId,
+    language,
+  }: {
+    businessMembershipId: number;
+    countryId: number;
+    adminId: string;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!adminId) throw new UnAuthorizedError(t.unauthorized);
@@ -667,11 +765,15 @@ export class SubscriptionService {
     }
   }
 
-  async assignBusinessMembership(
-    sellerId: string,
-    input: CreateBusinessMembershipSubscriptionInput,
-    language: Language,
-  ) {
+  async assignBusinessMembership({
+    sellerId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    input: CreateBusinessMembershipSubscriptionInput;
+    language: Language;
+  }) {
     const t = subscriptionMessages[language];
     try {
       if (!sellerId) throw new UnAuthorizedError(t.unauthorized);

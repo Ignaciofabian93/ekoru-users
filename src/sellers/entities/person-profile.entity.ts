@@ -7,7 +7,7 @@ export class PersonProfile {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => ID)
   sellerId: string;
 
   @Field()

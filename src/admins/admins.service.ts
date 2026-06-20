@@ -51,16 +51,25 @@ export class AdminsService {
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
 
-  async getAdmins(
-    adminId: string,
-    language: Language,
-    adminType?: AdminType,
-    role?: AdminRole,
-    isActive?: boolean,
-    page: number = 1,
-    pageSize: number = 10,
-    searchQuery?: string,
-  ) {
+  async getAdmins({
+    adminId,
+    language,
+    adminType,
+    role,
+    isActive,
+    page = 1,
+    pageSize = 10,
+    searchQuery,
+  }: {
+    adminId: string;
+    language: Language;
+    adminType?: AdminType;
+    role?: AdminRole;
+    isActive?: boolean;
+    page?: number;
+    pageSize?: number;
+    searchQuery?: string;
+  }) {
     const t = adminMessages[language];
     try {
       if (!adminId) {
@@ -95,7 +104,7 @@ export class AdminsService {
     }
   }
 
-  async getAdmin(id: string, language: Language) {
+  async getAdmin({ id, language }: { id: string; language: Language }) {
     const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.findUnique({
@@ -115,7 +124,13 @@ export class AdminsService {
     }
   }
 
-  async getMyData(adminId: string, language: Language) {
+  async getMyData({
+    adminId,
+    language,
+  }: {
+    adminId: string;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
       const admin = await this.prisma.admin.findUnique({
@@ -153,7 +168,13 @@ export class AdminsService {
    * Only active PLATFORM admins who are SUPER_ADMIN or hold the MANAGE_ADMINS
    * permission may create, update or deactivate admins (of any type).
    */
-  private async assertCanManageAdmins(callerId: string, t: AdminMessages) {
+  private async assertCanManageAdmins({
+    callerId,
+    t,
+  }: {
+    callerId: string;
+    t: AdminMessages;
+  }) {
     if (!callerId) {
       throw new UnAuthorizedError(t.unauthorized);
     }
@@ -182,14 +203,18 @@ export class AdminsService {
     }
   }
 
-  async createAdmin(
-    callerId: string,
-    input: RegisterAdminInput,
-    language: Language,
-  ) {
+  async createAdmin({
+    callerId,
+    input,
+    language,
+  }: {
+    callerId: string;
+    input: RegisterAdminInput;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
-      await this.assertCanManageAdmins(callerId, t);
+      await this.assertCanManageAdmins({ callerId, t });
 
       const existing = await this.prisma.admin.findUnique({
         where: { email: input.email.toLowerCase() },
@@ -231,15 +256,20 @@ export class AdminsService {
     }
   }
 
-  async updateAdmin(
-    callerId: string,
-    id: string,
-    input: UpdateAdminInput,
-    language: Language,
-  ) {
+  async updateAdmin({
+    callerId,
+    id,
+    input,
+    language,
+  }: {
+    callerId: string;
+    id: string;
+    input: UpdateAdminInput;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
-      await this.assertCanManageAdmins(callerId, t);
+      await this.assertCanManageAdmins({ callerId, t });
 
       const existing = await this.prisma.admin.findUnique({ where: { id } });
 
@@ -289,10 +319,18 @@ export class AdminsService {
    * so audit logs, foreign-key references and history stay intact. Re-enable
    * with toggleAdminStatus. The caller cannot deactivate their own account.
    */
-  async deleteAdmin(callerId: string, id: string, language: Language) {
+  async deleteAdmin({
+    callerId,
+    id,
+    language,
+  }: {
+    callerId: string;
+    id: string;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
-      await this.assertCanManageAdmins(callerId, t);
+      await this.assertCanManageAdmins({ callerId, t });
 
       const existing = await this.prisma.admin.findUnique({
         where: { id },
@@ -326,15 +364,20 @@ export class AdminsService {
     }
   }
 
-  async toggleAdminStatus(
-    callerId: string,
-    id: string,
-    isActive: boolean,
-    language: Language,
-  ) {
+  async toggleAdminStatus({
+    callerId,
+    id,
+    isActive,
+    language,
+  }: {
+    callerId: string;
+    id: string;
+    isActive: boolean;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
-      await this.assertCanManageAdmins(callerId, t);
+      await this.assertCanManageAdmins({ callerId, t });
 
       const existing = await this.prisma.admin.findUnique({
         where: { id },
@@ -368,15 +411,20 @@ export class AdminsService {
     }
   }
 
-  async assignPermissions(
-    callerId: string,
-    id: string,
-    permissions: AdminPermission[],
-    language: Language,
-  ) {
+  async assignPermissions({
+    callerId,
+    id,
+    permissions,
+    language,
+  }: {
+    callerId: string;
+    id: string;
+    permissions: AdminPermission[];
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
-      await this.assertCanManageAdmins(callerId, t);
+      await this.assertCanManageAdmins({ callerId, t });
 
       const existing = await this.prisma.admin.findUnique({
         where: { id },

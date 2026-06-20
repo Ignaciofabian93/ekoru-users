@@ -6,7 +6,6 @@ import {
   Int,
   ResolveField,
   Parent,
-  Context,
 } from '@nestjs/graphql';
 import { SubscriptionService } from './subscription.service';
 import { PersonMembershipLoader } from './loaders/person-membership.loader';
@@ -35,7 +34,7 @@ import {
 } from './dto';
 import { PersonProfile } from '../sellers/entities/person-profile.entity';
 import { BusinessProfile } from '../sellers/entities/business-profile.entity';
-import { CurrentSeller } from '../common/decorators';
+import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language } from '../graphql/enums';
 
 // ─── Membership Queries & Mutations ──────────────────────────────────────────
@@ -50,7 +49,10 @@ export class SubscriptionResolver {
     language: Language,
     @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
   ) {
-    return this.subscriptionService.getPersonMemberships(language, countryId);
+    return this.subscriptionService.getPersonMemberships({
+      language,
+      countryId,
+    });
   }
 
   @Query(() => PersonMembership, { name: 'personMembership', nullable: true })
@@ -60,11 +62,11 @@ export class SubscriptionResolver {
     language: Language,
     @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
   ) {
-    return this.subscriptionService.getPersonMembershipById(
+    return this.subscriptionService.getPersonMembershipById({
       id,
       language,
       countryId,
-    );
+    });
   }
 
   @Query(() => [BusinessMembership], { name: 'businessMemberships' })
@@ -73,7 +75,10 @@ export class SubscriptionResolver {
     language: Language,
     @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
   ) {
-    return this.subscriptionService.getBusinessMemberships(language, countryId);
+    return this.subscriptionService.getBusinessMemberships({
+      language,
+      countryId,
+    });
   }
 
   @Query(() => BusinessMembership, {
@@ -86,11 +91,11 @@ export class SubscriptionResolver {
     language: Language,
     @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
   ) {
-    return this.subscriptionService.getBusinessMembershipById(
+    return this.subscriptionService.getBusinessMembershipById({
       id,
       language,
       countryId,
-    );
+    });
   }
 
   // ─── Admin Mutations ─────────────────────────────────────────────────────────
@@ -98,117 +103,117 @@ export class SubscriptionResolver {
   @Mutation(() => PersonMembership)
   createPersonMembership(
     @Args('input') input: CreatePersonMembershipInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.createPersonMembership(
+    return this.subscriptionService.createPersonMembership({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembership)
   createBusinessMembership(
     @Args('input') input: CreateBusinessMembershipInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.createBusinessMembership(
+    return this.subscriptionService.createBusinessMembership({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembershipTranslation)
   upsertPersonMembershipTranslation(
     @Args('input') input: UpsertPersonMembershipTranslationInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.upsertPersonMembershipTranslation(
+    return this.subscriptionService.upsertPersonMembershipTranslation({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembershipTranslation)
   upsertBusinessMembershipTranslation(
     @Args('input') input: UpsertBusinessMembershipTranslationInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.upsertBusinessMembershipTranslation(
+    return this.subscriptionService.upsertBusinessMembershipTranslation({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembershipPricing)
   upsertPersonMembershipPricing(
     @Args('input') input: UpsertPersonMembershipPricingInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.upsertPersonMembershipPricing(
+    return this.subscriptionService.upsertPersonMembershipPricing({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembershipPricing)
   upsertBusinessMembershipPricing(
     @Args('input') input: UpsertBusinessMembershipPricingInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.upsertBusinessMembershipPricing(
+    return this.subscriptionService.upsertBusinessMembershipPricing({
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembership)
   updatePersonMembership(
     @Args('id', { type: () => Int }) id: number,
     @Args('input') input: UpdatePersonMembershipInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.updatePersonMembership(
+    return this.subscriptionService.updatePersonMembership({
       id,
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembership)
   updateBusinessMembership(
     @Args('id', { type: () => Int }) id: number,
     @Args('input') input: UpdateBusinessMembershipInput,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.updateBusinessMembership(
+    return this.subscriptionService.updateBusinessMembership({
       id,
       input,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembership, {
@@ -217,15 +222,15 @@ export class SubscriptionResolver {
   })
   deletePersonMembership(
     @Args('id', { type: () => Int }) id: number,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deletePersonMembership(
+    return this.subscriptionService.deletePersonMembership({
       id,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembership, {
@@ -234,15 +239,15 @@ export class SubscriptionResolver {
   })
   deleteBusinessMembership(
     @Args('id', { type: () => Int }) id: number,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deleteBusinessMembership(
+    return this.subscriptionService.deleteBusinessMembership({
       id,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembershipTranslation)
@@ -250,16 +255,16 @@ export class SubscriptionResolver {
     @Args('personMembershipId', { type: () => Int }) personMembershipId: number,
     @Args('translationLanguage', { type: () => Language })
     translationLanguage: Language,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deletePersonMembershipTranslation(
+    return this.subscriptionService.deletePersonMembershipTranslation({
       personMembershipId,
       translationLanguage,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembershipTranslation)
@@ -268,32 +273,32 @@ export class SubscriptionResolver {
     businessMembershipId: number,
     @Args('translationLanguage', { type: () => Language })
     translationLanguage: Language,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deleteBusinessMembershipTranslation(
+    return this.subscriptionService.deleteBusinessMembershipTranslation({
       businessMembershipId,
       translationLanguage,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => PersonMembershipPricing)
   deletePersonMembershipPricing(
     @Args('personMembershipId', { type: () => Int }) personMembershipId: number,
     @Args('countryId', { type: () => Int }) countryId: number,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deletePersonMembershipPricing(
+    return this.subscriptionService.deletePersonMembershipPricing({
       personMembershipId,
       countryId,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembershipPricing)
@@ -301,16 +306,16 @@ export class SubscriptionResolver {
     @Args('businessMembershipId', { type: () => Int })
     businessMembershipId: number,
     @Args('countryId', { type: () => Int }) countryId: number,
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.deleteBusinessMembershipPricing(
+    return this.subscriptionService.deleteBusinessMembershipPricing({
       businessMembershipId,
       countryId,
-      ctx.adminId ?? '',
+      adminId,
       language,
-    );
+    });
   }
 
   // ─── Seller Mutations ─────────────────────────────────────────────────────────
@@ -322,11 +327,11 @@ export class SubscriptionResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.assignPersonMembership(
+    return this.subscriptionService.assignPersonMembership({
       sellerId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => BusinessMembershipSubscription)
@@ -336,11 +341,11 @@ export class SubscriptionResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.subscriptionService.assignBusinessMembership(
+    return this.subscriptionService.assignBusinessMembership({
       sellerId,
       input,
       language,
-    );
+    });
   }
 }
 

@@ -90,11 +90,11 @@ describe('MailService', () => {
 
   describe('sendWelcomeEmail', () => {
     it('should send welcome email with name', async () => {
-      await service.sendWelcomeEmail(
-        'test@example.com',
-        'John Doe',
-        'Business Name',
-      );
+      await service.sendWelcomeEmail({
+        email: 'test@example.com',
+        name: 'John Doe',
+        businessName: 'Business Name',
+      });
 
       expect(mockTransporter.sendMail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -108,11 +108,11 @@ describe('MailService', () => {
     });
 
     it('should send welcome email with business name when name is not provided', async () => {
-      await service.sendWelcomeEmail(
-        'test@example.com',
-        '',
-        'Acme Corporation',
-      );
+      await service.sendWelcomeEmail({
+        email: 'test@example.com',
+        name: '',
+        businessName: 'Acme Corporation',
+      });
 
       expect(mockTransporter.sendMail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -126,7 +126,11 @@ describe('MailService', () => {
     });
 
     it('should send welcome email with "usuario" when neither name nor business name are provided', async () => {
-      await service.sendWelcomeEmail('test@example.com', '', '');
+      await service.sendWelcomeEmail({
+        email: 'test@example.com',
+        name: '',
+        businessName: '',
+      });
 
       expect(mockTransporter.sendMail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -140,11 +144,11 @@ describe('MailService', () => {
     });
 
     it('should handle null values gracefully', async () => {
-      await service.sendWelcomeEmail(
-        'test@example.com',
-        null as any,
-        null as any,
-      );
+      await service.sendWelcomeEmail({
+        email: 'test@example.com',
+        name: null as any,
+        businessName: null as any,
+      });
 
       expect(mockTransporter.sendMail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -166,7 +170,11 @@ describe('MailService', () => {
       );
 
       await expect(
-        service.sendWelcomeEmail('test@example.com', 'John Doe', ''),
+        service.sendWelcomeEmail({
+          email: 'test@example.com',
+          name: 'John Doe',
+          businessName: '',
+        }),
       ).resolves.not.toThrow();
 
       expect(loggerSpy).toHaveBeenCalledWith(
@@ -184,7 +192,11 @@ describe('MailService', () => {
       const error = new Error('Network error');
       mockTransporter.sendMail.mockRejectedValue(error);
 
-      await service.sendWelcomeEmail('test@example.com', 'John Doe', '');
+      await service.sendWelcomeEmail({
+        email: 'test@example.com',
+        name: 'John Doe',
+        businessName: '',
+      });
 
       expect(loggerSpy).toHaveBeenCalledWith(
         'Error sending welcome email:',

@@ -1,12 +1,4 @@
-import {
-  Resolver,
-  Query,
-  Mutation,
-  Args,
-  Int,
-  ID,
-  Context,
-} from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { AdminsService } from './admins.service';
 import { Admin, AdminConnection } from './entities';
 import { RegisterAdminInput, UpdateAdminInput } from './dto';
@@ -42,7 +34,7 @@ export class AdminsResolver {
     pageSize: number = 10,
     @Args('searchQuery', { nullable: true }) searchQuery?: string,
   ) {
-    return this.adminsService.getAdmins(
+    return this.adminsService.getAdmins({
       adminId,
       language,
       adminType,
@@ -51,7 +43,7 @@ export class AdminsResolver {
       page,
       pageSize,
       searchQuery,
-    );
+    });
   }
 
   @Query(() => Admin, {
@@ -64,7 +56,7 @@ export class AdminsResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.getAdmin(id, language);
+    return this.adminsService.getAdmin({ id, language });
   }
 
   @Query(() => Admin, {
@@ -73,12 +65,12 @@ export class AdminsResolver {
     description: 'Get the data of the current admin',
   })
   async getMyData(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    if (!ctx.adminId) return null;
-    return this.adminsService.getMyData(ctx.adminId, language);
+    if (!adminId) return null;
+    return this.adminsService.getMyData({ adminId, language });
   }
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -89,12 +81,16 @@ export class AdminsResolver {
       'Create a new admin (platform or business). Requires MANAGE_ADMINS.',
   })
   async createAdmin(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('input') input: RegisterAdminInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.createAdmin(ctx.adminId ?? '', input, language);
+    return this.adminsService.createAdmin({
+      callerId: adminId,
+      input,
+      language,
+    });
   }
 
   @Mutation(() => Admin, {
@@ -102,18 +98,18 @@ export class AdminsResolver {
     description: 'Update an existing admin. Requires MANAGE_ADMINS.',
   })
   async updateAdmin(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('input') input: UpdateAdminInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.updateAdmin(
-      ctx.adminId ?? '',
+    return this.adminsService.updateAdmin({
+      callerId: adminId,
       id,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => Admin, {
@@ -122,12 +118,16 @@ export class AdminsResolver {
       'Deactivate an admin (soft delete; record is kept). Requires MANAGE_ADMINS.',
   })
   async deleteAdmin(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.deleteAdmin(ctx.adminId ?? '', id, language);
+    return this.adminsService.deleteAdmin({
+      callerId: adminId,
+      id,
+      language,
+    });
   }
 
   @Mutation(() => Admin, {
@@ -135,18 +135,18 @@ export class AdminsResolver {
     description: 'Activate or deactivate an admin. Requires MANAGE_ADMINS.',
   })
   async toggleAdminStatus(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('isActive') isActive: boolean,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.toggleAdminStatus(
-      ctx.adminId ?? '',
+    return this.adminsService.toggleAdminStatus({
+      callerId: adminId,
       id,
       isActive,
       language,
-    );
+    });
   }
 
   @Mutation(() => Admin, {
@@ -154,18 +154,18 @@ export class AdminsResolver {
     description: 'Assign permissions to an admin. Requires MANAGE_ADMINS.',
   })
   async assignPermissions(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('permissions', { type: () => [AdminPermission] })
     permissions: AdminPermission[],
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.assignPermissions(
-      ctx.adminId ?? '',
+    return this.adminsService.assignPermissions({
+      callerId: adminId,
       id,
       permissions,
       language,
-    );
+    });
   }
 }

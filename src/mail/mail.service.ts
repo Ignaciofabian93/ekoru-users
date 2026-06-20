@@ -20,12 +20,17 @@ export class MailService {
     });
   }
 
-  async sendWelcomeEmail(
-    email: string,
-    name: string,
-    businessName: string,
-    locale: string = 'es',
-  ) {
+  async sendWelcomeEmail({
+    email,
+    name,
+    businessName,
+    locale = 'es',
+  }: {
+    email: string;
+    name: string;
+    businessName: string;
+    locale?: string;
+  }) {
     try {
       const displayName = name || businessName || 'usuario';
       const template = welcomeTemplates[locale] ?? welcomeTemplates['es'];

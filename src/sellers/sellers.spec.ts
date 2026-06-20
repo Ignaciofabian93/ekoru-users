@@ -116,7 +116,10 @@ describe('SellersService', () => {
       prisma.seller.findMany.mockResolvedValue(sellers);
       prisma.seller.count.mockResolvedValue(1);
 
-      const result = await service.getSellers('seller-123', Language.ES);
+      const result = await service.getSellers({
+        adminId: 'seller-123',
+        language: Language.ES,
+      });
 
       expect(result.nodes).toEqual(sellers);
       expect(result.pageInfo.totalCount).toBe(1);
@@ -135,7 +138,11 @@ describe('SellersService', () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
-      await service.getSellers('seller-123', Language.ES, SellerType.PERSON);
+      await service.getSellers({
+        adminId: 'seller-123',
+        language: Language.ES,
+        sellerType: SellerType.PERSON,
+      });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -148,7 +155,11 @@ describe('SellersService', () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
-      await service.getSellers('seller-123', Language.ES, undefined, true);
+      await service.getSellers({
+        adminId: 'seller-123',
+        language: Language.ES,
+        isActive: true,
+      });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -161,13 +172,11 @@ describe('SellersService', () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
-      await service.getSellers(
-        'seller-123',
-        Language.ES,
-        undefined,
-        undefined,
-        true,
-      );
+      await service.getSellers({
+        adminId: 'seller-123',
+        language: Language.ES,
+        isVerified: true,
+      });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -180,15 +189,12 @@ describe('SellersService', () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
-      await service.getSellers(
-        'seller-123',
-        Language.ES,
-        undefined,
-        undefined,
-        undefined,
-        2,
-        5,
-      );
+      await service.getSellers({
+        adminId: 'seller-123',
+        language: Language.ES,
+        page: 2,
+        pageSize: 5,
+      });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -199,29 +205,29 @@ describe('SellersService', () => {
     });
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
-      await expect(service.getSellers('', Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].unauthorized,
-      );
+      await expect(
+        service.getSellers({ adminId: '', language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.seller.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
-      await expect(service.getSellers('', Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].unauthorized,
-      );
+      await expect(
+        service.getSellers({ adminId: '', language: Language.EN }),
+      ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellers('seller-123', Language.ES),
+        service.getSellers({ adminId: 'seller-123', language: Language.ES }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorGetSellers);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellers('seller-123', Language.EN),
+        service.getSellers({ adminId: 'seller-123', language: Language.EN }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorGetSellers);
     });
   });
@@ -230,11 +236,12 @@ describe('SellersService', () => {
     it('should return seller by id successfully', async () => {
       prisma.seller.findUnique.mockResolvedValue(mockSeller);
 
-      const result = await service.getSellerById(
-        'seller-123',
-        'seller-456',
-        Language.ES,
-      );
+      const result = await service.getSellerById({
+        id: 'seller-123',
+        sellerId: 'seller-456',
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toEqual(mockSeller);
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
@@ -245,28 +252,48 @@ describe('SellersService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.getSellerById('seller-123', '', Language.ES),
+        service.getSellerById({
+          id: 'seller-123',
+          sellerId: '',
+          language: Language.ES,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.seller.findUnique).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.getSellerById('seller-123', '', Language.EN),
+        service.getSellerById({
+          id: 'seller-123',
+          sellerId: '',
+          language: Language.EN,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellerById('seller-123', 'seller-456', Language.ES),
+        service.getSellerById({
+          id: 'seller-123',
+          sellerId: 'seller-456',
+          language: Language.ES,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorGetSellerById);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellerById('seller-123', 'seller-456', Language.EN),
+        service.getSellerById({
+          id: 'seller-123',
+          sellerId: 'seller-456',
+          language: Language.EN,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorGetSellerById);
     });
   });
@@ -311,7 +338,11 @@ describe('SellersService', () => {
         .mockResolvedValueOnce({ sellerType: SellerType.PERSON })
         .mockResolvedValueOnce(sellerWithProfile);
 
-      const result = await service.getMe('seller-123', Language.ES);
+      const result = await service.getMe({
+        sellerId: 'seller-123',
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toMatchObject({
         country: {
@@ -339,7 +370,11 @@ describe('SellersService', () => {
         .mockResolvedValueOnce({ sellerType: SellerType.PERSON })
         .mockResolvedValueOnce(sellerWithProfile);
 
-      await service.getMe('seller-123', Language.EN);
+      await service.getMe({
+        sellerId: 'seller-123',
+        language: Language.EN,
+        adminId: 'admin-1',
+      });
 
       expect(prisma.seller.findUnique).toHaveBeenNthCalledWith(
         2,
@@ -368,7 +403,11 @@ describe('SellersService', () => {
         .mockResolvedValueOnce({ sellerType: SellerType.STARTUP })
         .mockResolvedValueOnce(sellerWithProfile);
 
-      const result = await service.getMe('seller-123', Language.ES);
+      const result = await service.getMe({
+        sellerId: 'seller-123',
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toEqual(sellerWithProfile);
     });
@@ -383,7 +422,11 @@ describe('SellersService', () => {
         .mockResolvedValueOnce({ sellerType: SellerType.COMPANY })
         .mockResolvedValueOnce(sellerWithProfile);
 
-      const result = await service.getMe('seller-123', Language.ES);
+      const result = await service.getMe({
+        sellerId: 'seller-123',
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toEqual(sellerWithProfile);
     });
@@ -391,35 +434,55 @@ describe('SellersService', () => {
     it('should return null for unknown seller type', async () => {
       prisma.seller.findUnique.mockResolvedValue({ sellerType: null });
 
-      const result = await service.getMe('seller-123', Language.ES);
+      const result = await service.getMe({
+        sellerId: 'seller-123',
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toBeNull();
     });
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
-      await expect(service.getMe('', Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].unauthorized,
-      );
+      await expect(
+        service.getMe({
+          sellerId: '',
+          language: Language.ES,
+          adminId: '',
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
-      await expect(service.getMe('', Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].unauthorized,
-      );
+      await expect(
+        service.getMe({
+          sellerId: '',
+          language: Language.EN,
+          adminId: '',
+        }),
+      ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
-      await expect(service.getMe('seller-123', Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].errorGetMe,
-      );
+      await expect(
+        service.getMe({
+          sellerId: 'seller-123',
+          language: Language.ES,
+          adminId: '',
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].errorGetMe);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
-      await expect(service.getMe('seller-123', Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].errorGetMe,
-      );
+      await expect(
+        service.getMe({
+          sellerId: 'seller-123',
+          language: Language.EN,
+          adminId: '',
+        }),
+      ).rejects.toThrow(sellerMessages[Language.EN].errorGetMe);
     });
   });
 
@@ -459,7 +522,10 @@ describe('SellersService', () => {
     it('should return seller level by id', async () => {
       prisma.sellerLevel.findUnique.mockResolvedValue(mockSellerLevel);
 
-      const result = await service.getSellerLevel('1', Language.ES);
+      const result = await service.getSellerLevel({
+        id: '1',
+        language: Language.ES,
+      });
 
       expect(result).toEqual(mockSellerLevel);
       expect(prisma.sellerLevel.findUnique).toHaveBeenCalledWith({
@@ -471,18 +537,18 @@ describe('SellersService', () => {
       prisma.sellerLevel.findUnique.mockRejectedValue(
         new Error('Database error'),
       );
-      await expect(service.getSellerLevel('1', Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].errorGetSellerLevel,
-      );
+      await expect(
+        service.getSellerLevel({ id: '1', language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].errorGetSellerLevel);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.sellerLevel.findUnique.mockRejectedValue(
         new Error('Database error'),
       );
-      await expect(service.getSellerLevel('1', Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].errorGetSellerLevel,
-      );
+      await expect(
+        service.getSellerLevel({ id: '1', language: Language.EN }),
+      ).rejects.toThrow(sellerMessages[Language.EN].errorGetSellerLevel);
     });
   });
 
@@ -507,7 +573,10 @@ describe('SellersService', () => {
         });
       });
 
-      const result = await service.registerPerson(input, Language.ES);
+      const result = await service.registerPerson({
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(mockSeller);
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
@@ -515,12 +584,12 @@ describe('SellersService', () => {
       });
       expect(bcrypt.genSalt).toHaveBeenCalledWith(12);
       expect(bcrypt.hash).toHaveBeenCalledWith('password123', 'salt');
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith(
-        'test@example.com',
-        'John',
-        '',
-        Language.ES.toLowerCase(),
-      );
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        name: 'John',
+        businessName: '',
+        locale: Language.ES.toLowerCase(),
+      });
     });
 
     it('should pass the correct language to sendWelcomeEmail', async () => {
@@ -534,43 +603,43 @@ describe('SellersService', () => {
         });
       });
 
-      await service.registerPerson(input, Language.EN);
+      await service.registerPerson({ input, language: Language.EN });
 
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith(
-        'test@example.com',
-        'John',
-        '',
-        Language.EN.toLowerCase(),
-      );
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        name: 'John',
+        businessName: '',
+        locale: Language.EN.toLowerCase(),
+      });
     });
 
     it('should throw BadRequestError with ES message when email already exists', async () => {
       prisma.seller.findUnique.mockResolvedValue(mockSeller);
-      await expect(service.registerPerson(input, Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].emailAlreadyExists,
-      );
+      await expect(
+        service.registerPerson({ input, language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].emailAlreadyExists);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with EN message when email already exists', async () => {
       prisma.seller.findUnique.mockResolvedValue(mockSeller);
-      await expect(service.registerPerson(input, Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].emailAlreadyExists,
-      );
+      await expect(
+        service.registerPerson({ input, language: Language.EN }),
+      ).rejects.toThrow(sellerMessages[Language.EN].emailAlreadyExists);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
-      await expect(service.registerPerson(input, Language.ES)).rejects.toThrow(
-        sellerMessages[Language.ES].errorRegisterPerson,
-      );
+      await expect(
+        service.registerPerson({ input, language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].errorRegisterPerson);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
-      await expect(service.registerPerson(input, Language.EN)).rejects.toThrow(
-        sellerMessages[Language.EN].errorRegisterPerson,
-      );
+      await expect(
+        service.registerPerson({ input, language: Language.EN }),
+      ).rejects.toThrow(sellerMessages[Language.EN].errorRegisterPerson);
     });
   });
 
@@ -600,18 +669,21 @@ describe('SellersService', () => {
         });
       });
 
-      const result = await service.registerBusiness(input, Language.ES);
+      const result = await service.registerBusiness({
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(businessSeller);
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
         where: { email: 'business@example.com' },
       });
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith(
-        'business@example.com',
-        '',
-        'Acme Corp',
-        Language.ES.toLowerCase(),
-      );
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
+        email: 'business@example.com',
+        name: '',
+        businessName: 'Acme Corp',
+        locale: Language.ES.toLowerCase(),
+      });
     });
 
     it('should pass the correct language to sendWelcomeEmail', async () => {
@@ -626,20 +698,20 @@ describe('SellersService', () => {
         });
       });
 
-      await service.registerBusiness(input, Language.EN);
+      await service.registerBusiness({ input, language: Language.EN });
 
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith(
-        'business@example.com',
-        '',
-        'Acme Corp',
-        Language.EN.toLowerCase(),
-      );
+      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
+        email: 'business@example.com',
+        name: '',
+        businessName: 'Acme Corp',
+        locale: Language.EN.toLowerCase(),
+      });
     });
 
     it('should throw BadRequestError with ES message when email already exists', async () => {
       prisma.seller.findUnique.mockResolvedValue(mockSeller);
       await expect(
-        service.registerBusiness(input, Language.ES),
+        service.registerBusiness({ input, language: Language.ES }),
       ).rejects.toThrow(sellerMessages[Language.ES].emailAlreadyExists);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
@@ -647,21 +719,21 @@ describe('SellersService', () => {
     it('should throw BadRequestError with EN message when email already exists', async () => {
       prisma.seller.findUnique.mockResolvedValue(mockSeller);
       await expect(
-        service.registerBusiness(input, Language.EN),
+        service.registerBusiness({ input, language: Language.EN }),
       ).rejects.toThrow(sellerMessages[Language.EN].emailAlreadyExists);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.registerBusiness(input, Language.ES),
+        service.registerBusiness({ input, language: Language.ES }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorRegisterBusiness);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findUnique.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.registerBusiness(input, Language.EN),
+        service.registerBusiness({ input, language: Language.EN }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorRegisterBusiness);
     });
   });
@@ -678,11 +750,12 @@ describe('SellersService', () => {
       const updatedSeller = { ...mockSeller, ...input };
       prisma.seller.update.mockResolvedValue(updatedSeller);
 
-      const result = await service.updateSeller(
-        'seller-123',
+      const result = await service.updateSeller({
+        sellerId: 'seller-123',
+        adminId: 'admin-1',
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updatedSeller);
       expect(prisma.seller.update).toHaveBeenCalledWith({
@@ -694,28 +767,48 @@ describe('SellersService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.updateSeller('', input, Language.ES),
+        service.updateSeller({
+          sellerId: '',
+          adminId: '',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.seller.update).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.updateSeller('', input, Language.EN),
+        service.updateSeller({
+          sellerId: '',
+          adminId: '',
+          input,
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.update.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.updateSeller('seller-123', input, Language.ES),
+        service.updateSeller({
+          sellerId: 'seller-123',
+          adminId: '',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorUpdateSeller);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.update.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.updateSeller('seller-123', input, Language.EN),
+        service.updateSeller({
+          sellerId: 'seller-123',
+          adminId: '',
+          input,
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorUpdateSeller);
     });
   });
@@ -726,11 +819,12 @@ describe('SellersService', () => {
       const updatedProfile = { ...mockPersonProfile, ...input };
       prisma.personProfile.update.mockResolvedValue(updatedProfile);
 
-      const result = await service.updatePersonProfile(
-        'seller-123',
+      const result = await service.updatePersonProfile({
+        sellerId: 'seller-123',
+        adminId: 'admin-1',
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updatedProfile);
       expect(prisma.personProfile.update).toHaveBeenCalledWith({
@@ -743,7 +837,12 @@ describe('SellersService', () => {
       const input = { birthday: new Date('1990-01-01') };
       prisma.personProfile.update.mockResolvedValue(mockPersonProfile);
 
-      await service.updatePersonProfile('seller-123', input, Language.ES);
+      await service.updatePersonProfile({
+        sellerId: 'seller-123',
+        adminId: 'admin-1',
+        input,
+        language: Language.ES,
+      });
 
       expect(prisma.personProfile.update).toHaveBeenCalledWith({
         where: { sellerId: 'seller-123' },
@@ -755,14 +854,24 @@ describe('SellersService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.updatePersonProfile('', { firstName: 'Jane' }, Language.ES),
+        service.updatePersonProfile({
+          sellerId: '',
+          adminId: '',
+          input: { firstName: 'Jane' },
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.personProfile.update).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.updatePersonProfile('', { firstName: 'Jane' }, Language.EN),
+        service.updatePersonProfile({
+          sellerId: '',
+          adminId: '',
+          input: { firstName: 'Jane' },
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
@@ -771,11 +880,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updatePersonProfile(
-          'seller-123',
-          { firstName: 'Jane' },
-          Language.ES,
-        ),
+        service.updatePersonProfile({
+          sellerId: 'seller-123',
+          adminId: '',
+          input: { firstName: 'Jane' },
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorUpdatePersonProfile);
     });
 
@@ -784,11 +894,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updatePersonProfile(
-          'seller-123',
-          { firstName: 'Jane' },
-          Language.EN,
-        ),
+        service.updatePersonProfile({
+          sellerId: 'seller-123',
+          adminId: '',
+          input: { firstName: 'Jane' },
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorUpdatePersonProfile);
     });
   });
@@ -799,11 +910,12 @@ describe('SellersService', () => {
       const updatedProfile = { ...mockBusinessProfile, ...input };
       prisma.businessProfile.update.mockResolvedValue(updatedProfile);
 
-      const result = await service.updateBusinessProfile(
-        'seller-123',
+      const result = await service.updateBusinessProfile({
+        sellerId: 'seller-123',
+        adminId: 'admin-1',
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updatedProfile);
       expect(prisma.businessProfile.update).toHaveBeenCalledWith({
@@ -814,22 +926,24 @@ describe('SellersService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.updateBusinessProfile(
-          '',
-          { businessName: 'New Corp' },
-          Language.ES,
-        ),
+        service.updateBusinessProfile({
+          sellerId: '',
+          adminId: '',
+          input: { businessName: 'New Corp' },
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.businessProfile.update).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.updateBusinessProfile(
-          '',
-          { businessName: 'New Corp' },
-          Language.EN,
-        ),
+        service.updateBusinessProfile({
+          sellerId: '',
+          adminId: '',
+          input: { businessName: 'New Corp' },
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
@@ -838,11 +952,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updateBusinessProfile(
-          'seller-123',
-          { businessName: 'New' },
-          Language.ES,
-        ),
+        service.updateBusinessProfile({
+          sellerId: 'seller-123',
+          adminId: '',
+          input: { businessName: 'New' },
+          language: Language.ES,
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorUpdateBusinessProfile);
     });
 
@@ -851,11 +966,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updateBusinessProfile(
-          'seller-123',
-          { businessName: 'New' },
-          Language.EN,
-        ),
+        service.updateBusinessProfile({
+          sellerId: 'seller-123',
+          adminId: '',
+          input: { businessName: 'New' },
+          language: Language.EN,
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorUpdateBusinessProfile);
     });
   });
@@ -866,11 +982,12 @@ describe('SellersService', () => {
       const preferences = { id: 1, sellerId: 'seller-123', ...input };
       prisma.sellerPreferences.upsert.mockResolvedValue(preferences);
 
-      const result = await service.updateSellerPreferences(
-        'seller-123',
+      const result = await service.updateSellerPreferences({
+        sellerId: 'seller-123',
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+        adminId: 'admin-1',
+      });
 
       expect(result).toEqual(preferences);
       expect(prisma.sellerPreferences.upsert).toHaveBeenCalledWith({
@@ -885,14 +1002,24 @@ describe('SellersService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.updateSellerPreferences('', {}, Language.ES),
+        service.updateSellerPreferences({
+          sellerId: '',
+          input: {},
+          language: Language.ES,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
       expect(prisma.sellerPreferences.upsert).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.updateSellerPreferences('', {}, Language.EN),
+        service.updateSellerPreferences({
+          sellerId: '',
+          input: {},
+          language: Language.EN,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
     });
 
@@ -901,7 +1028,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updateSellerPreferences('seller-123', {}, Language.ES),
+        service.updateSellerPreferences({
+          sellerId: 'seller-123',
+          input: {},
+          language: Language.ES,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorUpdatePreferences);
     });
 
@@ -910,7 +1042,12 @@ describe('SellersService', () => {
         new Error('Database error'),
       );
       await expect(
-        service.updateSellerPreferences('seller-123', {}, Language.EN),
+        service.updateSellerPreferences({
+          sellerId: 'seller-123',
+          input: {},
+          language: Language.EN,
+          adminId: '',
+        }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorUpdatePreferences);
     });
   });

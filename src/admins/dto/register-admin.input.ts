@@ -1,4 +1,4 @@
-import { InputType, Field } from '@nestjs/graphql';
+import { InputType, Field, ID } from '@nestjs/graphql';
 import {
   IsEmail,
   IsString,
@@ -43,7 +43,7 @@ export class RegisterAdminInput {
   @IsOptional()
   permissions: AdminPermission[];
 
-  @Field({ nullable: true })
+  @Field(() => ID, { nullable: true })
   @IsString()
   @IsOptional()
   sellerId?: string;

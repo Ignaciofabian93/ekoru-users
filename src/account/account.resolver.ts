@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { AccountService } from './account.service';
 import { Seller, SellerLevel } from '../sellers/entities';
 import { SellerLabel, SellerLabelTranslation } from './entities';
@@ -11,7 +11,7 @@ import {
   UpdateSellerLevelInput,
   UpsertSellerLevelTranslationInput,
 } from './dto';
-import { CurrentSeller } from '../common/decorators';
+import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language } from '../graphql/enums';
 
 @Resolver()
@@ -29,12 +29,12 @@ export class AccountResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.updatePassword(
+    return this.accountService.updatePassword({
       sellerId,
       currentPassword,
       newPassword,
       language,
-    );
+    });
   }
 
   @Mutation(() => Boolean, {
@@ -54,7 +54,7 @@ export class AccountResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deactivateAccount(sellerId, language);
+    return this.accountService.deactivateAccount({ sellerId, language });
   }
 
   @Mutation(() => Seller, {
@@ -66,7 +66,7 @@ export class AccountResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.reactivateAccount(sellerId, language);
+    return this.accountService.reactivateAccount({ sellerId, language });
   }
 
   @Mutation(() => Seller, {
@@ -74,13 +74,18 @@ export class AccountResolver {
     description: 'Add points to a seller',
   })
   async addPoints(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('points', { type: () => Int }) points: number,
-    @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.addPoints(sellerId, id, points, language);
+    return this.accountService.addPoints({
+      adminId,
+      targetId: id,
+      points,
+      language,
+    });
   }
 
   @Mutation(() => Seller, {
@@ -88,13 +93,18 @@ export class AccountResolver {
     description: 'Deduct points from a seller',
   })
   async deductPoints(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('points', { type: () => Int }) points: number,
-    @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deductPoints(sellerId, id, points, language);
+    return this.accountService.deductPoints({
+      adminId,
+      targetId: id,
+      points,
+      language,
+    });
   }
 
   @Mutation(() => Seller, {
@@ -102,18 +112,18 @@ export class AccountResolver {
     description: 'Update the category of a seller',
   })
   async updateSellerCategory(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('categoryId', { type: () => Int }) categoryId: number,
-    @CurrentSeller() sellerId: string,
+    @CurrentAdmin() adminId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.updateSellerCategory(
-      sellerId,
-      id,
+    return this.accountService.updateSellerCategory({
+      adminId,
+      targetId: id,
       categoryId,
       language,
-    );
+    });
   }
 
   // ─── Seller Labels ────────────────────────────────────────────────────────────
@@ -132,7 +142,7 @@ export class AccountResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.getSellerLabelById(id, language);
+    return this.accountService.getSellerLabelById({ id, language });
   }
 
   @Mutation(() => SellerLabel, {
@@ -140,16 +150,16 @@ export class AccountResolver {
     description: 'Create a seller label. Admins only.',
   })
   createSellerLabel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('input') input: CreateSellerLabelInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.createSellerLabel(
-      ctx.adminId ?? '',
+    return this.accountService.createSellerLabel({
+      adminId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLabel, {
@@ -157,18 +167,18 @@ export class AccountResolver {
     description: 'Update a seller label. Admins only.',
   })
   updateSellerLabel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => Int }) id: number,
     @Args('input') input: UpdateSellerLabelInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.updateSellerLabel(
-      ctx.adminId ?? '',
+    return this.accountService.updateSellerLabel({
+      adminId,
       id,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLabel, {
@@ -177,16 +187,16 @@ export class AccountResolver {
       'Delete a seller label. Fails if sellers have already earned it. Admins only.',
   })
   deleteSellerLabel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => Int }) id: number,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deleteSellerLabel(
-      ctx.adminId ?? '',
+    return this.accountService.deleteSellerLabel({
+      adminId,
       id,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLabelTranslation, {
@@ -194,16 +204,16 @@ export class AccountResolver {
     description: 'Create or update a seller label translation. Admins only.',
   })
   upsertSellerLabelTranslation(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('input') input: UpsertSellerLabelTranslationInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.upsertSellerLabelTranslation(
-      ctx.adminId ?? '',
+    return this.accountService.upsertSellerLabelTranslation({
+      adminId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLabelTranslation, {
@@ -211,19 +221,19 @@ export class AccountResolver {
     description: 'Delete a seller label translation. Admins only.',
   })
   deleteSellerLabelTranslation(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('sellerLabelId', { type: () => Int }) sellerLabelId: number,
     @Args('translationLanguage', { type: () => Language })
     translationLanguage: Language,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deleteSellerLabelTranslation(
-      ctx.adminId ?? '',
+    return this.accountService.deleteSellerLabelTranslation({
+      adminId,
       sellerLabelId,
       translationLanguage,
       language,
-    );
+    });
   }
 
   // ─── Seller Levels ────────────────────────────────────────────────────────────
@@ -242,7 +252,7 @@ export class AccountResolver {
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.getSellerLevelById(id, language);
+    return this.accountService.getSellerLevelById({ id, language });
   }
 
   @Mutation(() => SellerLevel, {
@@ -250,16 +260,16 @@ export class AccountResolver {
     description: 'Create a seller level. Admins only.',
   })
   createSellerLevel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('input') input: CreateSellerLevelInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.createSellerLevel(
-      ctx.adminId ?? '',
+    return this.accountService.createSellerLevel({
+      adminId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLevel, {
@@ -267,18 +277,18 @@ export class AccountResolver {
     description: 'Update a seller level. Admins only.',
   })
   updateSellerLevel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => Int }) id: number,
     @Args('input') input: UpdateSellerLevelInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.updateSellerLevel(
-      ctx.adminId ?? '',
+    return this.accountService.updateSellerLevel({
+      adminId,
       id,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLevel, {
@@ -287,16 +297,16 @@ export class AccountResolver {
       'Delete a seller level. Fails if it is still assigned to sellers. Admins only.',
   })
   deleteSellerLevel(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => Int }) id: number,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deleteSellerLevel(
-      ctx.adminId ?? '',
+    return this.accountService.deleteSellerLevel({
+      adminId,
       id,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLevelTranslation, {
@@ -304,16 +314,16 @@ export class AccountResolver {
     description: 'Create or update a seller level translation. Admins only.',
   })
   upsertSellerLevelTranslation(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('input') input: UpsertSellerLevelTranslationInput,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.upsertSellerLevelTranslation(
-      ctx.adminId ?? '',
+    return this.accountService.upsertSellerLevelTranslation({
+      adminId,
       input,
       language,
-    );
+    });
   }
 
   @Mutation(() => SellerLevelTranslation, {
@@ -321,18 +331,18 @@ export class AccountResolver {
     description: 'Delete a seller level translation. Admins only.',
   })
   deleteSellerLevelTranslation(
-    @Context() ctx: { adminId?: string },
+    @CurrentAdmin() adminId: string,
     @Args('sellerLevelId', { type: () => Int }) sellerLevelId: number,
     @Args('translationLanguage', { type: () => Language })
     translationLanguage: Language,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.accountService.deleteSellerLevelTranslation(
-      ctx.adminId ?? '',
+    return this.accountService.deleteSellerLevelTranslation({
+      adminId,
       sellerLevelId,
       translationLanguage,
       language,
-    );
+    });
   }
 }

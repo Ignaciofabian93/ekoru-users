@@ -94,7 +94,7 @@ describe('SubscriptionService', () => {
         personMembershipRaw,
       ]);
 
-      const result = await service.getPersonMemberships(lang);
+      const result = await service.getPersonMemberships({ language: lang });
 
       expect(result).toHaveLength(1);
       expect(result[0].translation).toEqual(
@@ -106,7 +106,7 @@ describe('SubscriptionService', () => {
     it('passes countryId to prisma include when provided', async () => {
       mockPrisma.personMembership.findMany.mockResolvedValue([]);
 
-      await service.getPersonMemberships(lang, 5);
+      await service.getPersonMemberships({ language: lang, countryId: 5 });
 
       const include =
         mockPrisma.personMembership.findMany.mock.calls[0][0].include;
@@ -118,7 +118,7 @@ describe('SubscriptionService', () => {
         { ...personMembershipRaw, translations: [], pricing: [] },
       ]);
 
-      const [result] = await service.getPersonMemberships(lang);
+      const [result] = await service.getPersonMemberships({ language: lang });
       expect(result.translation).toBeNull();
       expect(result.pricing).toBeNull();
     });
@@ -128,9 +128,9 @@ describe('SubscriptionService', () => {
         new Error('db error'),
       );
 
-      await expect(service.getPersonMemberships(lang)).rejects.toBeInstanceOf(
-        InternalServerError,
-      );
+      await expect(
+        service.getPersonMemberships({ language: lang }),
+      ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
 
@@ -140,7 +140,10 @@ describe('SubscriptionService', () => {
         personMembershipRaw,
       );
 
-      const result = await service.getPersonMembershipById(1, lang);
+      const result = await service.getPersonMembershipById({
+        id: 1,
+        language: lang,
+      });
 
       expect(result.id).toBe(1);
       expect(result.translation).toEqual(personMembershipRaw.translations[0]);
@@ -150,7 +153,7 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getPersonMembershipById(99, lang),
+        service.getPersonMembershipById({ id: 99, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
@@ -160,7 +163,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.getPersonMembershipById(1, lang),
+        service.getPersonMembershipById({ id: 1, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
 
@@ -168,7 +171,7 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(null);
 
       const error = await service
-        .getPersonMembershipById(99, lang)
+        .getPersonMembershipById({ id: 99, language: lang })
         .catch((e) => e);
       expect(error).toBeInstanceOf(NotFoundError);
       expect(error.extensions.code).toBe('NOT_FOUND');
@@ -185,7 +188,11 @@ describe('SubscriptionService', () => {
     it('creates and returns mapped membership', async () => {
       mockPrisma.personMembership.create.mockResolvedValue(personMembershipRaw);
 
-      const result = await service.createPersonMembership(input, adminId, lang);
+      const result = await service.createPersonMembership({
+        input,
+        adminId,
+        language: lang,
+      });
 
       expect(mockPrisma.personMembership.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -200,7 +207,7 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.createPersonMembership(input, '', lang),
+        service.createPersonMembership({ input, adminId: '', language: lang }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
       expect(mockPrisma.personMembership.create).not.toHaveBeenCalled();
     });
@@ -211,7 +218,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.createPersonMembership(input, adminId, lang),
+        service.createPersonMembership({ input, adminId, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -229,12 +236,12 @@ describe('SubscriptionService', () => {
         isActive: false,
       });
 
-      const result = await service.updatePersonMembership(
-        1,
+      const result = await service.updatePersonMembership({
+        id: 1,
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result.durationMonths).toBe(24);
       expect(mockPrisma.personMembership.update).toHaveBeenCalledWith(
@@ -247,7 +254,12 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.updatePersonMembership(1, input, '', lang),
+        service.updatePersonMembership({
+          id: 1,
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
       expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
     });
@@ -256,7 +268,12 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updatePersonMembership(99, input, adminId, lang),
+        service.updatePersonMembership({
+          id: 99,
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
     });
@@ -270,7 +287,12 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.updatePersonMembership(1, input, adminId, lang),
+        service.updatePersonMembership({
+          id: 1,
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -285,7 +307,11 @@ describe('SubscriptionService', () => {
         isActive: false,
       });
 
-      const result = await service.deletePersonMembership(1, adminId, lang);
+      const result = await service.deletePersonMembership({
+        id: 1,
+        adminId,
+        language: lang,
+      });
 
       expect(result.isActive).toBe(false);
       expect(mockPrisma.personMembership.update).toHaveBeenCalledWith(
@@ -298,7 +324,7 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.deletePersonMembership(1, '', lang),
+        service.deletePersonMembership({ id: 1, adminId: '', language: lang }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -306,7 +332,7 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deletePersonMembership(99, adminId, lang),
+        service.deletePersonMembership({ id: 99, adminId, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(mockPrisma.personMembership.update).not.toHaveBeenCalled();
     });
@@ -322,12 +348,12 @@ describe('SubscriptionService', () => {
         translation,
       );
 
-      const result = await service.deletePersonMembershipTranslation(
-        1,
-        lang,
+      const result = await service.deletePersonMembershipTranslation({
+        personMembershipId: 1,
+        translationLanguage: lang,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(translation);
       expect(
@@ -344,7 +370,12 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.deletePersonMembershipTranslation(1, lang, '', lang),
+        service.deletePersonMembershipTranslation({
+          personMembershipId: 1,
+          translationLanguage: lang,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -352,7 +383,12 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembershipTranslation.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deletePersonMembershipTranslation(1, lang, adminId, lang),
+        service.deletePersonMembershipTranslation({
+          personMembershipId: 1,
+          translationLanguage: lang,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(
         mockPrisma.personMembershipTranslation.delete,
@@ -366,12 +402,12 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembershipPricing.findUnique.mockResolvedValue(pricing);
       mockPrisma.personMembershipPricing.delete.mockResolvedValue(pricing);
 
-      const result = await service.deletePersonMembershipPricing(
-        1,
-        1,
+      const result = await service.deletePersonMembershipPricing({
+        personMembershipId: 1,
+        countryId: 1,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(pricing);
       expect(mockPrisma.personMembershipPricing.delete).toHaveBeenCalledWith({
@@ -383,7 +419,12 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.deletePersonMembershipPricing(1, 1, '', lang),
+        service.deletePersonMembershipPricing({
+          personMembershipId: 1,
+          countryId: 1,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -391,7 +432,12 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembershipPricing.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deletePersonMembershipPricing(1, 1, adminId, lang),
+        service.deletePersonMembershipPricing({
+          personMembershipId: 1,
+          countryId: 1,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(mockPrisma.personMembershipPricing.delete).not.toHaveBeenCalled();
     });
@@ -411,11 +457,11 @@ describe('SubscriptionService', () => {
         translation,
       );
 
-      const result = await service.upsertPersonMembershipTranslation(
+      const result = await service.upsertPersonMembershipTranslation({
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(translation);
       expect(
@@ -436,7 +482,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.upsertPersonMembershipTranslation(input, '', lang),
+        service.upsertPersonMembershipTranslation({
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -446,7 +496,11 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.upsertPersonMembershipTranslation(input, adminId, lang),
+        service.upsertPersonMembershipTranslation({
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -464,11 +518,11 @@ describe('SubscriptionService', () => {
       const pricing = { id: 20, ...input };
       mockPrisma.personMembershipPricing.upsert.mockResolvedValue(pricing);
 
-      const result = await service.upsertPersonMembershipPricing(
+      const result = await service.upsertPersonMembershipPricing({
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(pricing);
       expect(mockPrisma.personMembershipPricing.upsert).toHaveBeenCalledWith(
@@ -486,11 +540,16 @@ describe('SubscriptionService', () => {
     it('defaults isActive to true when not provided', async () => {
       mockPrisma.personMembershipPricing.upsert.mockResolvedValue({ id: 20 });
 
-      await service.upsertPersonMembershipPricing(
-        { personMembershipId: 1, countryId: 1, currency: 'USD', price: 9.99 },
+      await service.upsertPersonMembershipPricing({
+        input: {
+          personMembershipId: 1,
+          countryId: 1,
+          currency: 'USD',
+          price: 9.99,
+        },
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       const call = mockPrisma.personMembershipPricing.upsert.mock.calls[0][0];
       expect(call.create.isActive).toBe(true);
@@ -499,7 +558,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.upsertPersonMembershipPricing(input, '', lang),
+        service.upsertPersonMembershipPricing({
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -509,7 +572,11 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.upsertPersonMembershipPricing(input, adminId, lang),
+        service.upsertPersonMembershipPricing({
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -527,11 +594,11 @@ describe('SubscriptionService', () => {
       );
       mockPrisma.personProfile.update.mockResolvedValue({});
 
-      const result = await service.assignPersonMembership(
+      const result = await service.assignPersonMembership({
         sellerId,
         input,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(subscription);
       expect(
@@ -553,7 +620,7 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when sellerId is empty', async () => {
       await expect(
-        service.assignPersonMembership('', input, lang),
+        service.assignPersonMembership({ sellerId: '', input, language: lang }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
       expect(mockPrisma.personMembership.findUnique).not.toHaveBeenCalled();
     });
@@ -562,7 +629,7 @@ describe('SubscriptionService', () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.assignPersonMembership(sellerId, input, lang),
+        service.assignPersonMembership({ sellerId, input, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
@@ -575,7 +642,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.assignPersonMembership(sellerId, input, lang),
+        service.assignPersonMembership({ sellerId, input, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -588,7 +655,7 @@ describe('SubscriptionService', () => {
         businessMembershipRaw,
       ]);
 
-      const result = await service.getBusinessMemberships(lang);
+      const result = await service.getBusinessMemberships({ language: lang });
 
       expect(result).toHaveLength(1);
       expect(result[0].translation).toEqual(
@@ -600,7 +667,7 @@ describe('SubscriptionService', () => {
     it('passes countryId to prisma include when provided', async () => {
       mockPrisma.businessMembership.findMany.mockResolvedValue([]);
 
-      await service.getBusinessMemberships(lang, 7);
+      await service.getBusinessMemberships({ language: lang, countryId: 7 });
 
       const include =
         mockPrisma.businessMembership.findMany.mock.calls[0][0].include;
@@ -612,9 +679,9 @@ describe('SubscriptionService', () => {
         new Error('db error'),
       );
 
-      await expect(service.getBusinessMemberships(lang)).rejects.toBeInstanceOf(
-        InternalServerError,
-      );
+      await expect(
+        service.getBusinessMemberships({ language: lang }),
+      ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
 
@@ -624,7 +691,10 @@ describe('SubscriptionService', () => {
         businessMembershipRaw,
       );
 
-      const result = await service.getBusinessMembershipById(2, lang);
+      const result = await service.getBusinessMembershipById({
+        id: 2,
+        language: lang,
+      });
 
       expect(result.id).toBe(2);
       expect(result.translation).toEqual(businessMembershipRaw.translations[0]);
@@ -634,7 +704,7 @@ describe('SubscriptionService', () => {
       mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getBusinessMembershipById(99, lang),
+        service.getBusinessMembershipById({ id: 99, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
@@ -644,7 +714,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.getBusinessMembershipById(2, lang),
+        service.getBusinessMembershipById({ id: 2, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -661,11 +731,11 @@ describe('SubscriptionService', () => {
         businessMembershipRaw,
       );
 
-      const result = await service.createBusinessMembership(
+      const result = await service.createBusinessMembership({
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result.id).toBe(2);
       expect(mockPrisma.businessMembership.create).toHaveBeenCalledWith(
@@ -680,7 +750,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.createBusinessMembership(input, '', lang),
+        service.createBusinessMembership({
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -690,7 +764,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.createBusinessMembership(input, adminId, lang),
+        service.createBusinessMembership({ input, adminId, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -708,12 +782,12 @@ describe('SubscriptionService', () => {
         isActive: false,
       });
 
-      const result = await service.updateBusinessMembership(
-        2,
+      const result = await service.updateBusinessMembership({
+        id: 2,
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result.durationMonths).toBe(3);
       expect(mockPrisma.businessMembership.update).toHaveBeenCalledWith(
@@ -726,7 +800,12 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.updateBusinessMembership(2, input, '', lang),
+        service.updateBusinessMembership({
+          id: 2,
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -734,7 +813,12 @@ describe('SubscriptionService', () => {
       mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateBusinessMembership(99, input, adminId, lang),
+        service.updateBusinessMembership({
+          id: 99,
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(mockPrisma.businessMembership.update).not.toHaveBeenCalled();
     });
@@ -750,7 +834,11 @@ describe('SubscriptionService', () => {
         isActive: false,
       });
 
-      const result = await service.deleteBusinessMembership(2, adminId, lang);
+      const result = await service.deleteBusinessMembership({
+        id: 2,
+        adminId,
+        language: lang,
+      });
 
       expect(result.isActive).toBe(false);
       expect(mockPrisma.businessMembership.update).toHaveBeenCalledWith(
@@ -765,7 +853,7 @@ describe('SubscriptionService', () => {
       mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deleteBusinessMembership(99, adminId, lang),
+        service.deleteBusinessMembership({ id: 99, adminId, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
   });
@@ -780,12 +868,12 @@ describe('SubscriptionService', () => {
         translation,
       );
 
-      const result = await service.deleteBusinessMembershipTranslation(
-        2,
-        lang,
+      const result = await service.deleteBusinessMembershipTranslation({
+        businessMembershipId: 2,
+        translationLanguage: lang,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(translation);
       expect(
@@ -806,7 +894,12 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.deleteBusinessMembershipTranslation(2, lang, adminId, lang),
+        service.deleteBusinessMembershipTranslation({
+          businessMembershipId: 2,
+          translationLanguage: lang,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(
         mockPrisma.businessMembershipTranslation.delete,
@@ -822,12 +915,12 @@ describe('SubscriptionService', () => {
       );
       mockPrisma.businessMembershipPricing.delete.mockResolvedValue(pricing);
 
-      const result = await service.deleteBusinessMembershipPricing(
-        2,
-        1,
+      const result = await service.deleteBusinessMembershipPricing({
+        businessMembershipId: 2,
+        countryId: 1,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(pricing);
       expect(mockPrisma.businessMembershipPricing.delete).toHaveBeenCalledWith({
@@ -842,7 +935,12 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.deleteBusinessMembershipPricing(2, 1, '', lang),
+        service.deleteBusinessMembershipPricing({
+          businessMembershipId: 2,
+          countryId: 1,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -850,7 +948,12 @@ describe('SubscriptionService', () => {
       mockPrisma.businessMembershipPricing.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deleteBusinessMembershipPricing(2, 1, adminId, lang),
+        service.deleteBusinessMembershipPricing({
+          businessMembershipId: 2,
+          countryId: 1,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(NotFoundError);
       expect(
         mockPrisma.businessMembershipPricing.delete,
@@ -872,11 +975,11 @@ describe('SubscriptionService', () => {
         translation,
       );
 
-      const result = await service.upsertBusinessMembershipTranslation(
+      const result = await service.upsertBusinessMembershipTranslation({
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(translation);
       expect(
@@ -895,7 +998,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.upsertBusinessMembershipTranslation(input, '', lang),
+        service.upsertBusinessMembershipTranslation({
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -905,7 +1012,11 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.upsertBusinessMembershipTranslation(input, adminId, lang),
+        service.upsertBusinessMembershipTranslation({
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -923,11 +1034,11 @@ describe('SubscriptionService', () => {
       const pricing = { id: 21, ...input };
       mockPrisma.businessMembershipPricing.upsert.mockResolvedValue(pricing);
 
-      const result = await service.upsertBusinessMembershipPricing(
+      const result = await service.upsertBusinessMembershipPricing({
         input,
         adminId,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(pricing);
       expect(mockPrisma.businessMembershipPricing.upsert).toHaveBeenCalledWith(
@@ -944,7 +1055,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.upsertBusinessMembershipPricing(input, '', lang),
+        service.upsertBusinessMembershipPricing({
+          input,
+          adminId: '',
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
     });
 
@@ -954,7 +1069,11 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.upsertBusinessMembershipPricing(input, adminId, lang),
+        service.upsertBusinessMembershipPricing({
+          input,
+          adminId,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
@@ -972,11 +1091,11 @@ describe('SubscriptionService', () => {
       );
       mockPrisma.businessProfile.update.mockResolvedValue({});
 
-      const result = await service.assignBusinessMembership(
+      const result = await service.assignBusinessMembership({
         sellerId,
         input,
-        lang,
-      );
+        language: lang,
+      });
 
       expect(result).toEqual(subscription);
       expect(
@@ -998,7 +1117,11 @@ describe('SubscriptionService', () => {
 
     it('throws UnAuthorizedError when sellerId is empty', async () => {
       await expect(
-        service.assignBusinessMembership('', input, lang),
+        service.assignBusinessMembership({
+          sellerId: '',
+          input,
+          language: lang,
+        }),
       ).rejects.toBeInstanceOf(UnAuthorizedError);
       expect(mockPrisma.businessMembership.findUnique).not.toHaveBeenCalled();
     });
@@ -1007,7 +1130,7 @@ describe('SubscriptionService', () => {
       mockPrisma.businessMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.assignBusinessMembership(sellerId, input, lang),
+        service.assignBusinessMembership({ sellerId, input, language: lang }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
@@ -1020,7 +1143,7 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.assignBusinessMembership(sellerId, input, lang),
+        service.assignBusinessMembership({ sellerId, input, language: lang }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });

@@ -8,7 +8,7 @@ export class BusinessProfile {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => ID)
   sellerId: string;
 
   @Field()

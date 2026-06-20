@@ -1,4 +1,4 @@
-import { InputType, Field } from '@nestjs/graphql';
+import { InputType, Field, ID } from '@nestjs/graphql';
 import { IsString, IsEnum, IsOptional, IsArray } from 'class-validator';
 import { AdminType, AdminRole, AdminPermission } from '../../graphql/enums';
 
@@ -30,7 +30,7 @@ export class UpdateAdminInput {
   @IsOptional()
   permissions?: AdminPermission[];
 
-  @Field({ nullable: true })
+  @Field(() => ID, { nullable: true })
   @IsString()
   @IsOptional()
   sellerId?: string;

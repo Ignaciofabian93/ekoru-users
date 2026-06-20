@@ -25,7 +25,13 @@ export class AccountService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async deactivateAccount(sellerId: string, language: Language) {
+  async deactivateAccount({
+    sellerId,
+    language,
+  }: {
+    sellerId: string;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
       if (!sellerId) {
@@ -45,7 +51,13 @@ export class AccountService {
     }
   }
 
-  async reactivateAccount(sellerId: string, language: Language) {
+  async reactivateAccount({
+    sellerId,
+    language,
+  }: {
+    sellerId: string;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
       if (!sellerId) {
@@ -65,15 +77,20 @@ export class AccountService {
     }
   }
 
-  async addPoints(
-    sellerId: string,
-    targetId: string,
-    points: number,
-    language: Language,
-  ) {
+  async addPoints({
+    adminId,
+    targetId,
+    points,
+    language,
+  }: {
+    adminId: string;
+    targetId: string;
+    points: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      if (!sellerId) {
+      if (!adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -90,15 +107,20 @@ export class AccountService {
     }
   }
 
-  async deductPoints(
-    sellerId: string,
-    targetId: string,
-    points: number,
-    language: Language,
-  ) {
+  async deductPoints({
+    adminId,
+    targetId,
+    points,
+    language,
+  }: {
+    adminId: string;
+    targetId: string;
+    points: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      if (!sellerId) {
+      if (!adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -115,15 +137,20 @@ export class AccountService {
     }
   }
 
-  async updateSellerCategory(
-    sellerId: string,
-    targetId: string,
-    categoryId: number,
-    language: Language,
-  ) {
+  async updateSellerCategory({
+    adminId,
+    targetId,
+    categoryId,
+    language,
+  }: {
+    adminId: string;
+    targetId: string;
+    categoryId: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      if (!sellerId) {
+      if (!adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -141,12 +168,17 @@ export class AccountService {
     }
   }
 
-  async updatePassword(
-    sellerId: string,
-    currentPassword: string,
-    newPassword: string,
-    language: Language,
-  ) {
+  async updatePassword({
+    sellerId,
+    currentPassword,
+    newPassword,
+    language,
+  }: {
+    sellerId: string;
+    currentPassword: string;
+    newPassword: string;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
       if (!sellerId) {
@@ -189,7 +221,7 @@ export class AccountService {
 
   // ─── Seller Labels (admin) ──────────────────────────────────────────────────
 
-  private assertAdmin(adminId: string, t: AccountMessages) {
+  private assertAdmin({ adminId, t }: { adminId: string; t: AccountMessages }) {
     if (!adminId) {
       throw new UnAuthorizedError(t.unauthorized);
     }
@@ -208,7 +240,13 @@ export class AccountService {
     }
   }
 
-  async getSellerLabelById(id: number, language: Language) {
+  async getSellerLabelById({
+    id,
+    language,
+  }: {
+    id: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
       const label = await this.prisma.sellerLabel.findUnique({
@@ -224,14 +262,18 @@ export class AccountService {
     }
   }
 
-  async createSellerLabel(
-    adminId: string,
-    input: CreateSellerLabelInput,
-    language: Language,
-  ) {
+  async createSellerLabel({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateSellerLabelInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { labelName: input.labelName },
@@ -261,15 +303,20 @@ export class AccountService {
     }
   }
 
-  async updateSellerLabel(
-    adminId: string,
-    id: number,
-    input: UpdateSellerLabelInput,
-    language: Language,
-  ) {
+  async updateSellerLabel({
+    adminId,
+    id,
+    input,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    input: UpdateSellerLabelInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { id },
@@ -318,10 +365,18 @@ export class AccountService {
    * Guarded hard delete: refuses to delete a label that sellers have already
    * earned (would wipe their achievement history). Translations cascade.
    */
-  async deleteSellerLabel(adminId: string, id: number, language: Language) {
+  async deleteSellerLabel({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { id },
@@ -349,14 +404,18 @@ export class AccountService {
     }
   }
 
-  async upsertSellerLabelTranslation(
-    adminId: string,
-    input: UpsertSellerLabelTranslationInput,
-    language: Language,
-  ) {
+  async upsertSellerLabelTranslation({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: UpsertSellerLabelTranslationInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const label = await this.prisma.sellerLabel.findUnique({
         where: { id: input.sellerLabelId },
@@ -391,15 +450,20 @@ export class AccountService {
     }
   }
 
-  async deleteSellerLabelTranslation(
-    adminId: string,
-    sellerLabelId: number,
-    translationLanguage: Language,
-    language: Language,
-  ) {
+  async deleteSellerLabelTranslation({
+    adminId,
+    sellerLabelId,
+    translationLanguage,
+    language,
+  }: {
+    adminId: string;
+    sellerLabelId: number;
+    translationLanguage: Language;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabelTranslation.findUnique({
         where: {
@@ -446,7 +510,13 @@ export class AccountService {
     }
   }
 
-  async getSellerLevelById(id: number, language: Language) {
+  async getSellerLevelById({
+    id,
+    language,
+  }: {
+    id: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
       const level = await this.prisma.sellerLevel.findUnique({
@@ -462,14 +532,18 @@ export class AccountService {
     }
   }
 
-  async createSellerLevel(
-    adminId: string,
-    input: CreateSellerLevelInput,
-    language: Language,
-  ) {
+  async createSellerLevel({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateSellerLevelInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const nameTaken = await this.prisma.sellerLevel.findUnique({
         where: { levelName: input.levelName },
@@ -505,15 +579,20 @@ export class AccountService {
     }
   }
 
-  async updateSellerLevel(
-    adminId: string,
-    id: number,
-    input: UpdateSellerLevelInput,
-    language: Language,
-  ) {
+  async updateSellerLevel({
+    adminId,
+    id,
+    input,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    input: UpdateSellerLevelInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevel.findUnique({
         where: { id },
@@ -567,10 +646,18 @@ export class AccountService {
    * Guarded hard delete: refuses to delete a level still assigned to sellers.
    * Translations cascade.
    */
-  async deleteSellerLevel(adminId: string, id: number, language: Language) {
+  async deleteSellerLevel({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevel.findUnique({
         where: { id },
@@ -598,14 +685,18 @@ export class AccountService {
     }
   }
 
-  async upsertSellerLevelTranslation(
-    adminId: string,
-    input: UpsertSellerLevelTranslationInput,
-    language: Language,
-  ) {
+  async upsertSellerLevelTranslation({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: UpsertSellerLevelTranslationInput;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const level = await this.prisma.sellerLevel.findUnique({
         where: { id: input.sellerLevelId },
@@ -639,15 +730,20 @@ export class AccountService {
     }
   }
 
-  async deleteSellerLevelTranslation(
-    adminId: string,
-    sellerLevelId: number,
-    translationLanguage: Language,
-    language: Language,
-  ) {
+  async deleteSellerLevelTranslation({
+    adminId,
+    sellerLevelId,
+    translationLanguage,
+    language,
+  }: {
+    adminId: string;
+    sellerLevelId: number;
+    translationLanguage: Language;
+    language: Language;
+  }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin(adminId, t);
+      this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevelTranslation.findUnique({
         where: {

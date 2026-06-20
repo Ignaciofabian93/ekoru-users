@@ -113,7 +113,10 @@ describe('LocationService', () => {
     it('should return mapped countries successfully (ES)', async () => {
       prisma.country.findMany.mockResolvedValue(mockCountries);
 
-      const result = await service.getCountries('seller-123', Language.ES);
+      const result = await service.getCountries({
+        sellerId: 'seller-123',
+        language: Language.ES,
+      });
 
       expect(result).toEqual([
         {
@@ -137,7 +140,10 @@ describe('LocationService', () => {
     it('should query with the correct language filter (EN)', async () => {
       prisma.country.findMany.mockResolvedValue(mockCountries);
 
-      await service.getCountries('seller-123', Language.EN);
+      await service.getCountries({
+        sellerId: 'seller-123',
+        language: Language.EN,
+      });
 
       expect(prisma.country.findMany).toHaveBeenCalledWith({
         include: { translation: { where: { language: Language.EN } } },
@@ -145,49 +151,49 @@ describe('LocationService', () => {
     });
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
-      await expect(service.getCountries('', Language.ES)).rejects.toThrow(
-        UnAuthorizedError,
-      );
-      await expect(service.getCountries('', Language.ES)).rejects.toThrow(
-        locationMessages[Language.ES].unauthorized,
-      );
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.ES }),
+      ).rejects.toThrow(UnAuthorizedError);
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.ES }),
+      ).rejects.toThrow(locationMessages[Language.ES].unauthorized);
       expect(prisma.country.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
-      await expect(service.getCountries('', Language.EN)).rejects.toThrow(
-        locationMessages[Language.EN].unauthorized,
-      );
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.EN }),
+      ).rejects.toThrow(locationMessages[Language.EN].unauthorized);
     });
 
     it('should throw UnAuthorizedError with FR message when sellerId is not provided', async () => {
-      await expect(service.getCountries('', Language.FR)).rejects.toThrow(
-        locationMessages[Language.FR].unauthorized,
-      );
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.FR }),
+      ).rejects.toThrow(locationMessages[Language.FR].unauthorized);
     });
 
     it('should throw UnAuthorizedError with PT message when sellerId is not provided', async () => {
-      await expect(service.getCountries('', Language.PT)).rejects.toThrow(
-        locationMessages[Language.PT].unauthorized,
-      );
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.PT }),
+      ).rejects.toThrow(locationMessages[Language.PT].unauthorized);
     });
 
     it('should throw UnAuthorizedError with DE message when sellerId is not provided', async () => {
-      await expect(service.getCountries('', Language.DE)).rejects.toThrow(
-        locationMessages[Language.DE].unauthorized,
-      );
+      await expect(
+        service.getCountries({ sellerId: '', language: Language.DE }),
+      ).rejects.toThrow(locationMessages[Language.DE].unauthorized);
     });
 
     it('should throw NotFoundError with translated message when no countries are found', async () => {
       prisma.country.findMany.mockResolvedValue(null);
 
       await expect(
-        service.getCountries('seller-123', Language.ES),
+        service.getCountries({ sellerId: 'seller-123', language: Language.ES }),
       ).rejects.toThrow(locationMessages[Language.ES].noCountries);
 
       prisma.country.findMany.mockResolvedValue(null);
       await expect(
-        service.getCountries('seller-123', Language.EN),
+        service.getCountries({ sellerId: 'seller-123', language: Language.EN }),
       ).rejects.toThrow(locationMessages[Language.EN].noCountries);
     });
 
@@ -195,12 +201,12 @@ describe('LocationService', () => {
       prisma.country.findMany.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getCountries('seller-123', Language.ES),
+        service.getCountries({ sellerId: 'seller-123', language: Language.ES }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCountries);
 
       prisma.country.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getCountries('seller-123', Language.EN),
+        service.getCountries({ sellerId: 'seller-123', language: Language.EN }),
       ).rejects.toThrow(locationMessages[Language.EN].errorCountries);
     });
   });
@@ -209,11 +215,11 @@ describe('LocationService', () => {
     it('should return regions by country successfully', async () => {
       prisma.region.findMany.mockResolvedValue(mockRegions);
 
-      const result = await service.getRegionsByCountry(
-        1,
-        'seller-123',
-        Language.ES,
-      );
+      const result = await service.getRegionsByCountry({
+        countryId: 1,
+        sellerId: 'seller-123',
+        language: Language.ES,
+      });
 
       expect(result).toEqual(mockRegions);
       expect(prisma.region.findMany).toHaveBeenCalledWith({
@@ -223,27 +229,43 @@ describe('LocationService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.getRegionsByCountry(1, '', Language.ES),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: '',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].unauthorized);
       expect(prisma.region.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.getRegionsByCountry(1, '', Language.EN),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: '',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].unauthorized);
     });
 
     it('should throw BadRequestError with ES message when countryId is not provided', async () => {
       await expect(
-        service.getRegionsByCountry(null as any, 'seller-123', Language.ES),
+        service.getRegionsByCountry({
+          countryId: null as any,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].invalidCountryId);
       expect(prisma.region.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with EN message when countryId is not provided', async () => {
       await expect(
-        service.getRegionsByCountry(null as any, 'seller-123', Language.EN),
+        service.getRegionsByCountry({
+          countryId: null as any,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].invalidCountryId);
     });
 
@@ -251,12 +273,20 @@ describe('LocationService', () => {
       prisma.region.findMany.mockResolvedValue(null);
 
       await expect(
-        service.getRegionsByCountry(1, 'seller-123', Language.ES),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].noRegions);
 
       prisma.region.findMany.mockResolvedValue(null);
       await expect(
-        service.getRegionsByCountry(1, 'seller-123', Language.EN),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].noRegions);
     });
 
@@ -264,12 +294,20 @@ describe('LocationService', () => {
       prisma.region.findMany.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getRegionsByCountry(1, 'seller-123', Language.ES),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorRegions);
 
       prisma.region.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getRegionsByCountry(1, 'seller-123', Language.EN),
+        service.getRegionsByCountry({
+          countryId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].errorRegions);
     });
   });
@@ -278,11 +316,11 @@ describe('LocationService', () => {
     it('should return cities by region successfully', async () => {
       prisma.city.findMany.mockResolvedValue(mockCities);
 
-      const result = await service.getCitiesByRegion(
-        1,
-        'seller-123',
-        Language.ES,
-      );
+      const result = await service.getCitiesByRegion({
+        regionId: 1,
+        sellerId: 'seller-123',
+        language: Language.ES,
+      });
 
       expect(result).toEqual(mockCities);
       expect(prisma.city.findMany).toHaveBeenCalledWith({
@@ -292,27 +330,43 @@ describe('LocationService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.getCitiesByRegion(1, '', Language.ES),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: '',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].unauthorized);
       expect(prisma.city.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.getCitiesByRegion(1, '', Language.EN),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: '',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].unauthorized);
     });
 
     it('should throw BadRequestError with ES message when regionId is not provided', async () => {
       await expect(
-        service.getCitiesByRegion(null as any, 'seller-123', Language.ES),
+        service.getCitiesByRegion({
+          regionId: null as any,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].invalidRegionId);
       expect(prisma.city.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with EN message when regionId is not provided', async () => {
       await expect(
-        service.getCitiesByRegion(null as any, 'seller-123', Language.EN),
+        service.getCitiesByRegion({
+          regionId: null as any,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].invalidRegionId);
     });
 
@@ -320,12 +374,20 @@ describe('LocationService', () => {
       prisma.city.findMany.mockResolvedValue(null);
 
       await expect(
-        service.getCitiesByRegion(1, 'seller-123', Language.ES),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].noCities);
 
       prisma.city.findMany.mockResolvedValue(null);
       await expect(
-        service.getCitiesByRegion(1, 'seller-123', Language.EN),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].noCities);
     });
 
@@ -333,12 +395,20 @@ describe('LocationService', () => {
       prisma.city.findMany.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getCitiesByRegion(1, 'seller-123', Language.ES),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCities);
 
       prisma.city.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getCitiesByRegion(1, 'seller-123', Language.EN),
+        service.getCitiesByRegion({
+          regionId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].errorCities);
     });
   });
@@ -347,11 +417,11 @@ describe('LocationService', () => {
     it('should return counties by city successfully', async () => {
       prisma.county.findMany.mockResolvedValue(mockCounties);
 
-      const result = await service.getCountiesByCity(
-        1,
-        'seller-123',
-        Language.ES,
-      );
+      const result = await service.getCountiesByCity({
+        cityId: 1,
+        sellerId: 'seller-123',
+        language: Language.ES,
+      });
 
       expect(result).toEqual(mockCounties);
       expect(prisma.county.findMany).toHaveBeenCalledWith({
@@ -361,27 +431,43 @@ describe('LocationService', () => {
 
     it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
       await expect(
-        service.getCountiesByCity(1, '', Language.ES),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: '',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].unauthorized);
       expect(prisma.county.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
       await expect(
-        service.getCountiesByCity(1, '', Language.EN),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: '',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].unauthorized);
     });
 
     it('should throw BadRequestError with ES message when cityId is not provided', async () => {
       await expect(
-        service.getCountiesByCity(null as any, 'seller-123', Language.ES),
+        service.getCountiesByCity({
+          cityId: null as any,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].invalidCityId);
       expect(prisma.county.findMany).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with EN message when cityId is not provided', async () => {
       await expect(
-        service.getCountiesByCity(null as any, 'seller-123', Language.EN),
+        service.getCountiesByCity({
+          cityId: null as any,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].invalidCityId);
     });
 
@@ -389,12 +475,20 @@ describe('LocationService', () => {
       prisma.county.findMany.mockResolvedValue(null);
 
       await expect(
-        service.getCountiesByCity(1, 'seller-123', Language.ES),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].noCounties);
 
       prisma.county.findMany.mockResolvedValue(null);
       await expect(
-        service.getCountiesByCity(1, 'seller-123', Language.EN),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].noCounties);
     });
 
@@ -402,12 +496,20 @@ describe('LocationService', () => {
       prisma.county.findMany.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getCountiesByCity(1, 'seller-123', Language.ES),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCounties);
 
       prisma.county.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getCountiesByCity(1, 'seller-123', Language.EN),
+        service.getCountiesByCity({
+          cityId: 1,
+          sellerId: 'seller-123',
+          language: Language.EN,
+        }),
       ).rejects.toThrow(locationMessages[Language.EN].errorCounties);
     });
   });
@@ -430,7 +532,11 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(platformAdmin);
       prisma.country.create.mockResolvedValue(created);
 
-      const result = await service.createCountry('admin-1', input, Language.ES);
+      const result = await service.createCountry({
+        adminId: 'admin-1',
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(created);
       expect(prisma.country.create).toHaveBeenCalled();
@@ -438,7 +544,7 @@ describe('LocationService', () => {
 
     it('should throw UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.createCountry('', input, Language.ES),
+        service.createCountry({ adminId: '', input, language: Language.ES }),
       ).rejects.toThrow(UnAuthorizedError);
       expect(prisma.country.create).not.toHaveBeenCalled();
     });
@@ -447,7 +553,11 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.createCountry('admin-biz', input, Language.ES),
+        service.createCountry({
+          adminId: 'admin-biz',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(
         locationMessages[Language.ES].forbiddenNotPlatformAdmin,
       );
@@ -459,7 +569,11 @@ describe('LocationService', () => {
       prisma.country.create.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.createCountry('admin-1', input, Language.ES),
+        service.createCountry({
+          adminId: 'admin-1',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCreateCountry);
     });
   });
@@ -472,14 +586,18 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(platformAdmin);
       prisma.region.create.mockResolvedValue(created);
 
-      const result = await service.createRegion('admin-1', input, Language.ES);
+      const result = await service.createRegion({
+        adminId: 'admin-1',
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(created);
     });
 
     it('should throw UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.createRegion('', input, Language.ES),
+        service.createRegion({ adminId: '', input, language: Language.ES }),
       ).rejects.toThrow(UnAuthorizedError);
     });
 
@@ -487,7 +605,11 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.createRegion('admin-biz', input, Language.ES),
+        service.createRegion({
+          adminId: 'admin-biz',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(UnAuthorizedError);
     });
 
@@ -496,7 +618,11 @@ describe('LocationService', () => {
       prisma.region.create.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.createRegion('admin-1', input, Language.ES),
+        service.createRegion({
+          adminId: 'admin-1',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCreateRegion);
     });
   });
@@ -509,22 +635,30 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(platformAdmin);
       prisma.city.create.mockResolvedValue(created);
 
-      const result = await service.createCity('admin-1', input, Language.ES);
+      const result = await service.createCity({
+        adminId: 'admin-1',
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(created);
     });
 
     it('should throw UnAuthorizedError when adminId is empty', async () => {
-      await expect(service.createCity('', input, Language.ES)).rejects.toThrow(
-        UnAuthorizedError,
-      );
+      await expect(
+        service.createCity({ adminId: '', input, language: Language.ES }),
+      ).rejects.toThrow(UnAuthorizedError);
     });
 
     it('should throw UnAuthorizedError when admin is not PLATFORM type', async () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.createCity('admin-biz', input, Language.ES),
+        service.createCity({
+          adminId: 'admin-biz',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(UnAuthorizedError);
     });
 
@@ -533,7 +667,11 @@ describe('LocationService', () => {
       prisma.city.create.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.createCity('admin-1', input, Language.ES),
+        service.createCity({
+          adminId: 'admin-1',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCreateCity);
     });
   });
@@ -546,14 +684,18 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(platformAdmin);
       prisma.county.create.mockResolvedValue(created);
 
-      const result = await service.createCounty('admin-1', input, Language.ES);
+      const result = await service.createCounty({
+        adminId: 'admin-1',
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(created);
     });
 
     it('should throw UnAuthorizedError when adminId is empty', async () => {
       await expect(
-        service.createCounty('', input, Language.ES),
+        service.createCounty({ adminId: '', input, language: Language.ES }),
       ).rejects.toThrow(UnAuthorizedError);
     });
 
@@ -561,7 +703,11 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.createCounty('admin-biz', input, Language.ES),
+        service.createCounty({
+          adminId: 'admin-biz',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(UnAuthorizedError);
     });
 
@@ -570,7 +716,11 @@ describe('LocationService', () => {
       prisma.county.create.mockRejectedValue(new Error('DB error'));
 
       await expect(
-        service.createCounty('admin-1', input, Language.ES),
+        service.createCounty({
+          adminId: 'admin-1',
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(locationMessages[Language.ES].errorCreateCounty);
     });
   });
@@ -588,12 +738,12 @@ describe('LocationService', () => {
       prisma.country.findUnique.mockResolvedValue({ id: 1 });
       prisma.country.update.mockResolvedValue(updated);
 
-      const result = await service.updateCountry(
-        'admin-1',
-        1,
+      const result = await service.updateCountry({
+        adminId: 'admin-1',
+        countryId: 1,
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updated);
       expect(prisma.country.update).toHaveBeenCalledWith(
@@ -611,7 +761,12 @@ describe('LocationService', () => {
       prisma.country.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateCountry('admin-1', 99, input, Language.ES),
+        service.updateCountry({
+          adminId: 'admin-1',
+          countryId: 99,
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.country.update).not.toHaveBeenCalled();
     });
@@ -620,7 +775,12 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.updateCountry('admin-biz', 1, input, Language.ES),
+        service.updateCountry({
+          adminId: 'admin-biz',
+          countryId: 1,
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(UnAuthorizedError);
       expect(prisma.country.update).not.toHaveBeenCalled();
     });
@@ -635,12 +795,12 @@ describe('LocationService', () => {
       prisma.region.findUnique.mockResolvedValue({ id: 1 });
       prisma.region.update.mockResolvedValue(updated);
 
-      const result = await service.updateRegion(
-        'admin-1',
-        1,
+      const result = await service.updateRegion({
+        adminId: 'admin-1',
+        regionId: 1,
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updated);
     });
@@ -650,7 +810,12 @@ describe('LocationService', () => {
       prisma.region.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateRegion('admin-1', 99, input, Language.ES),
+        service.updateRegion({
+          adminId: 'admin-1',
+          regionId: 99,
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.region.update).not.toHaveBeenCalled();
     });
@@ -665,7 +830,12 @@ describe('LocationService', () => {
       prisma.city.findUnique.mockResolvedValue({ id: 1 });
       prisma.city.update.mockResolvedValue(updated);
 
-      const result = await service.updateCity('admin-1', 1, input, Language.ES);
+      const result = await service.updateCity({
+        adminId: 'admin-1',
+        cityId: 1,
+        input,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updated);
     });
@@ -675,7 +845,12 @@ describe('LocationService', () => {
       prisma.city.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateCity('admin-1', 99, input, Language.ES),
+        service.updateCity({
+          adminId: 'admin-1',
+          cityId: 99,
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.city.update).not.toHaveBeenCalled();
     });
@@ -690,12 +865,12 @@ describe('LocationService', () => {
       prisma.county.findUnique.mockResolvedValue({ id: 1 });
       prisma.county.update.mockResolvedValue(updated);
 
-      const result = await service.updateCounty(
-        'admin-1',
-        1,
+      const result = await service.updateCounty({
+        adminId: 'admin-1',
+        countyId: 1,
         input,
-        Language.ES,
-      );
+        language: Language.ES,
+      });
 
       expect(result).toEqual(updated);
     });
@@ -705,7 +880,12 @@ describe('LocationService', () => {
       prisma.county.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateCounty('admin-1', 99, input, Language.ES),
+        service.updateCounty({
+          adminId: 'admin-1',
+          countyId: 99,
+          input,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.county.update).not.toHaveBeenCalled();
     });
@@ -720,7 +900,11 @@ describe('LocationService', () => {
       prisma.country.findUnique.mockResolvedValue(existing);
       prisma.country.delete.mockResolvedValue(existing);
 
-      const result = await service.deleteCountry('admin-1', 1, Language.ES);
+      const result = await service.deleteCountry({
+        adminId: 'admin-1',
+        countryId: 1,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(existing);
       expect(prisma.country.delete).toHaveBeenCalledWith({ where: { id: 1 } });
@@ -731,7 +915,11 @@ describe('LocationService', () => {
       prisma.country.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deleteCountry('admin-1', 99, Language.ES),
+        service.deleteCountry({
+          adminId: 'admin-1',
+          countryId: 99,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.country.delete).not.toHaveBeenCalled();
     });
@@ -742,7 +930,11 @@ describe('LocationService', () => {
       prisma.region.count.mockResolvedValue(2);
 
       await expect(
-        service.deleteCountry('admin-1', 1, Language.ES),
+        service.deleteCountry({
+          adminId: 'admin-1',
+          countryId: 1,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(ConflictError);
       expect(prisma.country.delete).not.toHaveBeenCalled();
     });
@@ -751,7 +943,11 @@ describe('LocationService', () => {
       prisma.admin.findUnique.mockResolvedValue(businessAdmin);
 
       await expect(
-        service.deleteCountry('admin-biz', 1, Language.ES),
+        service.deleteCountry({
+          adminId: 'admin-biz',
+          countryId: 1,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(UnAuthorizedError);
       expect(prisma.country.delete).not.toHaveBeenCalled();
     });
@@ -764,7 +960,11 @@ describe('LocationService', () => {
       prisma.region.findUnique.mockResolvedValue(existing);
       prisma.region.delete.mockResolvedValue(existing);
 
-      const result = await service.deleteRegion('admin-1', 1, Language.ES);
+      const result = await service.deleteRegion({
+        adminId: 'admin-1',
+        regionId: 1,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(existing);
     });
@@ -775,7 +975,11 @@ describe('LocationService', () => {
       prisma.city.count.mockResolvedValue(3);
 
       await expect(
-        service.deleteRegion('admin-1', 1, Language.ES),
+        service.deleteRegion({
+          adminId: 'admin-1',
+          regionId: 1,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(ConflictError);
       expect(prisma.region.delete).not.toHaveBeenCalled();
     });
@@ -788,7 +992,11 @@ describe('LocationService', () => {
       prisma.city.findUnique.mockResolvedValue(existing);
       prisma.city.delete.mockResolvedValue(existing);
 
-      const result = await service.deleteCity('admin-1', 1, Language.ES);
+      const result = await service.deleteCity({
+        adminId: 'admin-1',
+        cityId: 1,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(existing);
     });
@@ -799,7 +1007,11 @@ describe('LocationService', () => {
       prisma.county.count.mockResolvedValue(1);
 
       await expect(
-        service.deleteCity('admin-1', 1, Language.ES),
+        service.deleteCity({
+          adminId: 'admin-1',
+          cityId: 1,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(ConflictError);
       expect(prisma.city.delete).not.toHaveBeenCalled();
     });
@@ -812,7 +1024,11 @@ describe('LocationService', () => {
       prisma.county.findUnique.mockResolvedValue(existing);
       prisma.county.delete.mockResolvedValue(existing);
 
-      const result = await service.deleteCounty('admin-1', 1, Language.ES);
+      const result = await service.deleteCounty({
+        adminId: 'admin-1',
+        countyId: 1,
+        language: Language.ES,
+      });
 
       expect(result).toEqual(existing);
     });
@@ -823,7 +1039,11 @@ describe('LocationService', () => {
       prisma.seller.count.mockResolvedValue(5);
 
       await expect(
-        service.deleteCounty('admin-1', 1, Language.ES),
+        service.deleteCounty({
+          adminId: 'admin-1',
+          countyId: 1,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(ConflictError);
       expect(prisma.county.delete).not.toHaveBeenCalled();
     });
@@ -833,7 +1053,11 @@ describe('LocationService', () => {
       prisma.county.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.deleteCounty('admin-1', 99, Language.ES),
+        service.deleteCounty({
+          adminId: 'admin-1',
+          countyId: 99,
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
       expect(prisma.county.delete).not.toHaveBeenCalled();
     });

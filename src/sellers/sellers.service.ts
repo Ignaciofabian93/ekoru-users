@@ -77,16 +77,25 @@ export class SellersService {
     };
   }
 
-  async getSellers(
-    adminId: string,
-    language: Language,
-    sellerType?: SellerType,
-    isActive?: boolean,
-    isVerified?: boolean,
-    page: number = 1,
-    pageSize: number = 10,
-    searchQuery?: string,
-  ) {
+  async getSellers({
+    adminId,
+    language,
+    sellerType,
+    isActive,
+    isVerified,
+    page = 1,
+    pageSize = 10,
+    searchQuery,
+  }: {
+    adminId: string;
+    language: Language;
+    sellerType?: SellerType;
+    isActive?: boolean;
+    isVerified?: boolean;
+    page?: number;
+    pageSize?: number;
+    searchQuery?: string;
+  }) {
     const t = sellerMessages[language];
     try {
       if (!adminId) {
@@ -127,10 +136,20 @@ export class SellersService {
     }
   }
 
-  async getSellerById(id: string, sellerId: string, language: Language) {
+  async getSellerById({
+    id,
+    sellerId,
+    language,
+    adminId,
+  }: {
+    id: string;
+    sellerId: string;
+    language: Language;
+    adminId: string;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -163,10 +182,18 @@ export class SellersService {
     }
   }
 
-  async getMe(sellerId: string, language: Language) {
+  async getMe({
+    sellerId,
+    language,
+    adminId,
+  }: {
+    sellerId: string;
+    language: Language;
+    adminId: string;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -262,7 +289,7 @@ export class SellersService {
     }
   }
 
-  async getSellerLevel(id: string, language: Language) {
+  async getSellerLevel({ id, language }: { id: string; language: Language }) {
     const t = sellerMessages[language];
     try {
       const level = await this.prisma.sellerLevel.findUnique({
@@ -275,7 +302,13 @@ export class SellersService {
     }
   }
 
-  async registerPerson(input: RegisterPersonInput, language: Language) {
+  async registerPerson({
+    input,
+    language,
+  }: {
+    input: RegisterPersonInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
       const { email, password, firstName, lastName } = input;
@@ -318,12 +351,12 @@ export class SellersService {
         return user;
       });
 
-      await this.mailService.sendWelcomeEmail(
-        email.toLowerCase(),
-        firstName,
-        '',
-        language.toLowerCase() as Language,
-      );
+      await this.mailService.sendWelcomeEmail({
+        email: email.toLowerCase(),
+        name: firstName,
+        businessName: '',
+        locale: language.toLowerCase() as Language,
+      });
 
       return result;
     } catch (error) {
@@ -333,7 +366,13 @@ export class SellersService {
     }
   }
 
-  async registerBusiness(input: RegisterBusinessInput, language: Language) {
+  async registerBusiness({
+    input,
+    language,
+  }: {
+    input: RegisterBusinessInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
       const { email, password, businessName, businessType, sellerType } = input;
@@ -377,12 +416,12 @@ export class SellersService {
         return user;
       });
 
-      await this.mailService.sendWelcomeEmail(
-        email.toLowerCase(),
-        '',
+      await this.mailService.sendWelcomeEmail({
+        email: email.toLowerCase(),
+        name: '',
         businessName,
-        language.toLowerCase() as Language,
-      );
+        locale: language.toLowerCase() as Language,
+      });
 
       return result;
     } catch (error) {
@@ -392,14 +431,20 @@ export class SellersService {
     }
   }
 
-  async updateSeller(
-    sellerId: string,
-    input: UpdateSellerInput,
-    language: Language,
-  ) {
+  async updateSeller({
+    sellerId,
+    adminId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    adminId: string;
+    input: UpdateSellerInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -431,14 +476,20 @@ export class SellersService {
     }
   }
 
-  async updatePersonProfile(
-    sellerId: string,
-    input: UpdatePersonProfileInput,
-    language: Language,
-  ) {
+  async updatePersonProfile({
+    sellerId,
+    adminId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    adminId: string;
+    input: UpdatePersonProfileInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -473,14 +524,20 @@ export class SellersService {
     }
   }
 
-  async updateBusinessProfile(
-    sellerId: string,
-    input: UpdateBusinessProfileInput,
-    language: Language,
-  ) {
+  async updateBusinessProfile({
+    sellerId,
+    adminId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    adminId: string;
+    input: UpdateBusinessProfileInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -497,14 +554,20 @@ export class SellersService {
     }
   }
 
-  async updateSellerPreferences(
-    sellerId: string,
-    input: UpdateSellerPreferencesInput,
-    language: Language,
-  ) {
+  async updateSellerPreferences({
+    sellerId,
+    input,
+    language,
+    adminId,
+  }: {
+    sellerId: string;
+    input: UpdateSellerPreferencesInput;
+    language: Language;
+    adminId: string;
+  }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -529,11 +592,15 @@ export class SellersService {
    * Ensures the caller is an admin allowed to moderate sellers. Only active
    * PLATFORM admins who are SUPER_ADMIN or hold the given permission may act.
    */
-  private async assertAdminCan(
-    adminId: string,
-    permission: AdminPermission,
-    t: SellerMessages,
-  ) {
+  private async assertAdminCan({
+    adminId,
+    permission,
+    t,
+  }: {
+    adminId: string;
+    permission: AdminPermission;
+    t: SellerMessages;
+  }) {
     if (!adminId) {
       throw new UnAuthorizedError(t.unauthorized);
     }
@@ -564,10 +631,22 @@ export class SellersService {
    * Toggles a seller's verified status. Done manually by an admin after
    * reviewing the account and its initial activity. Requires MANAGE_USERS.
    */
-  async verifySeller(adminId: string, id: string, language: Language) {
+  async verifySeller({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: string;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
-      await this.assertAdminCan(adminId, AdminPermission.MANAGE_USERS, t);
+      await this.assertAdminCan({
+        adminId,
+        permission: AdminPermission.MANAGE_USERS,
+        t,
+      });
 
       const seller = await this.prisma.seller.findUnique({
         where: { id },
@@ -609,10 +688,13 @@ export class SellersService {
    *   • ServiceBooking — PENDING/CONFIRMED/IN_PROGRESS, or payment PENDING/PROCESSING
    *   • Exchange     — PENDING or ACCEPTED
    */
-  private async getPendingObligations(
-    client: Prisma.TransactionClient | PrismaService,
-    sellerId: string,
-  ) {
+  private async getPendingObligations({
+    client,
+    sellerId,
+  }: {
+    client: Prisma.TransactionClient | PrismaService;
+    sellerId: string;
+  }) {
     const [row] = await client.$queryRaw<
       Array<{
         orders: number;
@@ -681,15 +763,24 @@ export class SellersService {
    * all refresh tokens are revoked, membership auto-renewal is stopped, and the
    * action is audited. Requires BAN_USERS.
    */
-  async banSeller(
-    adminId: string,
-    id: string,
-    input: BanSellerInput,
-    language: Language,
-  ) {
+  async banSeller({
+    adminId,
+    id,
+    input,
+    language,
+  }: {
+    adminId: string;
+    id: string;
+    input: BanSellerInput;
+    language: Language;
+  }) {
     const t = sellerMessages[language];
     try {
-      await this.assertAdminCan(adminId, AdminPermission.BAN_USERS, t);
+      await this.assertAdminCan({
+        adminId,
+        permission: AdminPermission.BAN_USERS,
+        t,
+      });
 
       const existing = await this.prisma.seller.findUnique({
         where: { id },
@@ -712,10 +803,10 @@ export class SellersService {
           }
 
           // Hard gate: refuse the ban while anything is still in flight.
-          const { obligations, total } = await this.getPendingObligations(
-            tx,
-            id,
-          );
+          const { obligations, total } = await this.getPendingObligations({
+            client: tx,
+            sellerId: id,
+          });
           if (total > 0) {
             throw new BadRequestError(t.sellerHasPendingObligations, {
               obligations,
@@ -804,15 +895,24 @@ export class SellersService {
    * `isVerified` is intentionally NOT restored — verification must be re-earned
    * through admin review. Requires BAN_USERS.
    */
-  async reinstateSeller(
-    adminId: string,
-    id: string,
-    language: Language,
-    unbanReason?: string,
-  ) {
+  async reinstateSeller({
+    adminId,
+    id,
+    language,
+    unbanReason,
+  }: {
+    adminId: string;
+    id: string;
+    language: Language;
+    unbanReason?: string;
+  }) {
     const t = sellerMessages[language];
     try {
-      await this.assertAdminCan(adminId, AdminPermission.BAN_USERS, t);
+      await this.assertAdminCan({
+        adminId,
+        permission: AdminPermission.BAN_USERS,
+        t,
+      });
 
       const existing = await this.prisma.seller.findUnique({
         where: { id },

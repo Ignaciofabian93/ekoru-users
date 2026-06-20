@@ -30,7 +30,7 @@ export class Admin {
   @Field(() => [AdminPermission])
   permissions: AdminPermission[];
 
-  @Field({ nullable: true })
+  @Field(() => ID, { nullable: true })
   sellerId?: string;
 
   @Field()

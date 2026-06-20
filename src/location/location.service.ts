@@ -15,15 +15,67 @@ import {
   CreateCityInput,
   CreateCountyInput,
 } from './dto';
+import {
+  calculatePrismaParams,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 @Injectable()
 export class LocationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCountries(sellerId: string, language: Language) {
+  async getRawCountries({
+    adminId,
+    language,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    page?: number;
+    pageSize?: number;
+  }) {
     const t = locationMessages[language];
     try {
-      if (!sellerId) {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, countries] = await Promise.all([
+        this.prisma.country.count(),
+        this.prisma.country.findMany({
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(countries, count, page, pageSize);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(t.errorCountries);
+    }
+  }
+
+  async getCountries({
+    sellerId,
+    adminId,
+    language,
+  }: {
+    sellerId?: string;
+    adminId?: string;
+    language: Language;
+  }) {
+    const t = locationMessages[language];
+    try {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -58,14 +110,20 @@ export class LocationService {
     }
   }
 
-  async getRegionsByCountry(
-    countryId: number,
-    sellerId: string,
-    language: Language,
-  ) {
+  async getRegionsByCountry({
+    countryId,
+    sellerId,
+    adminId,
+    language,
+  }: {
+    countryId: number;
+    sellerId?: string;
+    adminId?: string;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -95,14 +153,20 @@ export class LocationService {
     }
   }
 
-  async getCitiesByRegion(
-    regionId: number,
-    sellerId: string,
-    language: Language,
-  ) {
+  async getCitiesByRegion({
+    regionId,
+    sellerId,
+    adminId,
+    language,
+  }: {
+    regionId: number;
+    sellerId?: string;
+    adminId?: string;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -134,10 +198,13 @@ export class LocationService {
 
   // ─── Mutations (Platform Admin only) ──────────────────────────────────────────
 
-  private async assertPlatformAdmin(
-    adminId: string,
-    t: { unauthorized: string; forbiddenNotPlatformAdmin: string },
-  ) {
+  private async assertPlatformAdmin({
+    adminId,
+    t,
+  }: {
+    adminId: string;
+    t: { unauthorized: string; forbiddenNotPlatformAdmin: string };
+  }) {
     if (!adminId) {
       throw new UnAuthorizedError(t.unauthorized);
     }
@@ -152,14 +219,18 @@ export class LocationService {
     }
   }
 
-  async createCountry(
-    adminId: string,
-    input: CreateCountryInput,
-    language: Language,
-  ) {
+  async createCountry({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateCountryInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const country = await this.prisma.country.create({
         data: {
@@ -180,15 +251,20 @@ export class LocationService {
     }
   }
 
-  async updateCountry(
-    adminId: string,
-    countryId: number,
-    input: CreateCountryInput,
-    language: Language,
-  ) {
+  async updateCountry({
+    adminId,
+    countryId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    countryId: number;
+    input: CreateCountryInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.country.findUnique({
         where: { id: countryId },
@@ -227,14 +303,18 @@ export class LocationService {
     }
   }
 
-  async createRegion(
-    adminId: string,
-    input: CreateRegionInput,
-    language: Language,
-  ) {
+  async createRegion({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateRegionInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const region = await this.prisma.region.create({
         data: {
@@ -250,15 +330,20 @@ export class LocationService {
     }
   }
 
-  async updateRegion(
-    adminId: string,
-    regionId: number,
-    input: CreateRegionInput,
-    language: Language,
-  ) {
+  async updateRegion({
+    adminId,
+    regionId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    regionId: number;
+    input: CreateRegionInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.region.findUnique({
         where: { id: regionId },
@@ -289,14 +374,18 @@ export class LocationService {
     }
   }
 
-  async createCity(
-    adminId: string,
-    input: CreateCityInput,
-    language: Language,
-  ) {
+  async createCity({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateCityInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const city = await this.prisma.city.create({
         data: {
@@ -312,15 +401,20 @@ export class LocationService {
     }
   }
 
-  async updateCity(
-    adminId: string,
-    cityId: number,
-    input: CreateCityInput,
-    language: Language,
-  ) {
+  async updateCity({
+    adminId,
+    cityId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    cityId: number;
+    input: CreateCityInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.city.findUnique({
         where: { id: cityId },
@@ -351,14 +445,18 @@ export class LocationService {
     }
   }
 
-  async createCounty(
-    adminId: string,
-    input: CreateCountyInput,
-    language: Language,
-  ) {
+  async createCounty({
+    adminId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    input: CreateCountyInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const county = await this.prisma.county.create({
         data: {
@@ -374,15 +472,20 @@ export class LocationService {
     }
   }
 
-  async updateCounty(
-    adminId: string,
-    countyId: number,
-    input: CreateCountyInput,
-    language: Language,
-  ) {
+  async updateCounty({
+    adminId,
+    countyId,
+    input,
+    language,
+  }: {
+    adminId: string;
+    countyId: number;
+    input: CreateCountyInput;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.county.findUnique({
         where: { id: countyId },
@@ -413,14 +516,20 @@ export class LocationService {
     }
   }
 
-  async getCountiesByCity(
-    cityId: number,
-    sellerId: string,
-    language: Language,
-  ) {
+  async getCountiesByCity({
+    cityId,
+    sellerId,
+    adminId,
+    language,
+  }: {
+    cityId: number;
+    sellerId?: string;
+    adminId?: string;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      if (!sellerId) {
+      if (!sellerId && !adminId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -450,10 +559,18 @@ export class LocationService {
     }
   }
 
-  async deleteCountry(adminId: string, countryId: number, language: Language) {
+  async deleteCountry({
+    adminId,
+    countryId,
+    language,
+  }: {
+    adminId: string;
+    countryId: number;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.country.findUnique({
         where: { id: countryId },
@@ -493,10 +610,18 @@ export class LocationService {
     }
   }
 
-  async deleteRegion(adminId: string, regionId: number, language: Language) {
+  async deleteRegion({
+    adminId,
+    regionId,
+    language,
+  }: {
+    adminId: string;
+    regionId: number;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.region.findUnique({
         where: { id: regionId },
@@ -531,10 +656,18 @@ export class LocationService {
     }
   }
 
-  async deleteCity(adminId: string, cityId: number, language: Language) {
+  async deleteCity({
+    adminId,
+    cityId,
+    language,
+  }: {
+    adminId: string;
+    cityId: number;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.city.findUnique({
         where: { id: cityId },
@@ -569,10 +702,18 @@ export class LocationService {
     }
   }
 
-  async deleteCounty(adminId: string, countyId: number, language: Language) {
+  async deleteCounty({
+    adminId,
+    countyId,
+    language,
+  }: {
+    adminId: string;
+    countyId: number;
+    language: Language;
+  }) {
     const t = locationMessages[language];
     try {
-      await this.assertPlatformAdmin(adminId, t);
+      await this.assertPlatformAdmin({ adminId, t });
 
       const existing = await this.prisma.county.findUnique({
         where: { id: countyId },
