@@ -1,6 +1,16 @@
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { LocationService } from './location.service';
-import { Country, Region, City, County } from './entities';
+import {
+  Country,
+  Region,
+  City,
+  County,
+  RawCountryConnection,
+  RawCountryTranslationConnection,
+  RawRegionConnection,
+  RawCityConnection,
+  RawCountyConnection,
+} from './entities';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language } from '../graphql/enums';
 import {
@@ -13,6 +23,127 @@ import {
 @Resolver()
 export class LocationResolver {
   constructor(private readonly locationService: LocationService) {}
+
+  // ─── Raw admin-panel reads (Platform Admin only) ──────────────────────────────
+  // Return each table row exactly as stored (every translation, no active-language
+  // filtering) so the admin panel can drive CRUD screens directly.
+
+  @Query(() => RawCountryConnection, {
+    name: 'rawCountries',
+    description:
+      'Paginated, unprocessed list of countries for the admin panel. Admins only.',
+  })
+  async getRawCountries(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.locationService.getRawCountries({
+      adminId,
+      language,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawCountryTranslationConnection, {
+    name: 'rawCountryTranslations',
+    description:
+      'Paginated, unprocessed list of country translations for the admin panel. ' +
+      'Optionally filtered by countryId. Admins only.',
+  })
+  async getRawCountryTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.locationService.getRawCountryTranslations({
+      adminId,
+      language,
+      countryId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawRegionConnection, {
+    name: 'rawRegions',
+    description:
+      'Paginated, unprocessed list of regions for the admin panel. ' +
+      'Optionally filtered by countryId. Admins only.',
+  })
+  async getRawRegions(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.locationService.getRawRegions({
+      adminId,
+      language,
+      countryId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawCityConnection, {
+    name: 'rawCities',
+    description:
+      'Paginated, unprocessed list of cities for the admin panel. ' +
+      'Optionally filtered by regionId. Admins only.',
+  })
+  async getRawCities(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('regionId', { type: () => Int, nullable: true }) regionId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.locationService.getRawCities({
+      adminId,
+      language,
+      regionId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawCountyConnection, {
+    name: 'rawCounties',
+    description:
+      'Paginated, unprocessed list of counties for the admin panel. ' +
+      'Optionally filtered by cityId. Admins only.',
+  })
+  async getRawCounties(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('cityId', { type: () => Int, nullable: true }) cityId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.locationService.getRawCounties({
+      adminId,
+      language,
+      cityId,
+      page,
+      pageSize,
+    });
+  }
 
   @Query(() => [Country], { name: 'countries' })
   async getCountries(

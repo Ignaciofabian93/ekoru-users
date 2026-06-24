@@ -19,6 +19,10 @@ import {
   BusinessMembershipTranslation,
   BusinessMembershipPricing,
   BusinessMembershipSubscription,
+  RawPersonMembershipTranslationConnection,
+  RawBusinessMembershipTranslationConnection,
+  RawPersonMembershipPricingConnection,
+  RawBusinessMembershipPricingConnection,
 } from './entities';
 import {
   CreatePersonMembershipInput,
@@ -42,6 +46,114 @@ import { Language } from '../graphql/enums';
 @Resolver(() => PersonMembership)
 export class SubscriptionResolver {
   constructor(private readonly subscriptionService: SubscriptionService) {}
+
+  // ─── Raw admin-panel reads (Admin only) ──────────────────────────────────────
+  // Return membership translation/pricing rows exactly as stored so the admin
+  // panel can edit every language and per-country price directly.
+
+  @Query(() => RawPersonMembershipTranslationConnection, {
+    name: 'rawPersonMembershipTranslations',
+    description:
+      'Paginated, unprocessed list of person-membership translations for the ' +
+      'admin panel. Optionally filtered by personMembershipId. Admins only.',
+  })
+  getRawPersonMembershipTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('personMembershipId', { type: () => Int, nullable: true })
+    personMembershipId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.subscriptionService.getRawPersonMembershipTranslations({
+      adminId,
+      language,
+      personMembershipId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawBusinessMembershipTranslationConnection, {
+    name: 'rawBusinessMembershipTranslations',
+    description:
+      'Paginated, unprocessed list of business-membership translations for the ' +
+      'admin panel. Optionally filtered by businessMembershipId. Admins only.',
+  })
+  getRawBusinessMembershipTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('businessMembershipId', { type: () => Int, nullable: true })
+    businessMembershipId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.subscriptionService.getRawBusinessMembershipTranslations({
+      adminId,
+      language,
+      businessMembershipId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawPersonMembershipPricingConnection, {
+    name: 'rawPersonMembershipPricing',
+    description:
+      'Paginated, unprocessed list of person-membership pricing for the admin ' +
+      'panel. Optionally filtered by personMembershipId and/or countryId. Admins only.',
+  })
+  getRawPersonMembershipPricing(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('personMembershipId', { type: () => Int, nullable: true })
+    personMembershipId?: number,
+    @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.subscriptionService.getRawPersonMembershipPricing({
+      adminId,
+      language,
+      personMembershipId,
+      countryId,
+      page,
+      pageSize,
+    });
+  }
+
+  @Query(() => RawBusinessMembershipPricingConnection, {
+    name: 'rawBusinessMembershipPricing',
+    description:
+      'Paginated, unprocessed list of business-membership pricing for the admin ' +
+      'panel. Optionally filtered by businessMembershipId and/or countryId. Admins only.',
+  })
+  getRawBusinessMembershipPricing(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('businessMembershipId', { type: () => Int, nullable: true })
+    businessMembershipId?: number,
+    @Args('countryId', { type: () => Int, nullable: true }) countryId?: number,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
+    @Args('pageSize', { type: () => Int, defaultValue: 10 })
+    pageSize: number = 10,
+  ) {
+    return this.subscriptionService.getRawBusinessMembershipPricing({
+      adminId,
+      language,
+      businessMembershipId,
+      countryId,
+      page,
+      pageSize,
+    });
+  }
 
   @Query(() => [PersonMembership], { name: 'personMemberships' })
   getPersonMemberships(

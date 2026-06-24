@@ -6,3 +6,9 @@ export { BusinessMembership } from './business-membership.entity';
 export { BusinessMembershipTranslation } from './business-membership-translation.entity';
 export { BusinessMembershipPricing } from './business-membership-pricing.entity';
 export { BusinessMembershipSubscription } from './business-membership-subscription.entity';
+export {
+  RawPersonMembershipTranslationConnection,
+  RawBusinessMembershipTranslationConnection,
+  RawPersonMembershipPricingConnection,
+  RawBusinessMembershipPricingConnection,
+} from './raw-connections.entity';

@@ -64,6 +64,182 @@ export class LocationService {
     }
   }
 
+  async getRawCountryTranslations({
+    adminId,
+    language,
+    countryId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    countryId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = locationMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = countryId ? { countryId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, translations] = await Promise.all([
+        this.prisma.countryTranslation.count({ where }),
+        this.prisma.countryTranslation.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(translations, count, page, pageSize);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(t.errorCountries);
+    }
+  }
+
+  async getRawRegions({
+    adminId,
+    language,
+    countryId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    countryId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = locationMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = countryId ? { countryId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, regions] = await Promise.all([
+        this.prisma.region.count({ where }),
+        this.prisma.region.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(regions, count, page, pageSize);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(t.errorRegions);
+    }
+  }
+
+  async getRawCities({
+    adminId,
+    language,
+    regionId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    regionId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = locationMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = regionId ? { regionId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, cities] = await Promise.all([
+        this.prisma.city.count({ where }),
+        this.prisma.city.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(cities, count, page, pageSize);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(t.errorCities);
+    }
+  }
+
+  async getRawCounties({
+    adminId,
+    language,
+    cityId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    cityId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = locationMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = cityId ? { cityId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, counties] = await Promise.all([
+        this.prisma.county.count({ where }),
+        this.prisma.county.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(counties, count, page, pageSize);
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      throw new InternalServerError(t.errorCounties);
+    }
+  }
+
   async getCountries({
     sellerId,
     adminId,

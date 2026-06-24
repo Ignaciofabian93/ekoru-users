@@ -19,6 +19,10 @@ import {
   UpsertPersonMembershipPricingInput,
   UpsertBusinessMembershipPricingInput,
 } from './dto';
+import {
+  calculatePrismaParams,
+  createPaginatedResponse,
+} from '../utils/pagination';
 
 @Injectable()
 export class SubscriptionService {
@@ -72,6 +76,180 @@ export class SubscriptionService {
       translation: translations?.[0] ?? null,
       pricing: pricing?.[0] ?? null,
     };
+  }
+
+  // ─── Raw admin-panel reads (Admin only) ──────────────────────────────────────
+  // Return membership translation/pricing rows exactly as stored so the admin
+  // panel can edit every language and per-country price directly.
+
+  async getRawPersonMembershipTranslations({
+    adminId,
+    language,
+    personMembershipId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    personMembershipId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = personMembershipId ? { personMembershipId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, translations] = await Promise.all([
+        this.prisma.personMembershipTranslation.count({ where }),
+        this.prisma.personMembershipTranslation.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(translations, count, page, pageSize);
+    } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
+      this.logger.error(t.errorGetMemberships, error);
+      throw new InternalServerError(t.errorGetMemberships);
+    }
+  }
+
+  async getRawBusinessMembershipTranslations({
+    adminId,
+    language,
+    businessMembershipId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    businessMembershipId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = businessMembershipId ? { businessMembershipId } : {};
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, translations] = await Promise.all([
+        this.prisma.businessMembershipTranslation.count({ where }),
+        this.prisma.businessMembershipTranslation.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(translations, count, page, pageSize);
+    } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
+      this.logger.error(t.errorGetMemberships, error);
+      throw new InternalServerError(t.errorGetMemberships);
+    }
+  }
+
+  async getRawPersonMembershipPricing({
+    adminId,
+    language,
+    personMembershipId,
+    countryId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    personMembershipId?: number;
+    countryId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = {
+        ...(personMembershipId ? { personMembershipId } : {}),
+        ...(countryId ? { countryId } : {}),
+      };
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, pricing] = await Promise.all([
+        this.prisma.personMembershipPricing.count({ where }),
+        this.prisma.personMembershipPricing.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(pricing, count, page, pageSize);
+    } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
+      this.logger.error(t.errorGetMemberships, error);
+      throw new InternalServerError(t.errorGetMemberships);
+    }
+  }
+
+  async getRawBusinessMembershipPricing({
+    adminId,
+    language,
+    businessMembershipId,
+    countryId,
+    page = 1,
+    pageSize = 10,
+  }: {
+    adminId: string;
+    language: Language;
+    businessMembershipId?: number;
+    countryId?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const t = subscriptionMessages[language];
+    try {
+      if (!adminId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      const where = {
+        ...(businessMembershipId ? { businessMembershipId } : {}),
+        ...(countryId ? { countryId } : {}),
+      };
+      const { skip, take } = calculatePrismaParams(page, pageSize);
+
+      const [count, pricing] = await Promise.all([
+        this.prisma.businessMembershipPricing.count({ where }),
+        this.prisma.businessMembershipPricing.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+
+      return createPaginatedResponse(pricing, count, page, pageSize);
+    } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
+      this.logger.error(t.errorGetMemberships, error);
+      throw new InternalServerError(t.errorGetMemberships);
+    }
   }
 
   // ─── Person Memberships ───────────────────────────────────────────────────────
