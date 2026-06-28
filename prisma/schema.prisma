@@ -591,6 +591,10 @@ model AdminActivityLog {
 
 model Country {
   id                      Int                       @id @default(autoincrement())
+  // ISO 3166-1 alpha-2 code (e.g. "CL", "CA"). Lets the search subgraph scope a
+  // guest's results to their selected country. Nullable for backfill; populate
+  // existing rows then consider making it required.
+  code                    String?                   @unique
   translation             CountryTranslation[]
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
