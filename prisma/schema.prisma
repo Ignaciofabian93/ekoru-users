@@ -165,41 +165,42 @@ enum NotificationType {
 // ─── Models ──────────────────────────────────────────────────────────────────────
 
 model Seller {
-  id                                               String                      @id @default(uuid())
-  email                                            String                      @unique
-  password                                         String
-  sellerType                                       SellerType
-  isActive                                         Boolean                     @default(true)
-  isVerified                                       Boolean                     @default(false)
-  createdAt                                        DateTime                    @default(now())
-  updatedAt                                        DateTime                    @updatedAt
-  address                                          String?
-  cityId                                           Int?
-  countryId                                        Int?
-  countyId                                         Int?
-  regionId                                         Int?
-  phone                                            String?
-  website                                          String?
-  preferredContactMethod                           ContactMethod?              @default(WHATSAPP)
-  socialMediaLinks                                 Json?
-  points                                           Int                         @default(0)
-  sellerLevelId                                    Int?
-  admin                                            Admin[]
-  businessProfile                                  BusinessProfile?
-  match_Match_receiverIdToSeller                   Match[]                     @relation("Match_receiverIdToSeller")
-  match_Match_senderIdToSeller                     Match[]                     @relation("Match_senderIdToSeller")
-  notification                                     Notification[]
-  personProfile                                    PersonProfile?
-  city                                             City?                       @relation(fields: [cityId], references: [id])
-  country                                          Country?                    @relation(fields: [countryId], references: [id])
-  county                                           County?                     @relation(fields: [countyId], references: [id])
-  region                                           Region?                     @relation(fields: [regionId], references: [id])
-  sellerLevel                                      SellerLevel?                @relation(fields: [sellerLevelId], references: [id])
-  achievedLabels                                   SellerAchievedLabel[]
-  sellerPreferences                                SellerPreferences?
-  personMembershipSubscription                     PersonMembershipSubscription[]
-  businessMembershipSubscription                   BusinessMembershipSubscription[]
-  bans                                             BannedSeller[]
+  id                                     String                           @id @default(uuid())
+  email                                  String                           @unique
+  password                               String
+  sellerType                             SellerType
+  isActive                               Boolean                          @default(true)
+  isVerified                             Boolean                          @default(false)
+  createdAt                              DateTime                         @default(now())
+  updatedAt                              DateTime                         @updatedAt
+  address                                String?
+  cityId                                 Int?
+  countryId                              Int?
+  countyId                               Int?
+  regionId                               Int?
+  contentLanguage                        Language?
+  phone                                  String?
+  website                                String?
+  preferredContactMethod                 ContactMethod?                   @default(WHATSAPP)
+  socialMediaLinks                       Json?
+  points                                 Int                              @default(0)
+  sellerLevelId                          Int?
+  admin                                  Admin[]
+  businessProfile                        BusinessProfile?
+  match_Match_receiverIdToSeller         Match[]                          @relation("Match_receiverIdToSeller")
+  match_Match_senderIdToSeller           Match[]                          @relation("Match_senderIdToSeller")
+  notification                           Notification[]
+  personProfile                          PersonProfile?
+  city                                   City?                            @relation(fields: [cityId], references: [id])
+  country                                Country?                         @relation(fields: [countryId], references: [id])
+  county                                 County?                          @relation(fields: [countyId], references: [id])
+  region                                 Region?                          @relation(fields: [regionId], references: [id])
+  sellerLevel                            SellerLevel?                     @relation(fields: [sellerLevelId], references: [id])
+  achievedLabels                         SellerAchievedLabel[]
+  sellerPreferences                      SellerPreferences?
+  personMembershipSubscription           PersonMembershipSubscription[]
+  businessMembershipSubscription         BusinessMembershipSubscription[]
+  bans                                   BannedSeller[]
 
   @@index([cityId])
   @@index([email])
@@ -213,16 +214,16 @@ model Seller {
 }
 
 model SellerPreferences {
-  id                 Int     @id @default(autoincrement())
-  sellerId           String  @unique
-  preferredLanguage  String? @default("es")
-  currency           String? @default("CLP")
-  emailNotifications Boolean @default(true)
-  pushNotifications  Boolean @default(true)
-  orderUpdates       Boolean @default(true)
-  communityUpdates   Boolean @default(true)
-  securityAlerts     Boolean @default(true)
-  weeklySummary      Boolean @default(false)
+  id                 Int      @id @default(autoincrement())
+  sellerId           String   @unique
+  preferredLanguage  String?  @default("es")
+  currency           String?  @default("CLP")
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  orderUpdates       Boolean  @default(true)
+  communityUpdates   Boolean  @default(true)
+  securityAlerts     Boolean  @default(true)
+  weeklySummary      Boolean  @default(false)
   twoFactorAuth      Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -230,48 +231,48 @@ model SellerPreferences {
 }
 
 model PersonProfile {
-  id                 String            @id @default(uuid())
-  sellerId           String            @unique
-  firstName          String
-  lastName           String?
-  displayName        String?
-  bio                String?
-  birthday           DateTime?
-  profileImage       String?
-  coverImage         String?
-  allowExchanges     Boolean           @default(true)
+  id                             String                        @id @default(uuid())
+  sellerId                       String                        @unique
+  firstName                      String
+  lastName                       String?
+  displayName                    String?
+  bio                            String?
+  birthday                       DateTime?
+  profileImage                   String?
+  coverImage                     String?
+  allowExchanges                 Boolean                       @default(true)
   personMembershipSubscriptionId Int?
-  createdAt                      DateTime                       @default(now())
-  updatedAt                      DateTime                       @updatedAt
-  personMembershipSubscription   PersonMembershipSubscription?  @relation(fields: [personMembershipSubscriptionId], references: [id])
-  seller                         Seller                         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  createdAt                      DateTime                      @default(now())
+  updatedAt                      DateTime                      @updatedAt
+  personMembershipSubscription   PersonMembershipSubscription? @relation(fields: [personMembershipSubscriptionId], references: [id])
+  seller                         Seller                        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
   @@index([personMembershipSubscriptionId])
   @@index([sellerId])
 }
 
 model BusinessProfile {
-  id                       String              @id @default(uuid())
-  sellerId                 String              @unique
-  businessName             String
-  description              String?
-  logo                     String?
-  coverImage               String?
-  businessType             BusinessType
-  legalBusinessName        String?
-  taxId                    String?             @unique
-  businessStartDate        DateTime?
-  legalRepresentative      String?
-  legalRepresentativeTaxId String?
-  shippingPolicy           String?
-  returnPolicy             String?
-  serviceArea              String?
-  yearsOfExperience        Int?
-  certifications           String[]
-  travelRadius             Int?
-  businessHours            Json?
-  createdAt                DateTime            @default(now())
-  updatedAt                DateTime            @updatedAt
+  id                               String                          @id @default(uuid())
+  sellerId                         String                          @unique
+  businessName                     String
+  description                      String?
+  logo                             String?
+  coverImage                       String?
+  businessType                     BusinessType
+  legalBusinessName                String?
+  taxId                            String?                         @unique
+  businessStartDate                DateTime?
+  legalRepresentative              String?
+  legalRepresentativeTaxId         String?
+  shippingPolicy                   String?
+  returnPolicy                     String?
+  serviceArea                      String?
+  yearsOfExperience                Int?
+  certifications                   String[]
+  travelRadius                     Int?
+  businessHours                    Json?
+  createdAt                        DateTime                        @default(now())
+  updatedAt                        DateTime                        @updatedAt
   businessMembershipSubscriptionId Int?
   businessMembershipSubscription   BusinessMembershipSubscription? @relation(fields: [businessMembershipSubscriptionId], references: [id])
   seller                           Seller                          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
@@ -285,7 +286,7 @@ model BusinessProfile {
 model BannedSeller {
   id           String    @id @default(uuid())
   sellerId     String
-  reasonCode   BanReason  @default(OTHER)
+  reasonCode   BanReason @default(OTHER)
   reason       String // Human-written explanation shown in moderation tooling
   notes        String? // Internal-only admin notes
   evidence     Json? // Links / screenshots / snapshot of obligations at ban time
@@ -310,14 +311,14 @@ model BannedSeller {
 }
 
 model SellerLabel {
-  id                   Int                        @id @default(autoincrement())
-  labelName            String                     @unique
+  id                   Int                      @id @default(autoincrement())
+  labelName            String                   @unique
   transactionKind      TransactionKind
   transactionsRequired Int
   description          String?
   badgeIcon            String?
-  createdAt            DateTime                   @default(now())
-  updatedAt            DateTime                   @updatedAt
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
   achievedBy           SellerAchievedLabel[]
   translations         SellerLabelTranslation[]
 
@@ -357,14 +358,14 @@ model SellerAchievedLabel {
 }
 
 model SellerLevel {
-  id           Int                        @id @default(autoincrement())
-  levelName    String                     @unique
-  minPoints    Int                        @unique
+  id           Int                      @id @default(autoincrement())
+  levelName    String                   @unique
+  minPoints    Int                      @unique
   maxPoints    Int?
   benefits     Json?
   badgeIcon    String?
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
   sellers      Seller[]
   translations SellerLevelTranslation[]
 
@@ -463,15 +464,15 @@ model PersonMembershipSubscription {
 }
 
 model BusinessMembership {
-  id               Int                               @id @default(autoincrement())
-  membershipType   BusinessSubscriptionPlan          @default(FREEMIUM)
-  durationMonths   Int
-  isActive         Boolean                           @default(true)
-  createdAt        DateTime                          @default(now())
-  updatedAt        DateTime                          @updatedAt
-  subscriptions    BusinessMembershipSubscription[]
-  translations     BusinessMembershipTranslation[]
-  pricing          BusinessMembershipPricing[]
+  id             Int                              @id @default(autoincrement())
+  membershipType BusinessSubscriptionPlan         @default(FREEMIUM)
+  durationMonths Int
+  isActive       Boolean                          @default(true)
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+  subscriptions  BusinessMembershipSubscription[]
+  translations   BusinessMembershipTranslation[]
+  pricing        BusinessMembershipPricing[]
 
   @@index([membershipType])
   @@index([isActive])
@@ -530,35 +531,35 @@ model BusinessMembershipSubscription {
 }
 
 model Admin {
-  id               String             @id @default(uuid())
-  email            String             @unique
-  password         String
-  name             String
-  lastName         String?
-  adminType        AdminType          @default(PLATFORM)
-  role             AdminRole          @default(MODERATOR)
-  permissions      AdminPermission[]
-  sellerId         String?
-  isActive         Boolean            @default(true)
-  isEmailVerified  Boolean            @default(false)
-  accountLocked    Boolean            @default(false)
-  loginAttempts    Int                @default(0)
-  lastLoginAt      DateTime?
-  lastLoginIp      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  cityId           Int?
-  countryId        Int?
-  countyId         Int?
-  regionId         Int?
-  city             City?              @relation(fields: [cityId], references: [id])
-  country          Country?           @relation(fields: [countryId], references: [id])
-  county           County?            @relation(fields: [countyId], references: [id])
-  region           Region?            @relation(fields: [regionId], references: [id])
-  seller           Seller?            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  adminActivityLog     AdminActivityLog[]
-  bansIssued           BannedSeller[]     @relation("BansIssued")
-  bansLifted           BannedSeller[]     @relation("BansLifted")
+  id                  String             @id @default(uuid())
+  email               String             @unique
+  password            String
+  name                String
+  lastName            String?
+  adminType           AdminType          @default(PLATFORM)
+  role                AdminRole          @default(MODERATOR)
+  permissions         AdminPermission[]
+  sellerId            String?
+  isActive            Boolean            @default(true)
+  isEmailVerified     Boolean            @default(false)
+  accountLocked       Boolean            @default(false)
+  loginAttempts       Int                @default(0)
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  cityId              Int?
+  countryId           Int?
+  countyId            Int?
+  regionId            Int?
+  city                City?              @relation(fields: [cityId], references: [id])
+  country             Country?           @relation(fields: [countryId], references: [id])
+  county              County?            @relation(fields: [countyId], references: [id])
+  region              Region?            @relation(fields: [regionId], references: [id])
+  seller              Seller?            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  adminActivityLog    AdminActivityLog[]
+  bansIssued          BannedSeller[]     @relation("BansIssued")
+  bansLifted          BannedSeller[]     @relation("BansLifted")
 
   @@index([email])
   @@index([sellerId])
@@ -590,18 +591,18 @@ model AdminActivityLog {
 }
 
 model Country {
-  id                      Int                       @id @default(autoincrement())
+  id                        Int                         @id @default(autoincrement())
   // ISO 3166-1 alpha-2 code (e.g. "CL", "CA"). Lets the search subgraph scope a
   // guest's results to their selected country. Nullable for backfill; populate
   // existing rows then consider making it required.
-  code                    String?                   @unique
-  translation             CountryTranslation[]
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  admin                   Admin[]
-  region                  Region[]
-  seller                  Seller[]
-  personMembershipPricing PersonMembershipPricing[]
+  code                      String?                     @unique
+  translation               CountryTranslation[]
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  admin                     Admin[]
+  region                    Region[]
+  seller                    Seller[]
+  personMembershipPricing   PersonMembershipPricing[]
   businessMembershipPricing BusinessMembershipPricing[]
 }
 
