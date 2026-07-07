@@ -117,21 +117,31 @@ describe('SellersService', () => {
       prisma.seller.count.mockResolvedValue(1);
 
       const result = await service.getSellers({
-        adminId: 'seller-123',
         language: Language.ES,
       });
 
       expect(result.nodes).toEqual(sellers);
       expect(result.pageInfo.totalCount).toBe(1);
       expect(result.pageInfo.currentPage).toBe(1);
-      expect(result.pageInfo.pageSize).toBe(10);
+      expect(result.pageInfo.pageSize).toBe(20);
       expect(prisma.seller.findMany).toHaveBeenCalledWith({
         where: {},
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 20,
         skip: 0,
       });
+    });
+
+    it('should return sellers for a guest request without authentication', async () => {
+      const sellers = [mockSeller];
+      prisma.seller.findMany.mockResolvedValue(sellers);
+      prisma.seller.count.mockResolvedValue(1);
+
+      const result = await service.getSellers({ language: Language.ES });
+
+      expect(result.nodes).toEqual(sellers);
+      expect(prisma.seller.findMany).toHaveBeenCalled();
     });
 
     it('should filter sellers by sellerType', async () => {
@@ -139,7 +149,6 @@ describe('SellersService', () => {
       prisma.seller.findMany.mockResolvedValue(sellers);
 
       await service.getSellers({
-        adminId: 'seller-123',
         language: Language.ES,
         sellerType: SellerType.PERSON,
       });
@@ -156,7 +165,6 @@ describe('SellersService', () => {
       prisma.seller.findMany.mockResolvedValue(sellers);
 
       await service.getSellers({
-        adminId: 'seller-123',
         language: Language.ES,
         isActive: true,
       });
@@ -173,7 +181,6 @@ describe('SellersService', () => {
       prisma.seller.findMany.mockResolvedValue(sellers);
 
       await service.getSellers({
-        adminId: 'seller-123',
         language: Language.ES,
         isVerified: true,
       });
@@ -185,12 +192,92 @@ describe('SellersService', () => {
       );
     });
 
+    it('should include MIXED sellers when filtering by RETAIL businessType', async () => {
+      const sellers = [mockSeller];
+      prisma.seller.findMany.mockResolvedValue(sellers);
+
+      await service.getSellers({
+        language: Language.ES,
+        businessType: BusinessType.RETAIL,
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            businessProfile: {
+              businessType: {
+                in: [BusinessType.RETAIL, BusinessType.MIXED],
+              },
+            },
+          },
+        }),
+      );
+    });
+
+    it('should include MIXED sellers when filtering by SERVICES businessType', async () => {
+      const sellers = [mockSeller];
+      prisma.seller.findMany.mockResolvedValue(sellers);
+
+      await service.getSellers({
+        language: Language.ES,
+        businessType: BusinessType.SERVICES,
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            businessProfile: {
+              businessType: {
+                in: [BusinessType.SERVICES, BusinessType.MIXED],
+              },
+            },
+          },
+        }),
+      );
+    });
+
+    it('should combine businessType and searchQuery filters without overwriting either', async () => {
+      const sellers = [mockSeller];
+      prisma.seller.findMany.mockResolvedValue(sellers);
+
+      await service.getSellers({
+        language: Language.ES,
+        businessType: BusinessType.RETAIL,
+        searchQuery: 'acme',
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [{ email: { contains: 'acme', mode: 'insensitive' } }],
+            businessProfile: {
+              businessType: {
+                in: [BusinessType.RETAIL, BusinessType.MIXED],
+              },
+            },
+          },
+        }),
+      );
+    });
+
+    it('should not apply a businessProfile filter when businessType is omitted', async () => {
+      const sellers = [mockSeller];
+      prisma.seller.findMany.mockResolvedValue(sellers);
+
+      await service.getSellers({
+        language: Language.ES,
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+    });
+
     it('should apply page and pageSize', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
       await service.getSellers({
-        adminId: 'seller-123',
         language: Language.ES,
         page: 2,
         pageSize: 5,
@@ -204,30 +291,17 @@ describe('SellersService', () => {
       );
     });
 
-    it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
-      await expect(
-        service.getSellers({ adminId: '', language: Language.ES }),
-      ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
-      expect(prisma.seller.findMany).not.toHaveBeenCalled();
-    });
-
-    it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
-      await expect(
-        service.getSellers({ adminId: '', language: Language.EN }),
-      ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
-    });
-
     it('should throw InternalServerError with ES message on database error', async () => {
       prisma.seller.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellers({ adminId: 'seller-123', language: Language.ES }),
+        service.getSellers({ language: Language.ES }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorGetSellers);
     });
 
     it('should throw InternalServerError with EN message on database error', async () => {
       prisma.seller.findMany.mockRejectedValue(new Error('Database error'));
       await expect(
-        service.getSellers({ adminId: 'seller-123', language: Language.EN }),
+        service.getSellers({ language: Language.EN }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorGetSellers);
     });
   });

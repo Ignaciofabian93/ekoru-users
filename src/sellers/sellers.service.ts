@@ -79,8 +79,6 @@ export class SellersService {
   }
 
   async getSellers({
-    adminId,
-    sellerId,
     language,
     sellerType,
     businessType,
@@ -90,8 +88,6 @@ export class SellersService {
     pageSize = 20,
     searchQuery,
   }: {
-    adminId: string;
-    sellerId: string;
     language: Language;
     sellerType?: SellerType;
     businessType?: BusinessType;
@@ -103,10 +99,6 @@ export class SellersService {
   }) {
     const t = sellerMessages[language];
     try {
-      if (!adminId && !sellerId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
-
       const where: Record<string, any> = {};
       if (sellerType) where.sellerType = sellerType;
       if (isActive !== undefined) where.isActive = isActive;
@@ -141,7 +133,6 @@ export class SellersService {
 
       return createPaginatedResponse(nodes, count, page, pageSize);
     } catch (error) {
-      if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorGetSellers, error);
       throw new InternalServerError(t.errorGetSellers);
     }

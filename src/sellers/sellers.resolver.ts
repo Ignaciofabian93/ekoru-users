@@ -47,8 +47,6 @@ export class SellersResolver {
     description: 'Get a paginated list of sellers',
   })
   async getSellers(
-    @CurrentAdmin() adminId: string,
-    @CurrentSeller() sellerId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
     @Args('sellerType', { type: () => SellerType, nullable: true })
@@ -63,8 +61,6 @@ export class SellersResolver {
     @Args('searchQuery', { nullable: true }) searchQuery?: string,
   ) {
     return this.sellersService.getSellers({
-      adminId,
-      sellerId,
       language,
       sellerType,
       businessType,
