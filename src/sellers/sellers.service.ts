@@ -24,6 +24,7 @@ import {
   AdminType,
   AdminRole,
   AdminPermission,
+  BusinessType,
 } from '../graphql/enums';
 import { sellerMessages, SellerMessages } from './sellers.i18n';
 import {
@@ -79,17 +80,21 @@ export class SellersService {
 
   async getSellers({
     adminId,
+    sellerId,
     language,
     sellerType,
+    businessType,
     isActive,
     isVerified,
     page = 1,
-    pageSize = 10,
+    pageSize = 20,
     searchQuery,
   }: {
     adminId: string;
+    sellerId: string;
     language: Language;
     sellerType?: SellerType;
+    businessType?: BusinessType;
     isActive?: boolean;
     isVerified?: boolean;
     page?: number;
@@ -98,7 +103,7 @@ export class SellersService {
   }) {
     const t = sellerMessages[language];
     try {
-      if (!adminId) {
+      if (!adminId && !sellerId) {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
@@ -108,6 +113,12 @@ export class SellersService {
       if (isVerified !== undefined) where.isVerified = isVerified;
       if (searchQuery) {
         where.OR = [{ email: { contains: searchQuery, mode: 'insensitive' } }];
+      }
+      if (businessType) {
+        // MIXED sellers serve both retail and service. Always included.
+        where.businessProfile = {
+          businessType: { in: [businessType, BusinessType.MIXED] },
+        };
       }
 
       const { skip, take } = calculatePrismaParams(page, pageSize);

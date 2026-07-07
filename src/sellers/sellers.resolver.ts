@@ -29,7 +29,7 @@ import {
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
-import { Language, SellerType } from '../graphql/enums';
+import { BusinessType, Language, SellerType } from '../graphql/enums';
 
 @Resolver(() => Seller)
 export class SellersResolver {
@@ -48,10 +48,13 @@ export class SellersResolver {
   })
   async getSellers(
     @CurrentAdmin() adminId: string,
+    @CurrentSeller() sellerId: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
-    @Args('sellerType', { type: () => String, nullable: true })
+    @Args('sellerType', { type: () => SellerType, nullable: true })
     sellerType?: SellerType,
+    @Args('businessType', { type: () => BusinessType, nullable: true })
+    businessType?: BusinessType,
     @Args('isActive', { nullable: true }) isActive?: boolean,
     @Args('isVerified', { nullable: true }) isVerified?: boolean,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
@@ -61,8 +64,10 @@ export class SellersResolver {
   ) {
     return this.sellersService.getSellers({
       adminId,
+      sellerId,
       language,
       sellerType,
+      businessType,
       isActive,
       isVerified,
       page,
