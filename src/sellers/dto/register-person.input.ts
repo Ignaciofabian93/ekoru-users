@@ -1,5 +1,6 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import { SellerType } from '../../graphql/enums';
 
 @InputType()
 export class RegisterPersonInput {
@@ -19,4 +20,10 @@ export class RegisterPersonInput {
   @Field()
   @IsString()
   lastName: string;
+
+  // Accepted for parity with RegisterBusinessInput; the service always
+  // persists PERSON regardless of the value sent.
+  @Field(() => SellerType)
+  @IsEnum(SellerType)
+  sellerType: SellerType;
 }

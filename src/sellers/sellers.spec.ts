@@ -632,6 +632,7 @@ describe('SellersService', () => {
       password: 'password123',
       firstName: 'John',
       lastName: 'Doe',
+      sellerType: SellerType.PERSON,
     };
 
     it('should register person successfully and send welcome email with language', async () => {
