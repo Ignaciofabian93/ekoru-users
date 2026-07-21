@@ -8,3 +8,9 @@ export {
   UpdateSellerLevelInput,
   UpsertSellerLevelTranslationInput,
 } from './seller-level.input';
+export {
+  SellerLabelUpsertRowInput,
+  SellerLabelTranslationUpsertRowInput,
+  SellerLevelUpsertRowInput,
+  SellerLevelTranslationUpsertRowInput,
+} from './bulk-upsert.input';

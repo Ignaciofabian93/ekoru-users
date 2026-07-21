@@ -12,12 +12,18 @@ import {
   RawCountyConnection,
 } from './entities';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
+import { UsersBulkUpsertResult } from '../common/bulk';
 import { Language } from '../graphql/enums';
 import {
   CreateCountryInput,
   CreateRegionInput,
   CreateCityInput,
   CreateCountyInput,
+  CountryUpsertRowInput,
+  CountryTranslationUpsertRowInput,
+  RegionUpsertRowInput,
+  CityUpsertRowInput,
+  CountyUpsertRowInput,
 } from './dto';
 
 @Resolver()
@@ -401,5 +407,106 @@ export class LocationResolver {
       countyId,
       language,
     });
+  }
+
+  @Mutation(() => Region, {
+    name: 'updateRegion',
+    description: 'Update a region. Platform admins only.',
+  })
+  updateRegion(
+    @CurrentAdmin() adminId: string,
+    @Args('regionId', { type: () => Int }) regionId: number,
+    @Args('input') input: CreateRegionInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.updateRegion({
+      adminId,
+      regionId,
+      input,
+      language,
+    });
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  // Rows with an id update, rows without an id create; country translation rows
+  // without an id are matched by (countryId, language). Per-row failures come
+  // back in errors[] without aborting the batch.
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description: 'Bulk create/update countries. Platform admins only.',
+  })
+  bulkUpsertCountries(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [CountryUpsertRowInput] })
+    rows: CountryUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.bulkUpsertCountries({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update country translations, matched by (countryId, language). Platform admins only.',
+  })
+  bulkUpsertCountryTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [CountryTranslationUpsertRowInput] })
+    rows: CountryTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.bulkUpsertCountryTranslations({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update regions. Setting countryId re-parents. Platform admins only.',
+  })
+  bulkUpsertRegions(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [RegionUpsertRowInput] })
+    rows: RegionUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.bulkUpsertRegions({ adminId, rows, language });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update cities. Setting regionId re-parents. Platform admins only.',
+  })
+  bulkUpsertCities(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [CityUpsertRowInput] })
+    rows: CityUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.bulkUpsertCities({ adminId, rows, language });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update counties. Setting cityId re-parents. Platform admins only.',
+  })
+  bulkUpsertCounties(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [CountyUpsertRowInput] })
+    rows: CountyUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.locationService.bulkUpsertCounties({ adminId, rows, language });
   }
 }

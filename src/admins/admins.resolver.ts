@@ -1,7 +1,11 @@
 import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { AdminsService } from './admins.service';
 import { Admin, AdminConnection } from './entities';
-import { RegisterAdminInput, UpdateAdminInput } from './dto';
+import {
+  RegisterAdminInput,
+  UpdateAdminInput,
+  AdminUpsertRowInput,
+} from './dto';
 import {
   AdminType,
   AdminRole,
@@ -9,6 +13,7 @@ import {
   Language,
 } from '../graphql/enums';
 import { CurrentAdmin } from '../common/decorators';
+import { UsersBulkUpsertResult } from '../common/bulk';
 
 @Resolver(() => Admin)
 export class AdminsResolver {
@@ -167,5 +172,20 @@ export class AdminsResolver {
       permissions,
       language,
     });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update admins (rows with id update, without id create). ' +
+      'A create needs email, password, name, adminType and role. Requires MANAGE_ADMINS.',
+  })
+  bulkUpsertAdmins(
+    @CurrentAdmin() callerId: string,
+    @Args('rows', { type: () => [AdminUpsertRowInput] })
+    rows: AdminUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.adminsService.bulkUpsertAdmins({ callerId, rows, language });
   }
 }

@@ -18,7 +18,18 @@ import {
   UpsertBusinessMembershipTranslationInput,
   UpsertPersonMembershipPricingInput,
   UpsertBusinessMembershipPricingInput,
+  PersonMembershipUpsertRowInput,
+  PersonMembershipTranslationUpsertRowInput,
+  PersonMembershipPricingUpsertRowInput,
+  BusinessMembershipUpsertRowInput,
+  BusinessMembershipTranslationUpsertRowInput,
+  BusinessMembershipPricingUpsertRowInput,
 } from './dto';
+import {
+  pickDefined,
+  requireBulkFields,
+  processBulkRows,
+} from '../common/bulk';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
@@ -993,5 +1004,321 @@ export class SubscriptionService {
       this.logger.error(t.errorAssignMembership, error);
       throw new InternalServerError(t.errorAssignMembership);
     }
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  // Rows with an id update, rows without an id create; translation rows without
+  // an id are matched by (membershipId, language), pricing rows by
+  // (membershipId, countryId). Per-row failures are reported in `errors[]`.
+
+  async bulkUpsertPersonMemberships({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: PersonMembershipUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        membershipType: row.membershipType,
+        durationMonths: row.durationMonths,
+        isActive: row.isActive,
+      });
+      if (row.id != null) {
+        await this.prisma.personMembership.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      requireBulkFields(row, ['membershipType', 'durationMonths']);
+      const created = await this.prisma.personMembership.create({
+        data: {
+          membershipType: row.membershipType!,
+          durationMonths: row.durationMonths!,
+          isActive: row.isActive ?? true,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertPersonMembershipTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: PersonMembershipTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        name: row.name,
+        description: row.description,
+      });
+      if (row.id != null) {
+        await this.prisma.personMembershipTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      const { personMembershipId, language: rowLanguage } = row;
+      if (personMembershipId == null || !rowLanguage) {
+        throw new Error(
+          'personMembershipId and language are required when no id is provided',
+        );
+      }
+      const existing = await this.prisma.personMembershipTranslation.findUnique(
+        {
+          where: {
+            personMembershipId_language: {
+              personMembershipId,
+              language: rowLanguage,
+            },
+          },
+          select: { id: true },
+        },
+      );
+      if (existing) {
+        await this.prisma.personMembershipTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+      requireBulkFields(row, ['name']);
+      const created = await this.prisma.personMembershipTranslation.create({
+        data: {
+          personMembershipId,
+          language: rowLanguage,
+          name: row.name!,
+          description: row.description ?? [],
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertPersonMembershipPricing({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: PersonMembershipPricingUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        currency: row.currency,
+        price: row.price,
+        isActive: row.isActive,
+      });
+      if (row.id != null) {
+        await this.prisma.personMembershipPricing.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      const { personMembershipId, countryId } = row;
+      if (personMembershipId == null || countryId == null) {
+        throw new Error(
+          'personMembershipId and countryId are required when no id is provided',
+        );
+      }
+      const existing = await this.prisma.personMembershipPricing.findUnique({
+        where: {
+          personMembershipId_countryId: { personMembershipId, countryId },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        await this.prisma.personMembershipPricing.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+      requireBulkFields(row, ['currency', 'price']);
+      const created = await this.prisma.personMembershipPricing.create({
+        data: {
+          personMembershipId,
+          countryId,
+          currency: row.currency!,
+          price: row.price!,
+          isActive: row.isActive ?? true,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertBusinessMemberships({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: BusinessMembershipUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        membershipType: row.membershipType,
+        durationMonths: row.durationMonths,
+        isActive: row.isActive,
+      });
+      if (row.id != null) {
+        await this.prisma.businessMembership.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      requireBulkFields(row, ['membershipType', 'durationMonths']);
+      const created = await this.prisma.businessMembership.create({
+        data: {
+          membershipType: row.membershipType!,
+          durationMonths: row.durationMonths!,
+          isActive: row.isActive ?? true,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertBusinessMembershipTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: BusinessMembershipTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        name: row.name,
+        description: row.description,
+      });
+      if (row.id != null) {
+        await this.prisma.businessMembershipTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      const { businessMembershipId, language: rowLanguage } = row;
+      if (businessMembershipId == null || !rowLanguage) {
+        throw new Error(
+          'businessMembershipId and language are required when no id is provided',
+        );
+      }
+      const existing =
+        await this.prisma.businessMembershipTranslation.findUnique({
+          where: {
+            businessMembershipId_language: {
+              businessMembershipId,
+              language: rowLanguage,
+            },
+          },
+          select: { id: true },
+        });
+      if (existing) {
+        await this.prisma.businessMembershipTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+      requireBulkFields(row, ['name']);
+      const created = await this.prisma.businessMembershipTranslation.create({
+        data: {
+          businessMembershipId,
+          language: rowLanguage,
+          name: row.name!,
+          description: row.description ?? [],
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertBusinessMembershipPricing({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: BusinessMembershipPricingUpsertRowInput[];
+    language: Language;
+  }) {
+    if (!adminId)
+      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        currency: row.currency,
+        price: row.price,
+        isActive: row.isActive,
+      });
+      if (row.id != null) {
+        await this.prisma.businessMembershipPricing.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+      const { businessMembershipId, countryId } = row;
+      if (businessMembershipId == null || countryId == null) {
+        throw new Error(
+          'businessMembershipId and countryId are required when no id is provided',
+        );
+      }
+      const existing = await this.prisma.businessMembershipPricing.findUnique({
+        where: {
+          businessMembershipId_countryId: { businessMembershipId, countryId },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        await this.prisma.businessMembershipPricing.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+      requireBulkFields(row, ['currency', 'price']);
+      const created = await this.prisma.businessMembershipPricing.create({
+        data: {
+          businessMembershipId,
+          countryId,
+          currency: row.currency!,
+          price: row.price!,
+          isActive: row.isActive ?? true,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
   }
 }

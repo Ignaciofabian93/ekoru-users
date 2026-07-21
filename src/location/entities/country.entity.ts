@@ -11,6 +11,12 @@ export class Country {
   @Field({ nullable: true })
   country?: string;
 
+  @Field({
+    nullable: true,
+    description: 'ISO 3166-1 alpha-2 code (e.g. "CL").',
+  })
+  code?: string;
+
   @Field(() => DateTimeScalar, { nullable: true })
   createdAt?: Date;
 

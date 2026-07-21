@@ -8,6 +8,12 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { hash, genSalt, compare } from 'bcrypt';
+import { Prisma } from '@prisma/client';
+import {
+  pickDefined,
+  requireBulkFields,
+  processBulkRows,
+} from '../common/bulk';
 import { Language } from '../graphql/enums';
 import { accountMessages, AccountMessages } from './account.i18n';
 import {
@@ -17,6 +23,10 @@ import {
   CreateSellerLevelInput,
   UpdateSellerLevelInput,
   UpsertSellerLevelTranslationInput,
+  SellerLabelUpsertRowInput,
+  SellerLabelTranslationUpsertRowInput,
+  SellerLevelUpsertRowInput,
+  SellerLevelTranslationUpsertRowInput,
 } from './dto';
 
 @Injectable()
@@ -772,6 +782,230 @@ export class AccountService {
       }
       this.logger.error('Error deleting seller level translation:', error);
       throw new InternalServerError(t.errorDeleteLevelTranslation);
+    }
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  //
+  // Rows with an `id` update; rows without an `id` create (translations without
+  // an id are matched by their parent+language unique key first). Rows are
+  // processed independently so one bad spreadsheet line never aborts the batch.
+
+  async bulkUpsertSellerLabels({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: SellerLabelUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        labelName: row.labelName,
+        transactionKind: row.transactionKind,
+        transactionsRequired: row.transactionsRequired,
+        description: row.description,
+        badgeIcon: row.badgeIcon,
+      });
+
+      if (row.id != null) {
+        await this.prisma.sellerLabel.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      requireBulkFields(row, [
+        'labelName',
+        'transactionKind',
+        'transactionsRequired',
+      ]);
+      const created = await this.prisma.sellerLabel.create({
+        data: {
+          labelName: row.labelName!,
+          transactionKind: row.transactionKind!,
+          transactionsRequired: row.transactionsRequired!,
+          description: row.description,
+          badgeIcon: row.badgeIcon,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertSellerLabelTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: SellerLabelTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        labelName: row.labelName,
+        description: row.description,
+      });
+
+      if (row.id != null) {
+        await this.prisma.sellerLabelTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      const { sellerLabelId, language: rowLanguage } = row;
+      if (sellerLabelId == null || !rowLanguage) {
+        throw new Error(
+          'sellerLabelId and language are required when no id is provided',
+        );
+      }
+
+      const existing = await this.prisma.sellerLabelTranslation.findUnique({
+        where: {
+          sellerLabelId_language: { sellerLabelId, language: rowLanguage },
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await this.prisma.sellerLabelTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+
+      requireBulkFields(row, ['labelName']);
+      const created = await this.prisma.sellerLabelTranslation.create({
+        data: {
+          sellerLabelId,
+          language: rowLanguage,
+          labelName: row.labelName!,
+          description: row.description,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertSellerLevels({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: SellerLevelUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        levelName: row.levelName,
+        minPoints: row.minPoints,
+        maxPoints: row.maxPoints,
+        badgeIcon: row.badgeIcon,
+        // `benefits` is JSON text on the wire; parse only when provided.
+        benefits: this.parseBenefits(row.benefits),
+      });
+
+      if (row.id != null) {
+        await this.prisma.sellerLevel.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      requireBulkFields(row, ['levelName', 'minPoints']);
+      const created = await this.prisma.sellerLevel.create({
+        data: {
+          levelName: row.levelName!,
+          minPoints: row.minPoints!,
+          maxPoints: row.maxPoints,
+          badgeIcon: row.badgeIcon,
+          benefits: this.parseBenefits(row.benefits),
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertSellerLevelTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: SellerLevelTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({ levelName: row.levelName });
+
+      if (row.id != null) {
+        await this.prisma.sellerLevelTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      const { sellerLevelId, language: rowLanguage } = row;
+      if (sellerLevelId == null || !rowLanguage) {
+        throw new Error(
+          'sellerLevelId and language are required when no id is provided',
+        );
+      }
+
+      const existing = await this.prisma.sellerLevelTranslation.findUnique({
+        where: {
+          sellerLevelId_language: { sellerLevelId, language: rowLanguage },
+        },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await this.prisma.sellerLevelTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+
+      requireBulkFields(row, ['levelName']);
+      const created = await this.prisma.sellerLevelTranslation.create({
+        data: {
+          sellerLevelId,
+          language: rowLanguage,
+          levelName: row.levelName!,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  // ─── Bulk helpers ───────────────────────────────────────────────────────────
+
+  /**
+   * Parses the JSON-text `benefits` cell for a `Json?` column: `undefined`
+   * leaves it untouched, an empty cell clears it (`Prisma.DbNull`), otherwise
+   * the parsed JSON value is stored.
+   */
+  private parseBenefits(
+    benefits?: string | null,
+  ): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
+    if (benefits === undefined) return undefined;
+    if (benefits === null || benefits.trim() === '') return Prisma.DbNull;
+    try {
+      return JSON.parse(benefits) as Prisma.InputJsonValue;
+    } catch {
+      throw new Error('benefits: not valid JSON');
     }
   }
 }

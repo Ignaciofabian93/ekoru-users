@@ -16,3 +16,11 @@ export {
   UpsertPersonMembershipPricingInput,
   UpsertBusinessMembershipPricingInput,
 } from './upsert-membership-pricing.input';
+export {
+  PersonMembershipUpsertRowInput,
+  PersonMembershipTranslationUpsertRowInput,
+  PersonMembershipPricingUpsertRowInput,
+  BusinessMembershipUpsertRowInput,
+  BusinessMembershipTranslationUpsertRowInput,
+  BusinessMembershipPricingUpsertRowInput,
+} from './bulk-upsert.input';

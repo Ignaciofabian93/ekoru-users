@@ -13,12 +13,21 @@ import {
   AdminPermission,
   Language,
 } from '../graphql/enums';
-import { RegisterAdminInput, UpdateAdminInput } from './dto';
+import {
+  RegisterAdminInput,
+  UpdateAdminInput,
+  AdminUpsertRowInput,
+} from './dto';
 import { adminMessages, AdminMessages } from './admins.i18n';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
 } from '../utils/pagination';
+import {
+  pickDefined,
+  requireBulkFields,
+  processBulkRows,
+} from '../common/bulk';
 
 const ADMIN_SELECT = {
   id: true,
@@ -448,5 +457,78 @@ export class AdminsService {
       this.logger.error('Error assigning permissions:', error);
       throw new InternalServerError(t.errorAssignPermissions);
     }
+  }
+
+  // ─── Bulk upsert (admin panel XLSX import / row edits) ──────────────────────
+  // Rows with an id (uuid) update; rows without an id create (a create needs
+  // email, name, adminType, role and a password). Per-row failures are reported
+  // in `errors[]` without aborting the batch. Gated to MANAGE_ADMINS.
+
+  async bulkUpsertAdmins({
+    callerId,
+    rows,
+    language,
+  }: {
+    callerId: string;
+    rows: AdminUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertCanManageAdmins({
+      callerId,
+      t: adminMessages[language],
+    });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        email: row.email?.toLowerCase(),
+        name: row.name,
+        lastName: row.lastName,
+        adminType: row.adminType,
+        role: row.role,
+        permissions: row.permissions,
+        isActive: row.isActive,
+        sellerId: row.sellerId,
+        countryId: row.countryId,
+        regionId: row.regionId,
+        cityId: row.cityId,
+        countyId: row.countyId,
+        // Only re-hash when a password was actually supplied (never on export).
+        password: row.password ? await hash(row.password, 10) : undefined,
+      });
+
+      if (row.id != null) {
+        await this.prisma.admin.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      requireBulkFields(row, [
+        'email',
+        'password',
+        'name',
+        'adminType',
+        'role',
+      ]);
+      if (row.adminType === AdminType.BUSINESS && !row.sellerId) {
+        throw new Error('sellerId is required for BUSINESS admins');
+      }
+      const created = await this.prisma.admin.create({
+        data: {
+          email: row.email!.toLowerCase(),
+          password: await hash(row.password!, 10),
+          name: row.name!,
+          lastName: row.lastName,
+          adminType: row.adminType!,
+          role: row.role!,
+          permissions: row.permissions ?? [],
+          sellerId: row.sellerId || null,
+          countryId: row.countryId,
+          regionId: row.regionId,
+          cityId: row.cityId,
+          countyId: row.countyId,
+        },
+        select: { id: true },
+      });
+      return { outcome: 'created', id: created.id };
+    });
   }
 }

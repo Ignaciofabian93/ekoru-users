@@ -35,10 +35,17 @@ import {
   UpsertBusinessMembershipTranslationInput,
   UpsertPersonMembershipPricingInput,
   UpsertBusinessMembershipPricingInput,
+  PersonMembershipUpsertRowInput,
+  PersonMembershipTranslationUpsertRowInput,
+  PersonMembershipPricingUpsertRowInput,
+  BusinessMembershipUpsertRowInput,
+  BusinessMembershipTranslationUpsertRowInput,
+  BusinessMembershipPricingUpsertRowInput,
 } from './dto';
 import { PersonProfile } from '../sellers/entities/person-profile.entity';
 import { BusinessProfile } from '../sellers/entities/business-profile.entity';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
+import { UsersBulkUpsertResult } from '../common/bulk';
 import { Language } from '../graphql/enums';
 
 // ─── Membership Queries & Mutations ──────────────────────────────────────────
@@ -456,6 +463,117 @@ export class SubscriptionResolver {
     return this.subscriptionService.assignBusinessMembership({
       sellerId,
       input,
+      language,
+    });
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  // Rows with an id update, rows without an id create; translation rows are
+  // matched by (membershipId, language), pricing rows by (membershipId,
+  // countryId). Per-row failures come back in errors[]. Admins only.
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description: 'Bulk create/update person memberships. Admins only.',
+  })
+  bulkUpsertPersonMemberships(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [PersonMembershipUpsertRowInput] })
+    rows: PersonMembershipUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertPersonMemberships({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update person membership translations, matched by (personMembershipId, language). Admins only.',
+  })
+  bulkUpsertPersonMembershipTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [PersonMembershipTranslationUpsertRowInput] })
+    rows: PersonMembershipTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertPersonMembershipTranslations({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update person membership pricing, matched by (personMembershipId, countryId). Admins only.',
+  })
+  bulkUpsertPersonMembershipPricing(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [PersonMembershipPricingUpsertRowInput] })
+    rows: PersonMembershipPricingUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertPersonMembershipPricing({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description: 'Bulk create/update business memberships. Admins only.',
+  })
+  bulkUpsertBusinessMemberships(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [BusinessMembershipUpsertRowInput] })
+    rows: BusinessMembershipUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertBusinessMemberships({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update business membership translations, matched by (businessMembershipId, language). Admins only.',
+  })
+  bulkUpsertBusinessMembershipTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [BusinessMembershipTranslationUpsertRowInput] })
+    rows: BusinessMembershipTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertBusinessMembershipTranslations({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update business membership pricing, matched by (businessMembershipId, countryId). Admins only.',
+  })
+  bulkUpsertBusinessMembershipPricing(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [BusinessMembershipPricingUpsertRowInput] })
+    rows: BusinessMembershipPricingUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.subscriptionService.bulkUpsertBusinessMembershipPricing({
+      adminId,
+      rows,
       language,
     });
   }

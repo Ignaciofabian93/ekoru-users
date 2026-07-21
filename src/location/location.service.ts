@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UnAuthorizedError,
@@ -14,14 +14,26 @@ import {
   CreateRegionInput,
   CreateCityInput,
   CreateCountyInput,
+  CountryUpsertRowInput,
+  CountryTranslationUpsertRowInput,
+  RegionUpsertRowInput,
+  CityUpsertRowInput,
+  CountyUpsertRowInput,
 } from './dto';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
 } from '../utils/pagination';
+import {
+  pickDefined,
+  requireBulkFields,
+  processBulkRows,
+} from '../common/bulk';
 
 @Injectable()
 export class LocationService {
+  private readonly logger = new Logger(LocationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getRawCountries({
@@ -921,5 +933,166 @@ export class LocationService {
       }
       throw new InternalServerError(t.errorDeleteCounty);
     }
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  // Rows with an id update, rows without an id create; country translation rows
+  // without an id are matched by (countryId, language). Per-row failures are
+  // reported in `errors[]` without aborting the batch.
+
+  async bulkUpsertCountries({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: CountryUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertPlatformAdmin({ adminId, t: locationMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({ code: row.code });
+      if (row.id != null) {
+        await this.prisma.country.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+      const created = await this.prisma.country.create({ data });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertCountryTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: CountryTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertPlatformAdmin({ adminId, t: locationMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        countryId: row.countryId,
+        language: row.language,
+        name: row.name,
+      });
+
+      if (row.id != null) {
+        await this.prisma.countryTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      const { countryId, language: rowLanguage } = row;
+      if (countryId == null || !rowLanguage) {
+        throw new Error(
+          'countryId and language are required when no id is provided',
+        );
+      }
+
+      // No DB unique on (countryId, language), so match the pair manually to
+      // keep re-imports idempotent instead of appending duplicate rows.
+      const existing = await this.prisma.countryTranslation.findFirst({
+        where: { countryId, language: rowLanguage },
+        select: { id: true },
+      });
+
+      if (existing) {
+        await this.prisma.countryTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+
+      requireBulkFields(row, ['name']);
+      const created = await this.prisma.countryTranslation.create({
+        data: { countryId, language: rowLanguage, name: row.name! },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertRegions({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: RegionUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertPlatformAdmin({ adminId, t: locationMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        region: row.region,
+        countryId: row.countryId,
+      });
+      if (row.id != null) {
+        await this.prisma.region.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+      requireBulkFields(row, ['region', 'countryId']);
+      const created = await this.prisma.region.create({
+        data: { region: row.region!, countryId: row.countryId! },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertCities({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: CityUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertPlatformAdmin({ adminId, t: locationMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({ city: row.city, regionId: row.regionId });
+      if (row.id != null) {
+        await this.prisma.city.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+      requireBulkFields(row, ['city', 'regionId']);
+      const created = await this.prisma.city.create({
+        data: { city: row.city!, regionId: row.regionId! },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertCounties({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: CountyUpsertRowInput[];
+    language: Language;
+  }) {
+    await this.assertPlatformAdmin({ adminId, t: locationMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({ county: row.county, cityId: row.cityId });
+      if (row.id != null) {
+        await this.prisma.county.update({ where: { id: row.id }, data });
+        return { outcome: 'updated', id: row.id };
+      }
+      requireBulkFields(row, ['county', 'cityId']);
+      const created = await this.prisma.county.create({
+        data: { county: row.county!, cityId: row.cityId! },
+      });
+      return { outcome: 'created', id: created.id };
+    });
   }
 }

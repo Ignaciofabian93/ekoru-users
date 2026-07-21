@@ -2,6 +2,7 @@ import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { AccountService } from './account.service';
 import { Seller, SellerLevel } from '../sellers/entities';
 import { SellerLabel, SellerLabelTranslation } from './entities';
+import { UsersBulkUpsertResult } from '../common/bulk';
 import { SellerLevelTranslation } from '../sellers/entities';
 import {
   CreateSellerLabelInput,
@@ -10,6 +11,10 @@ import {
   CreateSellerLevelInput,
   UpdateSellerLevelInput,
   UpsertSellerLevelTranslationInput,
+  SellerLabelUpsertRowInput,
+  SellerLabelTranslationUpsertRowInput,
+  SellerLevelUpsertRowInput,
+  SellerLevelTranslationUpsertRowInput,
 } from './dto';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language } from '../graphql/enums';
@@ -342,6 +347,83 @@ export class AccountResolver {
       adminId,
       sellerLevelId,
       translationLanguage,
+      language,
+    });
+  }
+
+  // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
+  // Rows with an id update, rows without an id create; translation rows without
+  // an id are matched by their parent+language unique key. Per-row failures are
+  // reported in `errors[]` without aborting the batch.
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update seller labels (rows with id update, without id create). Admins only.',
+  })
+  bulkUpsertSellerLabels(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [SellerLabelUpsertRowInput] })
+    rows: SellerLabelUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertSellerLabels({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update seller label translations, matched by (sellerLabelId, language). Admins only.',
+  })
+  bulkUpsertSellerLabelTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [SellerLabelTranslationUpsertRowInput] })
+    rows: SellerLabelTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertSellerLabelTranslations({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update seller levels (rows with id update, without id create). Admins only.',
+  })
+  bulkUpsertSellerLevels(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [SellerLevelUpsertRowInput] })
+    rows: SellerLevelUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertSellerLevels({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update seller level translations, matched by (sellerLevelId, language). Admins only.',
+  })
+  bulkUpsertSellerLevelTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [SellerLevelTranslationUpsertRowInput] })
+    rows: SellerLevelTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertSellerLevelTranslations({
+      adminId,
+      rows,
       language,
     });
   }
