@@ -60,6 +60,10 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
         sellerId: req.headers['x-seller-id'] as string,
         adminId: req.headers['x-admin-id'] as string,
         token: req.headers.authorization?.replace('Bearer ', '') as string,
+        // Set by the gateway (and by direct server-to-server callers like
+        // ekoru-transactions). Guards the internal subscription-activation
+        // mutation so only a trusted service can activate a paid subscription.
+        internalSecret: req.headers['x-internal-secret'] as string | undefined,
       }),
       formatError: (error) => {
         if (process.env.NODE_ENV === 'production') {

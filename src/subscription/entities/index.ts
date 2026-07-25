@@ -12,3 +12,4 @@ export {
   RawPersonMembershipPricingConnection,
   RawBusinessMembershipPricingConnection,
 } from './raw-connections.entity';
+export { MembershipCharge } from './membership-charge.entity';

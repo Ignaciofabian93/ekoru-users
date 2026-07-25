@@ -4,6 +4,8 @@ import {
   Mutation,
   Args,
   Int,
+  ID,
+  Context,
   ResolveField,
   Parent,
 } from '@nestjs/graphql';
@@ -23,6 +25,7 @@ import {
   RawBusinessMembershipTranslationConnection,
   RawPersonMembershipPricingConnection,
   RawBusinessMembershipPricingConnection,
+  MembershipCharge,
 } from './entities';
 import {
   CreatePersonMembershipInput,
@@ -465,6 +468,61 @@ export class SubscriptionResolver {
       input,
       language,
     });
+  }
+
+  // ─── Paid subscription flow (transactions subgraph) ──────────────────────────
+
+  /**
+   * Server-side price for one term of a membership, for the given seller. Read
+   * by the transactions subgraph before creating the platform Payment; also
+   * usable by the web app to show the amount before checkout.
+   */
+  @Query(() => MembershipCharge, { name: 'getMembershipCharge' })
+  async getMembershipCharge(
+    @Args('membershipId', { type: () => Int }) membershipId: number,
+    @Args('sellerId', { type: () => ID }) sellerId: string,
+  ): Promise<MembershipCharge> {
+    return this.subscriptionService.getMembershipCharge({
+      membershipId,
+      sellerId,
+    });
+  }
+
+  /**
+   * Internal: activates a paid subscription once the platform Payment
+   * completed. Guarded by INTERNAL_SERVICE_SECRET — only the transactions
+   * subgraph (which owns the Payment) may call it. Returns the subscription id.
+   */
+  @Mutation(() => Int, { name: 'activateMembershipSubscription' })
+  async activateMembershipSubscription(
+    @Args('sellerId', { type: () => ID }) sellerId: string,
+    @Args('membershipId', { type: () => Int }) membershipId: number,
+    @Args('paymentId', { type: () => Int }) paymentId: number,
+    @Args('internalSecret', { type: () => String }) internalSecret: string,
+    @Context() ctx: { internalSecret?: string },
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ): Promise<number> {
+    this._assertInternal(ctx.internalSecret ?? internalSecret);
+    const { subscriptionId } =
+      await this.subscriptionService.activateMembershipSubscription({
+        sellerId,
+        membershipId,
+        paymentId,
+        language,
+      });
+    return subscriptionId;
+  }
+
+  /** Verifies the shared internal secret (header preferred, arg fallback). */
+  private _assertInternal(supplied?: string) {
+    const expected = process.env.INTERNAL_SERVICE_SECRET;
+    if (!expected) {
+      throw new Error('INTERNAL_SERVICE_SECRET no configurado en users');
+    }
+    if (supplied !== expected) {
+      throw new Error('Unauthorized');
+    }
   }
 
   // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────

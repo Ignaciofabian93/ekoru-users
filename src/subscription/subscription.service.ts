@@ -1006,6 +1006,125 @@ export class SubscriptionService {
     }
   }
 
+  // ─── Paid subscription helpers (used by the transactions subgraph) ───────────
+
+  /**
+   * PERSON sellers subscribe to person plans; STARTUP/COMPANY to business plans.
+   * Takes a plain string so both the Prisma enum and the GraphQL enum work.
+   */
+  private isPersonSeller(sellerType: string): boolean {
+    return sellerType === 'PERSON';
+  }
+
+  /**
+   * Resolves what one term of a membership costs for a given seller, from the
+   * plan's `durationMonths` and the per-country pricing row. Called by the
+   * transactions subgraph before creating the platform Payment — the price is
+   * always computed here, never accepted from the client.
+   */
+  async getMembershipCharge({
+    membershipId,
+    sellerId,
+  }: {
+    membershipId: number;
+    sellerId: string;
+  }): Promise<{ price: number; currency: string; durationMonths: number }> {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id: sellerId },
+      select: { countryId: true, sellerType: true },
+    });
+    if (!seller?.countryId) {
+      throw new NotFoundError(
+        'El vendedor no tiene país asignado para tarificar la suscripción',
+      );
+    }
+
+    if (this.isPersonSeller(seller.sellerType)) {
+      const plan = await this.prisma.personMembership.findFirst({
+        where: { id: membershipId, isActive: true },
+        select: { durationMonths: true },
+      });
+      if (!plan) throw new NotFoundError('Plan de suscripción no encontrado');
+      const pricing = await this.prisma.personMembershipPricing.findFirst({
+        where: {
+          personMembershipId: membershipId,
+          countryId: seller.countryId,
+          isActive: true,
+        },
+        select: { price: true, currency: true },
+      });
+      if (!pricing) {
+        throw new NotFoundError('No hay precio para este plan en tu país');
+      }
+      return { ...pricing, durationMonths: plan.durationMonths };
+    }
+
+    const plan = await this.prisma.businessMembership.findFirst({
+      where: { id: membershipId, isActive: true },
+      select: { durationMonths: true },
+    });
+    if (!plan) throw new NotFoundError('Plan de suscripción no encontrado');
+    const pricing = await this.prisma.businessMembershipPricing.findFirst({
+      where: {
+        businessMembershipId: membershipId,
+        countryId: seller.countryId,
+        isActive: true,
+      },
+      select: { price: true, currency: true },
+    });
+    if (!pricing) {
+      throw new NotFoundError('No hay precio para este plan en tu país');
+    }
+    return { ...pricing, durationMonths: plan.durationMonths };
+  }
+
+  /**
+   * Activates a paid subscription after the platform Payment completed. Reuses
+   * the existing `assign*` logic (which sets start/end dates and links the
+   * profile), passing the `paymentId` so the subscription row records what paid
+   * for it. Called only from the internal, secret-guarded resolver.
+   */
+  async activateMembershipSubscription({
+    sellerId,
+    membershipId,
+    paymentId,
+    language,
+  }: {
+    sellerId: string;
+    membershipId: number;
+    paymentId: number;
+    language: Language;
+  }): Promise<{ subscriptionId: number }> {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id: sellerId },
+      select: { sellerType: true },
+    });
+    if (!seller) throw new NotFoundError('Vendedor no encontrado');
+
+    if (this.isPersonSeller(seller.sellerType)) {
+      const sub = await this.assignPersonMembership({
+        sellerId,
+        input: {
+          personMembershipId: membershipId,
+          paymentId,
+          autoRenew: false,
+        },
+        language,
+      });
+      return { subscriptionId: sub.id };
+    }
+    const sub = await this.assignBusinessMembership({
+      sellerId,
+      input: {
+        businessMembershipId: membershipId,
+        paymentId,
+        autoRenew: false,
+      },
+      language,
+    });
+    return { subscriptionId: sub.id };
+  }
+
   // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
   // Rows with an id update, rows without an id create; translation rows without
   // an id are matched by (membershipId, language), pricing rows by
