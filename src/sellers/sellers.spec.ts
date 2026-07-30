@@ -312,9 +312,7 @@ describe('SellersService', () => {
 
       const result = await service.getSellerById({
         id: 'seller-123',
-        sellerId: 'seller-456',
         language: Language.ES,
-        adminId: 'admin-1',
       });
 
       expect(result).toEqual(mockSeller);
@@ -324,27 +322,26 @@ describe('SellersService', () => {
       });
     });
 
-    it('should throw UnAuthorizedError with ES message when sellerId is not provided', async () => {
-      await expect(
-        service.getSellerById({
-          id: 'seller-123',
-          sellerId: '',
-          language: Language.ES,
-          adminId: '',
-        }),
-      ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
-      expect(prisma.seller.findUnique).not.toHaveBeenCalled();
+    it('should return the seller for a guest request without authentication', async () => {
+      prisma.seller.findUnique.mockResolvedValue(mockSeller);
+
+      const result = await service.getSellerById({
+        id: 'seller-123',
+        language: Language.ES,
+      });
+
+      expect(result).toEqual(mockSeller);
     });
 
-    it('should throw UnAuthorizedError with EN message when sellerId is not provided', async () => {
-      await expect(
-        service.getSellerById({
-          id: 'seller-123',
-          sellerId: '',
-          language: Language.EN,
-          adminId: '',
-        }),
-      ).rejects.toThrow(sellerMessages[Language.EN].unauthorized);
+    it('should return null when the seller does not exist', async () => {
+      prisma.seller.findUnique.mockResolvedValue(null);
+
+      const result = await service.getSellerById({
+        id: 'unknown-seller',
+        language: Language.ES,
+      });
+
+      expect(result).toBeNull();
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
@@ -352,9 +349,7 @@ describe('SellersService', () => {
       await expect(
         service.getSellerById({
           id: 'seller-123',
-          sellerId: 'seller-456',
           language: Language.ES,
-          adminId: '',
         }),
       ).rejects.toThrow(sellerMessages[Language.ES].errorGetSellerById);
     });
@@ -364,9 +359,7 @@ describe('SellersService', () => {
       await expect(
         service.getSellerById({
           id: 'seller-123',
-          sellerId: 'seller-456',
           language: Language.EN,
-          adminId: '',
         }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorGetSellerById);
     });
@@ -1182,6 +1175,29 @@ describe('SellersService', () => {
       const result = service.resolveProfile(seller);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('awardPoints', () => {
+    it('should increment the seller points and return the new total', async () => {
+      prisma.seller.update.mockResolvedValue({ points: 30 });
+
+      const result = await service.awardPoints('seller-123', 10);
+
+      expect(result).toBe(30);
+      expect(prisma.seller.update).toHaveBeenCalledWith({
+        where: { id: 'seller-123' },
+        data: { points: { increment: 10 } },
+        select: { points: true },
+      });
+    });
+
+    it('should propagate database errors', async () => {
+      prisma.seller.update.mockRejectedValue(new Error('Database error'));
+
+      await expect(service.awardPoints('seller-123', 10)).rejects.toThrow(
+        'Database error',
+      );
     });
   });
 });
