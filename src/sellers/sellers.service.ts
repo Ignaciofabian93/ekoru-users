@@ -138,23 +138,9 @@ export class SellersService {
     }
   }
 
-  async getSellerById({
-    id,
-    sellerId,
-    language,
-    adminId,
-  }: {
-    id: string;
-    sellerId: string;
-    language: Language;
-    adminId: string;
-  }) {
+  async getSellerById({ id, language }: { id: string; language: Language }) {
     const t = sellerMessages[language];
     try {
-      if (!sellerId && !adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
-
       const seller = await this.prisma.seller.findUnique({
         where: { id },
         include: this.getSellerInclude(language),
@@ -431,6 +417,19 @@ export class SellersService {
       this.logger.error(t.errorRegisterBusiness, error);
       throw new InternalServerError(t.errorRegisterBusiness);
     }
+  }
+
+  /**
+   * Credits eco-points to a seller. Called internally by the transactions
+   * subgraph when a P2P deal completes. Returns the new total.
+   */
+  async awardPoints(sellerId: string, points: number): Promise<number> {
+    const updated = await this.prisma.seller.update({
+      where: { id: sellerId },
+      data: { points: { increment: points } },
+      select: { points: true },
+    });
+    return updated.points;
   }
 
   async updateSeller({

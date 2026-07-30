@@ -5,6 +5,7 @@ import {
   Args,
   ID,
   Int,
+  Context,
   ResolveField,
   Parent,
   ResolveReference,
@@ -41,6 +42,26 @@ export class SellersResolver {
     return this.sellersService.getSellerByIdForReference(reference.id);
   }
 
+  /**
+   * Internal: credit eco-points to a seller. Called by the transactions
+   * subgraph when a P2P deal completes — guarded by INTERNAL_SERVICE_SECRET.
+   * Returns the seller's new points total.
+   */
+  @Mutation(() => Int, { name: 'awardPoints' })
+  async awardPoints(
+    @Args('sellerId', { type: () => ID }) sellerId: string,
+    @Args('points', { type: () => Int }) points: number,
+    @Args('internalSecret', { type: () => String }) internalSecret: string,
+    @Context() ctx: { internalSecret?: string },
+  ): Promise<number> {
+    const expected = process.env.INTERNAL_SERVICE_SECRET;
+    if (!expected) throw new Error('INTERNAL_SERVICE_SECRET no configurado');
+    if ((ctx.internalSecret ?? internalSecret) !== expected) {
+      throw new Error('Unauthorized');
+    }
+    return this.sellersService.awardPoints(sellerId, points);
+  }
+
   // Queries
   @Query(() => SellerConnection, {
     name: 'getSellers',
@@ -74,17 +95,13 @@ export class SellersResolver {
 
   @Query(() => Seller, { name: 'getSeller', nullable: true })
   async getSeller(
-    @CurrentSeller() sellerId: string,
-    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
     return this.sellersService.getSellerById({
       id,
-      sellerId,
       language,
-      adminId,
     });
   }
 
