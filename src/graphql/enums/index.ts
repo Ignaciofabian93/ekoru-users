@@ -133,6 +133,32 @@ export enum ContactMethod {
   TIKTOK = 'TIKTOK',
 }
 
+export enum NotificationType {
+  ORDER_RECEIVED = 'ORDER_RECEIVED',
+  ORDER_CONFIRMED = 'ORDER_CONFIRMED',
+  ORDER_SHIPPED = 'ORDER_SHIPPED',
+  ORDER_DELIVERED = 'ORDER_DELIVERED',
+  ORDER_CANCELLED = 'ORDER_CANCELLED',
+  QUOTATION_REQUEST = 'QUOTATION_REQUEST',
+  QUOTATION_RECEIVED = 'QUOTATION_RECEIVED',
+  QUOTATION_ACCEPTED = 'QUOTATION_ACCEPTED',
+  QUOTATION_DECLINED = 'QUOTATION_DECLINED',
+  EXCHANGE_PROPOSAL = 'EXCHANGE_PROPOSAL',
+  EXCHANGE_ACCEPTED = 'EXCHANGE_ACCEPTED',
+  EXCHANGE_DECLINED = 'EXCHANGE_DECLINED',
+  EXCHANGE_COMPLETED = 'EXCHANGE_COMPLETED',
+  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+  PAYMENT_REFUNDED = 'PAYMENT_REFUNDED',
+  REVIEW_RECEIVED = 'REVIEW_RECEIVED',
+  MESSAGE_RECEIVED = 'MESSAGE_RECEIVED',
+  PRODUCT_LIKED = 'PRODUCT_LIKED',
+  PRODUCT_COMMENTED = 'PRODUCT_COMMENTED',
+  SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
+  ACCOUNT_VERIFICATION = 'ACCOUNT_VERIFICATION',
+  PROFILE_UPDATED = 'PROFILE_UPDATED',
+}
+
 // ============================
 // Register enums for GraphQL
 // ============================
@@ -190,6 +216,12 @@ registerEnumType(TransactionKind, {
 registerEnumType(ContactMethod, {
   name: 'ContactMethod',
   description: 'Preferred contact methods',
+});
+
+registerEnumType(NotificationType, {
+  name: 'NotificationType',
+  description:
+    'Kinds of seller notifications (also keys notification templates)',
 });
 
 // Language

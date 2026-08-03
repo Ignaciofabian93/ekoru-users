@@ -1,7 +1,13 @@
 import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { AccountService } from './account.service';
 import { Seller, SellerLevel } from '../sellers/entities';
-import { SellerLabel, SellerLabelTranslation } from './entities';
+import {
+  SellerLabel,
+  SellerLabelTranslation,
+  PointsByTransactionKind,
+  NotificationTemplate,
+  NotificationTemplateTranslation,
+} from './entities';
 import { UsersBulkUpsertResult } from '../common/bulk';
 import { SellerLevelTranslation } from '../sellers/entities';
 import {
@@ -15,6 +21,9 @@ import {
   SellerLabelTranslationUpsertRowInput,
   SellerLevelUpsertRowInput,
   SellerLevelTranslationUpsertRowInput,
+  PointsByTransactionKindUpsertRowInput,
+  NotificationTemplateUpsertRowInput,
+  NotificationTemplateTranslationUpsertRowInput,
 } from './dto';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
 import { Language } from '../graphql/enums';
@@ -422,6 +431,148 @@ export class AccountResolver {
     language: Language,
   ) {
     return this.accountService.bulkUpsertSellerLevelTranslations({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  // ─── Points by transaction kind (admin) ─────────────────────────────────────
+
+  @Query(() => [PointsByTransactionKind], { name: 'pointsByTransactionKinds' })
+  getPointsByTransactionKinds() {
+    return this.accountService.getPointsByTransactionKinds();
+  }
+
+  @Query(() => PointsByTransactionKind, {
+    name: 'pointsByTransactionKind',
+    nullable: true,
+  })
+  getPointsByTransactionKind(@Args('id', { type: () => Int }) id: number) {
+    return this.accountService.getPointsByTransactionKindById({ id });
+  }
+
+  @Mutation(() => PointsByTransactionKind, {
+    name: 'deletePointsByTransactionKind',
+    description: 'Delete a points-by-transaction-kind row. Admins only.',
+  })
+  deletePointsByTransactionKind(
+    @CurrentAdmin() adminId: string,
+    @Args('id', { type: () => Int }) id: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.deletePointsByTransactionKind({
+      adminId,
+      id,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update points-by-transaction-kind rows (rows with id update, without id matched by transactionKind). Admins only.',
+  })
+  bulkUpsertPointsByTransactionKind(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [PointsByTransactionKindUpsertRowInput] })
+    rows: PointsByTransactionKindUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertPointsByTransactionKind({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  // ─── Notification templates (admin) ─────────────────────────────────────────
+
+  @Query(() => [NotificationTemplate], { name: 'notificationTemplates' })
+  getNotificationTemplates() {
+    return this.accountService.getNotificationTemplates();
+  }
+
+  @Query(() => NotificationTemplate, {
+    name: 'notificationTemplate',
+    nullable: true,
+  })
+  getNotificationTemplate(@Args('id', { type: () => Int }) id: number) {
+    return this.accountService.getNotificationTemplateById({ id });
+  }
+
+  @Mutation(() => NotificationTemplate, {
+    name: 'deleteNotificationTemplate',
+    description:
+      'Delete a notification template (cascades its translations). Admins only.',
+  })
+  deleteNotificationTemplate(
+    @CurrentAdmin() adminId: string,
+    @Args('id', { type: () => Int }) id: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.deleteNotificationTemplate({
+      adminId,
+      id,
+      language,
+    });
+  }
+
+  @Mutation(() => NotificationTemplateTranslation, {
+    name: 'deleteNotificationTemplateTranslation',
+    description: 'Delete a notification template translation. Admins only.',
+  })
+  deleteNotificationTemplateTranslation(
+    @CurrentAdmin() adminId: string,
+    @Args('notificationTemplateId', { type: () => Int })
+    notificationTemplateId: number,
+    @Args('translationLanguage', { type: () => Language })
+    translationLanguage: Language,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.deleteNotificationTemplateTranslation({
+      adminId,
+      notificationTemplateId,
+      translationLanguage,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update notification templates (rows with id update, without id matched by type). Admins only.',
+  })
+  bulkUpsertNotificationTemplates(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', { type: () => [NotificationTemplateUpsertRowInput] })
+    rows: NotificationTemplateUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertNotificationTemplates({
+      adminId,
+      rows,
+      language,
+    });
+  }
+
+  @Mutation(() => UsersBulkUpsertResult, {
+    description:
+      'Bulk create/update notification template translations, matched by (notificationTemplateId, language). Admins only.',
+  })
+  bulkUpsertNotificationTemplateTranslations(
+    @CurrentAdmin() adminId: string,
+    @Args('rows', {
+      type: () => [NotificationTemplateTranslationUpsertRowInput],
+    })
+    rows: NotificationTemplateTranslationUpsertRowInput[],
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.bulkUpsertNotificationTemplateTranslations({
       adminId,
       rows,
       language,

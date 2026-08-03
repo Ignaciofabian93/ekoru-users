@@ -13,6 +13,7 @@ import {
   pickDefined,
   requireBulkFields,
   processBulkRows,
+  bulkErrorMessage,
 } from '../common/bulk';
 import { Language } from '../graphql/enums';
 import { accountMessages, AccountMessages } from './account.i18n';
@@ -27,6 +28,9 @@ import {
   SellerLabelTranslationUpsertRowInput,
   SellerLevelUpsertRowInput,
   SellerLevelTranslationUpsertRowInput,
+  PointsByTransactionKindUpsertRowInput,
+  NotificationTemplateUpsertRowInput,
+  NotificationTemplateTranslationUpsertRowInput,
 } from './dto';
 
 @Injectable()
@@ -984,6 +988,282 @@ export class AccountService {
           sellerLevelId,
           language: rowLanguage,
           levelName: row.levelName!,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  // ─── Points by transaction kind (admin) ─────────────────────────────────────
+
+  async getPointsByTransactionKinds() {
+    try {
+      return await this.prisma.pointsByTransactionKind.findMany({
+        orderBy: { transactionKind: 'asc' },
+      });
+    } catch (error) {
+      this.logger.error('Error fetching points by transaction kind:', error);
+      throw new InternalServerError(bulkErrorMessage(error));
+    }
+  }
+
+  getPointsByTransactionKindById({ id }: { id: number }) {
+    return this.prisma.pointsByTransactionKind.findUnique({ where: { id } });
+  }
+
+  async deletePointsByTransactionKind({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    language: Language;
+  }) {
+    const t = accountMessages[language];
+    this.assertAdmin({ adminId, t });
+    try {
+      return await this.prisma.pointsByTransactionKind.delete({
+        where: { id },
+      });
+    } catch (error) {
+      this.logger.error('Error deleting points by transaction kind:', error);
+      throw new InternalServerError(bulkErrorMessage(error));
+    }
+  }
+
+  async bulkUpsertPointsByTransactionKind({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: PointsByTransactionKindUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        transactionKind: row.transactionKind,
+        pointsAwarded: row.pointsAwarded,
+        description: row.description,
+      });
+
+      if (row.id != null) {
+        await this.prisma.pointsByTransactionKind.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      // No id: `transactionKind` is unique, so match on it to update in place.
+      if (row.transactionKind != null) {
+        const existing = await this.prisma.pointsByTransactionKind.findUnique({
+          where: { transactionKind: row.transactionKind },
+          select: { id: true },
+        });
+        if (existing) {
+          await this.prisma.pointsByTransactionKind.update({
+            where: { id: existing.id },
+            data,
+          });
+          return { outcome: 'updated', id: existing.id };
+        }
+      }
+
+      requireBulkFields(row, ['transactionKind', 'pointsAwarded']);
+      const created = await this.prisma.pointsByTransactionKind.create({
+        data: {
+          transactionKind: row.transactionKind!,
+          pointsAwarded: row.pointsAwarded!,
+          description: row.description,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  // ─── Notification templates (admin) ─────────────────────────────────────────
+
+  async getNotificationTemplates() {
+    try {
+      return await this.prisma.notificationTemplate.findMany({
+        include: { translations: true },
+        orderBy: { type: 'asc' },
+      });
+    } catch (error) {
+      this.logger.error('Error fetching notification templates:', error);
+      throw new InternalServerError(bulkErrorMessage(error));
+    }
+  }
+
+  getNotificationTemplateById({ id }: { id: number }) {
+    return this.prisma.notificationTemplate.findUnique({
+      where: { id },
+      include: { translations: true },
+    });
+  }
+
+  async deleteNotificationTemplate({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: number;
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+    try {
+      return await this.prisma.notificationTemplate.delete({ where: { id } });
+    } catch (error) {
+      this.logger.error('Error deleting notification template:', error);
+      throw new InternalServerError(bulkErrorMessage(error));
+    }
+  }
+
+  async deleteNotificationTemplateTranslation({
+    adminId,
+    notificationTemplateId,
+    translationLanguage,
+    language,
+  }: {
+    adminId: string;
+    notificationTemplateId: number;
+    translationLanguage: Language;
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+    try {
+      return await this.prisma.notificationTemplateTranslation.delete({
+        where: {
+          notificationTemplateId_language: {
+            notificationTemplateId,
+            language: translationLanguage,
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        'Error deleting notification template translation:',
+        error,
+      );
+      throw new InternalServerError(bulkErrorMessage(error));
+    }
+  }
+
+  async bulkUpsertNotificationTemplates({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: NotificationTemplateUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({
+        type: row.type,
+        title: row.title,
+        message: row.message,
+        isActive: row.isActive,
+      });
+
+      if (row.id != null) {
+        await this.prisma.notificationTemplate.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      // No id: `type` is unique, so match on it to update in place.
+      if (row.type != null) {
+        const existing = await this.prisma.notificationTemplate.findUnique({
+          where: { type: row.type },
+          select: { id: true },
+        });
+        if (existing) {
+          await this.prisma.notificationTemplate.update({
+            where: { id: existing.id },
+            data,
+          });
+          return { outcome: 'updated', id: existing.id };
+        }
+      }
+
+      requireBulkFields(row, ['type', 'title', 'message']);
+      const created = await this.prisma.notificationTemplate.create({
+        data: {
+          type: row.type!,
+          title: row.title!,
+          message: row.message!,
+          isActive: row.isActive ?? undefined,
+        },
+      });
+      return { outcome: 'created', id: created.id };
+    });
+  }
+
+  async bulkUpsertNotificationTemplateTranslations({
+    adminId,
+    rows,
+    language,
+  }: {
+    adminId: string;
+    rows: NotificationTemplateTranslationUpsertRowInput[];
+    language: Language;
+  }) {
+    this.assertAdmin({ adminId, t: accountMessages[language] });
+
+    return processBulkRows(this.logger, rows, async (row) => {
+      const data = pickDefined({ title: row.title, message: row.message });
+
+      if (row.id != null) {
+        await this.prisma.notificationTemplateTranslation.update({
+          where: { id: row.id },
+          data,
+        });
+        return { outcome: 'updated', id: row.id };
+      }
+
+      const { notificationTemplateId, language: rowLanguage } = row;
+      if (notificationTemplateId == null || !rowLanguage) {
+        throw new Error(
+          'notificationTemplateId and language are required when no id is provided',
+        );
+      }
+
+      const existing =
+        await this.prisma.notificationTemplateTranslation.findUnique({
+          where: {
+            notificationTemplateId_language: {
+              notificationTemplateId,
+              language: rowLanguage,
+            },
+          },
+          select: { id: true },
+        });
+
+      if (existing) {
+        await this.prisma.notificationTemplateTranslation.update({
+          where: { id: existing.id },
+          data,
+        });
+        return { outcome: 'updated', id: existing.id };
+      }
+
+      requireBulkFields(row, ['title', 'message']);
+      const created = await this.prisma.notificationTemplateTranslation.create({
+        data: {
+          notificationTemplateId,
+          language: rowLanguage,
+          title: row.title!,
+          message: row.message!,
         },
       });
       return { outcome: 'created', id: created.id };

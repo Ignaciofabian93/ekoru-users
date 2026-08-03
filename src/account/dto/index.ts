@@ -13,4 +13,7 @@ export {
   SellerLabelTranslationUpsertRowInput,
   SellerLevelUpsertRowInput,
   SellerLevelTranslationUpsertRowInput,
+  PointsByTransactionKindUpsertRowInput,
+  NotificationTemplateUpsertRowInput,
+  NotificationTemplateTranslationUpsertRowInput,
 } from './bulk-upsert.input';

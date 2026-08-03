@@ -1,6 +1,17 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Language, TransactionKind } from '../../graphql/enums';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import {
+  Language,
+  TransactionKind,
+  NotificationType,
+} from '../../graphql/enums';
 
 /**
  * Bulk upsert inputs for the seller gamification tables (labels & levels).
@@ -159,4 +170,106 @@ export class SellerLevelTranslationUpsertRowInput {
   @IsOptional()
   @IsString()
   levelName?: string;
+}
+
+// ─── Notification templates ───────────────────────────────────────────────────
+
+@InputType()
+export class NotificationTemplateUpsertRowInput {
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  id?: number;
+
+  @Field(() => NotificationType, {
+    nullable: true,
+    description:
+      'Unique key. Required when creating; without an id a matching row is updated.',
+  })
+  @IsOptional()
+  @IsEnum(NotificationType)
+  type?: NotificationType;
+
+  @Field(() => String, {
+    nullable: true,
+    description: 'Required when creating.',
+  })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @Field(() => String, {
+    nullable: true,
+    description: 'Required when creating.',
+  })
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+@InputType()
+export class NotificationTemplateTranslationUpsertRowInput {
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  id?: number;
+
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Required when creating (no id).',
+  })
+  @IsOptional()
+  @IsInt()
+  notificationTemplateId?: number;
+
+  @Field(() => Language, {
+    nullable: true,
+    description: 'Required when creating (no id).',
+  })
+  @IsOptional()
+  @IsEnum(Language)
+  language?: Language;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  message?: string;
+}
+
+// ─── Points by transaction kind ───────────────────────────────────────────────
+
+@InputType()
+export class PointsByTransactionKindUpsertRowInput {
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  id?: number;
+
+  @Field(() => TransactionKind, {
+    nullable: true,
+    description:
+      'Unique key. Required when creating; without an id a matching row is updated.',
+  })
+  @IsOptional()
+  @IsEnum(TransactionKind)
+  transactionKind?: TransactionKind;
+
+  @Field(() => Int, { nullable: true, description: 'Required when creating.' })
+  @IsOptional()
+  @IsInt()
+  pointsAwarded?: number;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  description?: string | null;
 }
