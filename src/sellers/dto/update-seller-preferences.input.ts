@@ -1,50 +1,35 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsOptional, IsBoolean } from 'class-validator';
 
 @InputType()
 export class UpdateSellerPreferencesInput {
   @Field({ nullable: true })
-  @IsString()
+  @IsBoolean()
   @IsOptional()
-  preferredLanguage?: string;
-
-  @Field({ nullable: true })
-  @IsString()
-  @IsOptional()
-  currency?: string;
+  enableEmailNotifications?: boolean;
 
   @Field({ nullable: true })
   @IsBoolean()
   @IsOptional()
-  emailNotifications?: boolean;
+  enablePushNotifications?: boolean;
 
   @Field({ nullable: true })
   @IsBoolean()
   @IsOptional()
-  pushNotifications?: boolean;
+  showMySocials?: boolean;
 
   @Field({ nullable: true })
   @IsBoolean()
   @IsOptional()
-  orderUpdates?: boolean;
+  showMyAddress?: boolean;
 
   @Field({ nullable: true })
   @IsBoolean()
   @IsOptional()
-  communityUpdates?: boolean;
+  enableTwoFactorAuth?: boolean;
 
   @Field({ nullable: true })
   @IsBoolean()
   @IsOptional()
-  securityAlerts?: boolean;
-
-  @Field({ nullable: true })
-  @IsBoolean()
-  @IsOptional()
-  weeklySummary?: boolean;
-
-  @Field({ nullable: true })
-  @IsBoolean()
-  @IsOptional()
-  twoFactorAuth?: boolean;
+  enableLoginAlerts?: boolean;
 }

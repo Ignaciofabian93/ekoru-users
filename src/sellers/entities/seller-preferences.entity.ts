@@ -8,30 +8,21 @@ export class SellerPreferences {
   @Field(() => ID)
   sellerId: string;
 
-  @Field({ nullable: true })
-  preferredLanguage?: string;
-
-  @Field({ nullable: true })
-  currency?: string;
+  @Field()
+  enableEmailNotifications: boolean;
 
   @Field()
-  emailNotifications: boolean;
+  enablePushNotifications: boolean;
 
   @Field()
-  pushNotifications: boolean;
+  showMySocials: boolean;
 
   @Field()
-  orderUpdates: boolean;
+  showMyAddress: boolean;
 
   @Field()
-  communityUpdates: boolean;
+  enableTwoFactorAuth: boolean;
 
   @Field()
-  securityAlerts: boolean;
-
-  @Field()
-  weeklySummary: boolean;
-
-  @Field()
-  twoFactorAuth: boolean;
+  enableLoginAlerts: boolean;
 }

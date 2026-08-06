@@ -9,6 +9,11 @@ export type AccountMessages = {
   errorDeductPoints: string;
   errorUpdateSellerCategory: string;
   errorUpdatePassword: string;
+  // Account deletion
+  errorDeleteAccount: string;
+  accountHasPendingObligations: string;
+  sellerNotFound: string;
+  deletedAccountName: string;
   // Seller labels
   labelNotFound: string;
   labelNameExists: string;
@@ -46,6 +51,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Error al reducir puntos',
     errorUpdateSellerCategory: 'Error al actualizar categoría del vendedor',
     errorUpdatePassword: 'Error al actualizar contraseña',
+    errorDeleteAccount: 'Error al eliminar cuenta',
+    accountHasPendingObligations:
+      'No puedes eliminar tu cuenta mientras tengas operaciones en curso (pedidos, pagos, reservas o intercambios pendientes). Complétalas o cancélalas e inténtalo de nuevo.',
+    sellerNotFound: 'Cuenta no encontrada',
+    deletedAccountName: 'Cuenta eliminada',
     labelNotFound: 'Etiqueta no encontrada',
     labelNameExists: 'Ya existe una etiqueta con ese nombre',
     labelInUse:
@@ -81,6 +91,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Error deducting points',
     errorUpdateSellerCategory: 'Error updating seller category',
     errorUpdatePassword: 'Error updating password',
+    errorDeleteAccount: 'Error deleting account',
+    accountHasPendingObligations:
+      'You cannot delete your account while you have ongoing activity (pending orders, payments, bookings or exchanges). Complete or cancel them and try again.',
+    sellerNotFound: 'Account not found',
+    deletedAccountName: 'Deleted account',
     labelNotFound: 'Label not found',
     labelNameExists: 'A label with this name already exists',
     labelInUse:
@@ -116,6 +131,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorUpdateSellerCategory:
       'Erreur lors de la mise à jour de la catégorie du vendeur',
     errorUpdatePassword: 'Erreur lors de la mise à jour du mot de passe',
+    errorDeleteAccount: 'Erreur lors de la suppression du compte',
+    accountHasPendingObligations:
+      'Vous ne pouvez pas supprimer votre compte tant que vous avez des opérations en cours (commandes, paiements, réservations ou échanges en attente). Terminez-les ou annulez-les, puis réessayez.',
+    sellerNotFound: 'Compte introuvable',
+    deletedAccountName: 'Compte supprimé',
     labelNotFound: 'Label non trouvé',
     labelNameExists: 'Un label avec ce nom existe déjà',
     labelInUse:
@@ -155,6 +175,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Erro ao deduzir pontos',
     errorUpdateSellerCategory: 'Erro ao atualizar categoria do vendedor',
     errorUpdatePassword: 'Erro ao atualizar senha',
+    errorDeleteAccount: 'Erro ao excluir conta',
+    accountHasPendingObligations:
+      'Você não pode excluir sua conta enquanto tiver operações em andamento (pedidos, pagamentos, reservas ou trocas pendentes). Conclua-as ou cancele-as e tente novamente.',
+    sellerNotFound: 'Conta não encontrada',
+    deletedAccountName: 'Conta excluída',
     labelNotFound: 'Etiqueta não encontrada',
     labelNameExists: 'Já existe uma etiqueta com esse nome',
     labelInUse:
@@ -191,6 +216,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorUpdateSellerCategory:
       'Fehler beim Aktualisieren der Verkäuferkategorie',
     errorUpdatePassword: 'Fehler beim Aktualisieren des Passworts',
+    errorDeleteAccount: 'Fehler beim Löschen des Kontos',
+    accountHasPendingObligations:
+      'Sie können Ihr Konto nicht löschen, solange Sie laufende Vorgänge haben (offene Bestellungen, Zahlungen, Buchungen oder Tauschgeschäfte). Schließen Sie diese ab oder stornieren Sie sie und versuchen Sie es erneut.',
+    sellerNotFound: 'Konto nicht gefunden',
+    deletedAccountName: 'Gelöschtes Konto',
     labelNotFound: 'Label nicht gefunden',
     labelNameExists: 'Ein Label mit diesem Namen existiert bereits',
     labelInUse:

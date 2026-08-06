@@ -8,7 +8,9 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { hash, genSalt, compare } from 'bcrypt';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
+import { SellersService } from '../sellers/sellers.service';
 import {
   pickDefined,
   requireBulkFields,
@@ -37,7 +39,10 @@ import {
 export class AccountService {
   private readonly logger = new Logger(AccountService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sellersService: SellersService,
+  ) {}
 
   async deactivateAccount({
     sellerId,
@@ -88,6 +93,153 @@ export class AccountService {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error reactivating account:', error);
       throw new InternalServerError(t.errorReactivateAccount);
+    }
+  }
+
+  /**
+   * Permanently retires the current seller's account (self-service delete).
+   *
+   * A true row delete is not possible here: the commerce/history tables
+   * (Order, Payment, Transaction, Quotation, ServiceBooking, Chat, Message…)
+   * reference the seller with the default `onDelete: Restrict`, so deleting the
+   * row would fail whenever any history exists — and cascading it would wipe the
+   * counterparties' records. So we do the right thing for a system with
+   * transaction history: an irreversible anonymise-and-lock.
+   *
+   *   1. Refuse while the seller still has open obligations — deleting mid-deal
+   *      would strand the counterparty (the same gate an admin ban uses).
+   *   2. Retire every live listing (marketplace + store) so nothing stays for
+   *      sale under a dead account. Those tables belong to other subgraphs but
+   *      share this database, so they're reached with raw SQL.
+   *   3. Strip personal data from the seller and both profiles, and drop saved
+   *      addresses + preferences.
+   *   4. Lock sign-in: randomised password and an anonymised, unique e-mail.
+   *
+   * The seller row survives (past orders/payments stay valid) but the person and
+   * their data are gone and the account can never be used again. Runs atomically
+   * (Serializable) so nothing new can slip in between the check and the wipe.
+   */
+  async deleteAccount({
+    sellerId,
+    language,
+  }: {
+    sellerId: string;
+    language: Language;
+  }): Promise<boolean> {
+    const t = accountMessages[language];
+    try {
+      if (!sellerId) {
+        throw new UnAuthorizedError(t.unauthorized);
+      }
+
+      await this.prisma.$transaction(
+        async (tx) => {
+          const seller = await tx.seller.findUnique({
+            where: { id: sellerId },
+            select: { id: true },
+          });
+          if (!seller) {
+            throw new NotFoundError(t.sellerNotFound);
+          }
+
+          const { total } = await this.sellersService.getPendingObligations({
+            client: tx,
+            sellerId,
+          });
+          if (total > 0) {
+            throw new BadRequestError(t.accountHasPendingObligations);
+          }
+
+          // Retire live listings so nothing stays for sale under a dead account.
+          // Product/StoreProduct live in other subgraphs' schemas but the same
+          // database, so they're updated with raw SQL (like the obligations
+          // check above).
+          await tx.$executeRaw`
+            UPDATE "Product"
+               SET "deletedAt" = NOW(), "isActive" = false
+             WHERE "sellerId" = ${sellerId} AND "deletedAt" IS NULL`;
+          await tx.$executeRaw`
+            UPDATE "StoreProduct"
+               SET "deletedAt" = NOW(), "isActive" = false
+             WHERE "sellerId" = ${sellerId} AND "deletedAt" IS NULL`;
+
+          // Purge sensitive data the seller owns in other subgraphs — payout/bank
+          // config and professional credentials — which a true row delete would
+          // have cascaded away. Raw SQL again, since this client doesn't model
+          // them.
+          await tx.$executeRaw`
+            DELETE FROM "ChileanPaymentConfig" WHERE "sellerId" = ${sellerId}`;
+          await tx.$executeRaw`
+            DELETE FROM "ServiceProviderCredentials" WHERE "sellerId" = ${sellerId}`;
+
+          // Drop stored personal data we fully own.
+          await tx.businessAddress.deleteMany({
+            where: { businessProfile: { sellerId } },
+          });
+          await tx.sellerPreferences.deleteMany({ where: { sellerId } });
+
+          // Anonymise whichever profile exists (updateMany hits 0 or 1 row).
+          await tx.personProfile.updateMany({
+            where: { sellerId },
+            data: {
+              firstName: t.deletedAccountName,
+              lastName: null,
+              displayName: null,
+              bio: null,
+              birthday: null,
+              profileImage: null,
+              coverImage: null,
+            },
+          });
+          await tx.businessProfile.updateMany({
+            where: { sellerId },
+            data: {
+              businessName: t.deletedAccountName,
+              description: null,
+              logo: null,
+              coverImage: null,
+              legalBusinessName: null,
+              taxId: null,
+              legalRepresentative: null,
+              legalRepresentativeTaxId: null,
+              businessHours: Prisma.DbNull,
+            },
+          });
+
+          // Anonymise + lock the account itself.
+          const lockedPassword = await hash(randomUUID(), await genSalt(12));
+          await tx.seller.update({
+            where: { id: sellerId },
+            data: {
+              email: `deleted+${sellerId}@deleted.ekoru`,
+              password: lockedPassword,
+              isActive: false,
+              isVerified: false,
+              address: null,
+              phone: null,
+              website: null,
+              cityId: null,
+              countryId: null,
+              countyId: null,
+              regionId: null,
+              socialMediaLinks: Prisma.DbNull,
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+
+      return true;
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof BadRequestError ||
+        error instanceof NotFoundError
+      ) {
+        throw error;
+      }
+      this.logger.error('Error deleting account:', error);
+      throw new InternalServerError(t.errorDeleteAccount);
     }
   }
 

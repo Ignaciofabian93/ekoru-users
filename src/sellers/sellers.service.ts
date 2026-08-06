@@ -17,6 +17,8 @@ import {
   UpdateBusinessProfileInput,
   UpdateSellerPreferencesInput,
   BanSellerInput,
+  AddBusinessAddressInput,
+  UpdateBusinessAddressInput,
 } from './dto';
 import {
   Language,
@@ -27,6 +29,10 @@ import {
   BusinessType,
 } from '../graphql/enums';
 import { sellerMessages, SellerMessages } from './sellers.i18n';
+import {
+  businessAddressMessages,
+  BusinessAddressMessages,
+} from './business-address.i18n';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
@@ -589,6 +595,181 @@ export class SellersService {
     }
   }
 
+  // ─── Business addresses ───────────────────────────────────────────────
+  // A business may have many locations (HQ, branches, other cities/countries).
+  // At most one is `isPrimary`. The seller's single `Seller.address` is left
+  // unchanged — these are additional locations.
+
+  private readonly businessAddressInclude = {
+    country: true,
+    region: true,
+    city: true,
+    county: true,
+  } as const;
+
+  /** All addresses for a business profile, primary first. */
+  async getBusinessAddresses(businessProfileId: string) {
+    return this.prisma.businessAddress.findMany({
+      where: { businessProfileId },
+      include: this.businessAddressInclude,
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  /** The authenticated seller's own business profile (business sellers only). */
+  private async getOwnedBusinessProfile(
+    sellerId: string,
+    t: BusinessAddressMessages,
+  ) {
+    if (!sellerId) throw new UnAuthorizedError(t.unauthorized);
+    const profile = await this.prisma.businessProfile.findUnique({
+      where: { sellerId },
+      select: { id: true },
+    });
+    if (!profile) throw new NotFoundError(t.businessProfileNotFound);
+    return profile;
+  }
+
+  async addBusinessAddress({
+    sellerId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    input: AddBusinessAddressInput;
+    language: Language;
+  }) {
+    const t = businessAddressMessages[language];
+    try {
+      const profile = await this.getOwnedBusinessProfile(sellerId, t);
+      return await this.prisma.$transaction(async (tx) => {
+        if (input.isPrimary) {
+          await tx.businessAddress.updateMany({
+            where: { businessProfileId: profile.id },
+            data: { isPrimary: false },
+          });
+        }
+        return tx.businessAddress.create({
+          data: { ...input, businessProfileId: profile.id },
+          include: this.businessAddressInclude,
+        });
+      });
+    } catch (error) {
+      if (error instanceof UnAuthorizedError || error instanceof NotFoundError)
+        throw error;
+      this.logger.error(t.errorManage, error);
+      throw new InternalServerError(t.errorManage);
+    }
+  }
+
+  async updateBusinessAddress({
+    sellerId,
+    input,
+    language,
+  }: {
+    sellerId: string;
+    input: UpdateBusinessAddressInput;
+    language: Language;
+  }) {
+    const t = businessAddressMessages[language];
+    try {
+      const profile = await this.getOwnedBusinessProfile(sellerId, t);
+      const { id, ...data } = input;
+      const existing = await this.prisma.businessAddress.findUnique({
+        where: { id },
+        select: { businessProfileId: true },
+      });
+      if (!existing || existing.businessProfileId !== profile.id) {
+        throw new NotFoundError(t.addressNotFound);
+      }
+      return await this.prisma.$transaction(async (tx) => {
+        if (data.isPrimary) {
+          await tx.businessAddress.updateMany({
+            where: { businessProfileId: profile.id },
+            data: { isPrimary: false },
+          });
+        }
+        return tx.businessAddress.update({
+          where: { id },
+          data,
+          include: this.businessAddressInclude,
+        });
+      });
+    } catch (error) {
+      if (error instanceof UnAuthorizedError || error instanceof NotFoundError)
+        throw error;
+      this.logger.error(t.errorManage, error);
+      throw new InternalServerError(t.errorManage);
+    }
+  }
+
+  async deleteBusinessAddress({
+    sellerId,
+    id,
+    language,
+  }: {
+    sellerId: string;
+    id: number;
+    language: Language;
+  }): Promise<boolean> {
+    const t = businessAddressMessages[language];
+    try {
+      const profile = await this.getOwnedBusinessProfile(sellerId, t);
+      const existing = await this.prisma.businessAddress.findUnique({
+        where: { id },
+        select: { businessProfileId: true },
+      });
+      if (!existing || existing.businessProfileId !== profile.id) {
+        throw new NotFoundError(t.addressNotFound);
+      }
+      await this.prisma.businessAddress.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (error instanceof UnAuthorizedError || error instanceof NotFoundError)
+        throw error;
+      this.logger.error(t.errorManage, error);
+      throw new InternalServerError(t.errorManage);
+    }
+  }
+
+  async setPrimaryBusinessAddress({
+    sellerId,
+    id,
+    language,
+  }: {
+    sellerId: string;
+    id: number;
+    language: Language;
+  }) {
+    const t = businessAddressMessages[language];
+    try {
+      const profile = await this.getOwnedBusinessProfile(sellerId, t);
+      const existing = await this.prisma.businessAddress.findUnique({
+        where: { id },
+        select: { businessProfileId: true },
+      });
+      if (!existing || existing.businessProfileId !== profile.id) {
+        throw new NotFoundError(t.addressNotFound);
+      }
+      await this.prisma.$transaction([
+        this.prisma.businessAddress.updateMany({
+          where: { businessProfileId: profile.id, isPrimary: true },
+          data: { isPrimary: false },
+        }),
+        this.prisma.businessAddress.update({
+          where: { id },
+          data: { isPrimary: true },
+        }),
+      ]);
+      return this.getBusinessAddresses(profile.id);
+    } catch (error) {
+      if (error instanceof UnAuthorizedError || error instanceof NotFoundError)
+        throw error;
+      this.logger.error(t.errorManage, error);
+      throw new InternalServerError(t.errorManage);
+    }
+  }
+
   /**
    * Ensures the caller is an admin allowed to moderate sellers. Only active
    * PLATFORM admins who are SUPER_ADMIN or hold the given permission may act.
@@ -678,8 +859,10 @@ export class SellersService {
    * buyer/seller, payer/receiver, client/provider. All subgraphs share one
    * physical database, but `ekoru-users`' Prisma client only models the entities
    * it owns, so these cross-service tables (Order, Payment, Quotation, …) are
-   * reached with a single parameterised raw query. Run it inside the ban
-   * transaction (pass `tx`) so the check and the ban commit atomically.
+   * reached with a single parameterised raw query. Run it inside the caller's
+   * transaction (pass `tx`) so the check and the follow-up action commit
+   * atomically. Shared by two seller-lifecycle gates — an admin ban and a
+   * seller's own account deletion — which both refuse while anything is open.
    *
    * "Open" definitions:
    *   • Order        — PENDING_PAYMENT, or PAID but not yet DELIVERED/RETURNED/CANCELED
@@ -689,7 +872,7 @@ export class SellersService {
    *   • ServiceBooking — PENDING/CONFIRMED/IN_PROGRESS, or payment PENDING/PROCESSING
    *   • Exchange     — PENDING or ACCEPTED
    */
-  private async getPendingObligations({
+  async getPendingObligations({
     client,
     sellerId,
   }: {

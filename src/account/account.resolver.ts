@@ -83,6 +83,19 @@ export class AccountResolver {
     return this.accountService.reactivateAccount({ sellerId, language });
   }
 
+  @Mutation(() => Boolean, {
+    name: 'deleteAccount',
+    description:
+      'Permanently delete the current seller account (anonymises and locks it). Irreversible.',
+  })
+  async deleteAccount(
+    @CurrentSeller() sellerId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.deleteAccount({ sellerId, language });
+  }
+
   @Mutation(() => Seller, {
     name: 'addPoints',
     description: 'Add points to a seller',

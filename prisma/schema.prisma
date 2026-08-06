@@ -214,20 +214,17 @@ model Seller {
 }
 
 model SellerPreferences {
-  id                 Int      @id @default(autoincrement())
-  sellerId           String   @unique
-  preferredLanguage  String?  @default("es")
-  currency           String?  @default("CLP")
-  emailNotifications Boolean  @default(true)
-  pushNotifications  Boolean  @default(true)
-  orderUpdates       Boolean  @default(true)
-  communityUpdates   Boolean  @default(true)
-  securityAlerts     Boolean  @default(true)
-  weeklySummary      Boolean  @default(false)
-  twoFactorAuth      Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  seller             Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  id                       Int      @id @default(autoincrement())
+  sellerId                 String   @unique
+  enableEmailNotifications Boolean  @default(false)
+  enablePushNotifications  Boolean  @default(false)
+  showMySocials            Boolean  @default(false)
+  showMyAddress            Boolean  @default(false)
+  enableTwoFactorAuth      Boolean  @default(false)
+  enableLoginAlerts        Boolean  @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  seller                   Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model PersonProfile {
@@ -276,11 +273,41 @@ model BusinessProfile {
   businessMembershipSubscriptionId Int?
   businessMembershipSubscription   BusinessMembershipSubscription? @relation(fields: [businessMembershipSubscriptionId], references: [id])
   seller                           Seller                          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  addresses                        BusinessAddress[]
 
   @@index([taxId])
   @@index([businessType])
   @@index([businessMembershipSubscriptionId])
   @@index([sellerId])
+}
+
+model BusinessAddress {
+  id                Int             @id @default(autoincrement())
+  businessProfileId String
+  label             String?
+  address           String
+  reference         String?
+  zipCode           String?
+  phone             String?
+  countryId         Int?
+  regionId          Int?
+  cityId            Int?
+  countyId          Int?
+  isPrimary         Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  businessProfile   BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  country           Country?        @relation(fields: [countryId], references: [id])
+  region            Region?         @relation(fields: [regionId], references: [id])
+  city              City?           @relation(fields: [cityId], references: [id])
+  county            County?         @relation(fields: [countyId], references: [id])
+
+  @@index([businessProfileId])
+  @@index([isPrimary])
+  @@index([countryId])
+  @@index([regionId])
+  @@index([cityId])
+  @@index([countyId])
 }
 
 model BannedSeller {
@@ -604,6 +631,7 @@ model Country {
   seller                    Seller[]
   personMembershipPricing   PersonMembershipPricing[]
   businessMembershipPricing BusinessMembershipPricing[]
+  businessAddress           BusinessAddress[]
 }
 
 model CountryTranslation {
@@ -627,6 +655,7 @@ model Region {
   city            City[]
   country         Country           @relation(fields: [countryId], references: [id])
   seller          Seller[]
+  businessAddress BusinessAddress[]
 }
 
 model City {
@@ -639,6 +668,7 @@ model City {
   region          Region            @relation(fields: [regionId], references: [id])
   county          County[]
   seller          Seller[]
+  businessAddress BusinessAddress[]
 }
 
 model County {
@@ -650,6 +680,7 @@ model County {
   admin           Admin[]
   city            City              @relation(fields: [cityId], references: [id])
   seller          Seller[]
+  businessAddress BusinessAddress[]
 }
 
 model Notification {
