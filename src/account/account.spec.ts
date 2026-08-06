@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountService } from './account.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SellersService } from '../sellers/sellers.service';
 import {
   UnAuthorizedError,
   BadRequestError,
@@ -62,12 +63,20 @@ describe('AccountService', () => {
       },
     };
 
+    const mockSellersService = {
+      getPendingObligations: jest.fn().mockResolvedValue({ total: 0 }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AccountService,
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: SellersService,
+          useValue: mockSellersService,
         },
       ],
     }).compile();

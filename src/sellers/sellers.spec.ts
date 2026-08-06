@@ -1046,7 +1046,10 @@ describe('SellersService', () => {
 
   describe('updateSellerPreferences', () => {
     it('should upsert seller preferences successfully', async () => {
-      const input = { language: 'en', currency: 'USD' };
+      const input = {
+        enableEmailNotifications: true,
+        enablePushNotifications: false,
+      };
       const preferences = { id: 1, sellerId: 'seller-123', ...input };
       prisma.sellerPreferences.upsert.mockResolvedValue(preferences);
 
