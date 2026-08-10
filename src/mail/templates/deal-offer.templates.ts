@@ -160,7 +160,7 @@ function render(locale: MailLocale, data: DealOfferData) {
     data.currency,
     locale,
   );
-  const url = safeUrl(data.dealUrl) ?? `${APP_BASE_URL}/account/deals`;
+  const url = safeUrl(data.dealUrl) ?? `${APP_BASE_URL}/deals`;
 
   const subject = isExchange
     ? t.subjectExchange(data.offererName)

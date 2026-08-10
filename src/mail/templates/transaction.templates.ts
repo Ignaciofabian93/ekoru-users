@@ -284,7 +284,7 @@ function render(locale: MailLocale, data: TransactionData) {
   const isBuyer = data.role === 'BUYER';
   const lead = isBuyer ? stage.buyer : stage.seller;
   const amount = formatAmount(data.amount, data.currency, locale);
-  const url = safeUrl(data.detailUrl) ?? `${APP_BASE_URL}/account/orders`;
+  const url = safeUrl(data.detailUrl) ?? `${APP_BASE_URL}/profile/orders`;
 
   const textParts = [
     `${t.greeting(data.name)}. ${lead}`,

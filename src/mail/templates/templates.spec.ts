@@ -76,7 +76,7 @@ describe('login alert', () => {
     expect(html).toContain('Chrome 138');
     expect(html).toContain('Windows 10/11');
     expect(html).toContain('190.1.2.3');
-    expect(html).toContain('https://app.ekoru.cl/account/security');
+    expect(html).toContain('https://app.ekoru.cl/profile/settings');
     expect(text).toContain('190.1.2.3');
   });
 
@@ -176,7 +176,7 @@ describe('untrusted values', () => {
       detailUrl: 'javascript:alert(1)',
     });
     expect(html).not.toContain('javascript:');
-    expect(html).toContain('https://app.ekoru.cl/account/orders');
+    expect(html).toContain('https://app.ekoru.cl/profile/orders');
   });
 
   it('drops a javascript: image source', () => {
@@ -191,8 +191,8 @@ describe('untrusted values', () => {
   it('keeps a legitimate https link', () => {
     const { html } = transactionTemplates.es({
       ...transactionData,
-      detailUrl: 'https://app.ekoru.cl/account/orders/1042',
+      detailUrl: 'https://app.ekoru.cl/profile/orders',
     });
-    expect(html).toContain('https://app.ekoru.cl/account/orders/1042');
+    expect(html).toContain('https://app.ekoru.cl/profile/orders');
   });
 });

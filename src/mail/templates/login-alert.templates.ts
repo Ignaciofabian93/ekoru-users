@@ -27,7 +27,8 @@ export interface LoginAlertData {
   occurredAt: Date;
 }
 
-const SECURITY_URL = `${APP_BASE_URL}/account/security`;
+// Locale-less: the web app redirects to the visitor's /{lang}/profile/settings.
+const SECURITY_URL = `${APP_BASE_URL}/profile/settings`;
 
 interface Copy {
   tagline: string;
