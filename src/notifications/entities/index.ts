@@ -1,16 +1,14 @@
-import {
-  ObjectType,
-  Field,
-  ID,
-  Int,
-  GraphQLISODateTime,
-} from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
 import {
   DevicePlatform,
   NotificationPriority,
   NotificationType,
 } from '@prisma/client';
 import { PageInfo } from '../../admins/entities/page-info.entity';
+// This subgraph registers its own `DateTime` scalar. Using Nest's
+// GraphQLISODateTime here would register a second type of the same name and
+// the federated schema would refuse to build.
+import { DateTimeScalar } from '../../graphql/scalars';
 
 @ObjectType()
 export class Notification {
@@ -44,10 +42,10 @@ export class Notification {
   @Field({ nullable: true, description: 'Where tapping it should navigate' })
   actionUrl?: string;
 
-  @Field(() => GraphQLISODateTime)
+  @Field(() => DateTimeScalar)
   createdAt: Date;
 
-  @Field(() => GraphQLISODateTime, { nullable: true })
+  @Field(() => DateTimeScalar, { nullable: true })
   readAt?: Date;
 }
 
@@ -77,6 +75,6 @@ export class SellerDevice {
   @Field()
   isActive: boolean;
 
-  @Field(() => GraphQLISODateTime)
+  @Field(() => DateTimeScalar)
   lastSeenAt: Date;
 }

@@ -1,7 +1,10 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
 import { IsEnum, IsNotEmpty, MaxLength } from 'class-validator';
 import { DevicePlatform, NotificationType } from '../../graphql/enums';
-import GraphQLJSON from 'graphql-type-json';
+// This subgraph registers its own `JSON` scalar. Importing the one from
+// graphql-type-json would register a second type of the same name and the
+// federated schema would refuse to build — same trap as `DateTime`.
+import { JSONScalar } from '../../graphql/scalars';
 
 /**
  * The single wire format every domain event uses to reach a user.
@@ -32,7 +35,7 @@ export class EmitNotificationInput {
   @Field({ nullable: true, description: 'Where tapping it should navigate' })
   actionUrl?: string;
 
-  @Field(() => GraphQLJSON, {
+  @Field(() => JSONScalar, {
     nullable: true,
     description:
       'Payload for template placeholders and email rendering; stored on the notification',
