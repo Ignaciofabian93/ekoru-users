@@ -6,6 +6,7 @@ import { NotificationsResolver } from './notifications.resolver';
 import { NotificationRenderer } from './notification-renderer';
 import { NotificationsProcessor } from './notifications.processor';
 import { DevicesService } from './devices.service';
+import { NotificationsMetrics } from './notifications.metrics';
 import { EmailChannel } from './channels/email.channel';
 import { PushChannel } from './channels/push.channel';
 import { NOTIFICATIONS_QUEUE } from './notifications.queue';
@@ -33,9 +34,12 @@ import { NOTIFICATIONS_QUEUE } from './notifications.queue';
     NotificationRenderer,
     NotificationsProcessor,
     DevicesService,
+    NotificationsMetrics,
     EmailChannel,
     PushChannel,
   ],
-  exports: [NotificationsService],
+  // NotificationRenderer is exported so the admin panel's template CRUD
+  // (AccountService) can drop the copy cache the moment an admin saves.
+  exports: [NotificationsService, NotificationRenderer],
 })
 export class NotificationsModule {}

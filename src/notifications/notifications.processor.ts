@@ -1,14 +1,17 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
+import { Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Job, Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailChannel } from './channels/email.channel';
 import { PushChannel } from './channels/push.channel';
 import { specFor } from './notification-registry';
-import { toLocale } from './notifications.service';
+import { NotificationsService, toLocale } from './notifications.service';
+import { NotificationsMetrics } from './notifications.metrics';
 import {
   DELIVER_JOB,
   NOTIFICATIONS_QUEUE,
+  PURGE_JOB,
   type DeliverJobData,
 } from './notifications.queue';
 
@@ -24,18 +27,57 @@ import {
  * cause the push to be re-sent on every attempt.
  */
 @Processor(NOTIFICATIONS_QUEUE)
-export class NotificationsProcessor extends WorkerHost {
+export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(NotificationsProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailChannel,
     private readonly push: PushChannel,
+    private readonly notifications: NotificationsService,
+    private readonly metrics: NotificationsMetrics,
+    private readonly config: ConfigService,
+    @InjectQueue(NOTIFICATIONS_QUEUE) private readonly queue: Queue,
   ) {
     super();
   }
 
+  /**
+   * Registers the retention sweep. A stable `jobId` means a redeploy replaces
+   * the schedule instead of stacking a second one.
+   */
+  async onModuleInit(): Promise<void> {
+    const everyHours = this.config.get<number>(
+      'notifications.purgeEveryHours',
+      24,
+    );
+    try {
+      await this.queue.add(
+        PURGE_JOB,
+        {},
+        {
+          repeat: { every: everyHours * 3_600_000 },
+          jobId: 'notifications-purge',
+          removeOnComplete: true,
+          removeOnFail: 20,
+        },
+      );
+      this.logger.log(`Notification purge scheduled every ${everyHours}h`);
+    } catch (error) {
+      // Redis down at boot must not stop the service starting; delivery
+      // already degrades to in-app only in that case.
+      this.logger.error('Could not schedule the notification purge', error);
+    }
+  }
+
   async process(job: Job<DeliverJobData>): Promise<unknown> {
+    if (job.name === PURGE_JOB) {
+      const retentionDays = this.config.get<number>(
+        'notifications.retentionDays',
+        60,
+      );
+      return this.notifications.purgeOldNotifications(retentionDays);
+    }
     if (job.name !== DELIVER_JOB) {
       this.logger.warn(`Unknown notifications job: ${job.name}`);
       return null;
@@ -118,6 +160,18 @@ export class NotificationsProcessor extends WorkerHost {
           })
         : Promise.resolve(0),
     ]);
+
+    if (wantsEmail) {
+      if (emailed) this.metrics.recordDelivered('email');
+      else this.metrics.recordFailed('email', 'channel_error');
+    }
+    if (wantsPush) {
+      if (pushed > 0) this.metrics.recordDelivered('push', pushed);
+      // Zero accepted with push enabled means either no registered device or
+      // Expo rejected every token — both worth seeing, and distinguishable
+      // from "push wasn't wanted" because that path isn't counted at all.
+      else this.metrics.recordFailed('push', 'no_device_or_rejected');
+    }
 
     this.logger.log(
       `Notification ${notification.id} (${notification.type}) → email=${emailed} push=${pushed}`,

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AccountService } from './account.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SellersService } from '../sellers/sellers.service';
+import { NotificationRenderer } from '../notifications/notification-renderer';
 import {
   UnAuthorizedError,
   BadRequestError,
@@ -9,7 +10,7 @@ import {
   ConflictError,
   InternalServerError,
 } from '../common/exceptions';
-import { Language, TransactionKind } from '../graphql/enums';
+import { Language, NotificationType, TransactionKind } from '../graphql/enums';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -17,6 +18,7 @@ jest.mock('bcrypt');
 describe('AccountService', () => {
   let service: AccountService;
   let prisma: any;
+  let mockNotificationRenderer: { invalidate: jest.Mock };
 
   const mockSeller = {
     id: 'seller-123',
@@ -61,7 +63,21 @@ describe('AccountService', () => {
         findUnique: jest.fn(),
         delete: jest.fn(),
       },
+      notificationTemplate: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      notificationTemplateTranslation: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
     };
+
+    mockNotificationRenderer = { invalidate: jest.fn() };
 
     const mockSellersService = {
       getPendingObligations: jest.fn().mockResolvedValue({ total: 0 }),
@@ -77,6 +93,10 @@ describe('AccountService', () => {
         {
           provide: SellersService,
           useValue: mockSellersService,
+        },
+        {
+          provide: NotificationRenderer,
+          useValue: mockNotificationRenderer,
         },
       ],
     }).compile();
@@ -728,6 +748,90 @@ describe('AccountService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(NotFoundError);
+    });
+  });
+  describe('notification template cache', () => {
+    // Copy is cached in-process for a minute, so an admin edit that doesn't
+    // drop the cache looks like it silently did nothing.
+    it('invalidates after deleting a template', async () => {
+      prisma.notificationTemplate.delete.mockResolvedValue({ id: 1 });
+
+      await service.deleteNotificationTemplate({
+        adminId: 'admin-1',
+        id: 1,
+        language: Language.ES,
+      });
+
+      expect(mockNotificationRenderer.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates after deleting a translation', async () => {
+      prisma.notificationTemplateTranslation.delete.mockResolvedValue({
+        id: 1,
+      });
+
+      await service.deleteNotificationTemplateTranslation({
+        adminId: 'admin-1',
+        notificationTemplateId: 1,
+        translationLanguage: Language.EN,
+        language: Language.ES,
+      });
+
+      expect(mockNotificationRenderer.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates after a bulk template upsert', async () => {
+      prisma.notificationTemplate.findUnique.mockResolvedValue(null);
+      prisma.notificationTemplate.create.mockResolvedValue({ id: 9 });
+
+      await service.bulkUpsertNotificationTemplates({
+        adminId: 'admin-1',
+        rows: [
+          {
+            type: NotificationType.ORDER_RECEIVED,
+            title: 'T',
+            message: 'M',
+          },
+        ] as never,
+        language: Language.ES,
+      });
+
+      expect(mockNotificationRenderer.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates even when some rows in the batch failed', async () => {
+      // A partial failure still changed rows, so a stale cache would show a
+      // mix of old and new copy.
+      prisma.notificationTemplate.findUnique.mockResolvedValue(null);
+      prisma.notificationTemplate.create.mockRejectedValue(
+        new Error('constraint'),
+      );
+
+      await service.bulkUpsertNotificationTemplates({
+        adminId: 'admin-1',
+        rows: [
+          {
+            type: NotificationType.ORDER_RECEIVED,
+            title: 'T',
+            message: 'M',
+          },
+        ] as never,
+        language: Language.ES,
+      });
+
+      expect(mockNotificationRenderer.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not invalidate when the caller is not an admin', async () => {
+      await expect(
+        service.deleteNotificationTemplate({
+          adminId: '',
+          id: 1,
+          language: Language.ES,
+        }),
+      ).rejects.toThrow();
+
+      expect(mockNotificationRenderer.invalidate).not.toHaveBeenCalled();
     });
   });
 });

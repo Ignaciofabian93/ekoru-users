@@ -166,6 +166,32 @@ export class NotificationsService {
     return count;
   }
 
+  // ─── housekeeping ─────────────────────────────────────────────────────────
+
+  /**
+   * Deletes notifications the user has already read and that are older than
+   * the retention window. Driven by the daily repeatable job.
+   *
+   * Unread rows are never purged regardless of age: an unread notification is
+   * still something the user hasn't seen, and silently deleting it would lose
+   * the only record of it. Anything genuinely stale and unread points at a
+   * retention window that's too short, not at a row worth dropping.
+   */
+  async purgeOldNotifications(retentionDays: number): Promise<number> {
+    const cutoff = new Date(Date.now() - retentionDays * 86_400_000);
+
+    const { count } = await this.prisma.notification.deleteMany({
+      where: { isRead: true, createdAt: { lt: cutoff } },
+    });
+
+    if (count > 0) {
+      this.logger.log(
+        `Purged ${count} read notification(s) older than ${retentionDays}d`,
+      );
+    }
+    return count;
+  }
+
   // ─── helpers ──────────────────────────────────────────────────────────────
 
   /**

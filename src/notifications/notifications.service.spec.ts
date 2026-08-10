@@ -13,6 +13,7 @@ describe('NotificationsService', () => {
   let notificationUpdateMany: jest.Mock;
   let notificationFindMany: jest.Mock;
   let notificationCount: jest.Mock;
+  let notificationDeleteMany: jest.Mock;
   let queueAdd: jest.Mock;
   let render: jest.Mock;
 
@@ -24,6 +25,7 @@ describe('NotificationsService', () => {
     notificationUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
     notificationFindMany = jest.fn().mockResolvedValue([]);
     notificationCount = jest.fn().mockResolvedValue(0);
+    notificationDeleteMany = jest.fn().mockResolvedValue({ count: 0 });
     queueAdd = jest.fn().mockResolvedValue(undefined);
     render = jest
       .fn()
@@ -41,6 +43,7 @@ describe('NotificationsService', () => {
               updateMany: notificationUpdateMany,
               findMany: notificationFindMany,
               count: notificationCount,
+              deleteMany: notificationDeleteMany,
             },
           },
         },
@@ -279,6 +282,39 @@ describe('NotificationsService', () => {
       expect(notificationCount).toHaveBeenCalledWith({
         where: { sellerId: 'seller-1', isRead: false },
       });
+    });
+  });
+
+  describe('purgeOldNotifications', () => {
+    it('only deletes read rows past the retention window', async () => {
+      notificationDeleteMany.mockResolvedValue({ count: 12 });
+
+      await expect(service.purgeOldNotifications(60)).resolves.toBe(12);
+
+      const where = notificationDeleteMany.mock.calls[0][0].where as {
+        isRead: boolean;
+        createdAt: { lt: Date };
+      };
+      // Never purge unread: it's the only record the user hasn't seen it.
+      expect(where.isRead).toBe(true);
+
+      const cutoff = where.createdAt.lt.getTime();
+      const expected = Date.now() - 60 * 86_400_000;
+      expect(Math.abs(cutoff - expected)).toBeLessThan(5_000);
+    });
+
+    it('honours a shorter window', async () => {
+      notificationDeleteMany.mockResolvedValue({ count: 0 });
+
+      await service.purgeOldNotifications(7);
+
+      const where = notificationDeleteMany.mock.calls[0][0].where as {
+        createdAt: { lt: Date };
+      };
+      const expected = Date.now() - 7 * 86_400_000;
+      expect(Math.abs(where.createdAt.lt.getTime() - expected)).toBeLessThan(
+        5_000,
+      );
     });
   });
 });

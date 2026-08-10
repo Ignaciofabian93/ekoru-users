@@ -11,6 +11,7 @@ import { hash, genSalt, compare } from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { SellersService } from '../sellers/sellers.service';
+import { NotificationRenderer } from '../notifications/notification-renderer';
 import {
   pickDefined,
   requireBulkFields,
@@ -42,7 +43,20 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly sellersService: SellersService,
+    private readonly notificationRenderer: NotificationRenderer,
   ) {}
+
+  /**
+   * Drops the in-process notification-copy cache after an admin changes a
+   * template. Without it an edit takes up to `CACHE_TTL_MS` to show up.
+   *
+   * Caveat worth knowing if users is ever scaled past one replica: the cache is
+   * per-process, so only the container that served the mutation clears
+   * immediately — the others still expire on their own TTL.
+   */
+  private invalidateNotificationCopy(): void {
+    this.notificationRenderer.invalidate();
+  }
 
   async deactivateAccount({
     sellerId,
@@ -1269,7 +1283,11 @@ export class AccountService {
   }) {
     this.assertAdmin({ adminId, t: accountMessages[language] });
     try {
-      return await this.prisma.notificationTemplate.delete({ where: { id } });
+      const deleted = await this.prisma.notificationTemplate.delete({
+        where: { id },
+      });
+      this.invalidateNotificationCopy();
+      return deleted;
     } catch (error) {
       this.logger.error('Error deleting notification template:', error);
       throw new InternalServerError(bulkErrorMessage(error));
@@ -1289,7 +1307,7 @@ export class AccountService {
   }) {
     this.assertAdmin({ adminId, t: accountMessages[language] });
     try {
-      return await this.prisma.notificationTemplateTranslation.delete({
+      const deleted = await this.prisma.notificationTemplateTranslation.delete({
         where: {
           notificationTemplateId_language: {
             notificationTemplateId,
@@ -1297,6 +1315,8 @@ export class AccountService {
           },
         },
       });
+      this.invalidateNotificationCopy();
+      return deleted;
     } catch (error) {
       this.logger.error(
         'Error deleting notification template translation:',
@@ -1317,48 +1337,54 @@ export class AccountService {
   }) {
     this.assertAdmin({ adminId, t: accountMessages[language] });
 
-    return processBulkRows(this.logger, rows, async (row) => {
-      const data = pickDefined({
-        type: row.type,
-        title: row.title,
-        message: row.message,
-        isActive: row.isActive,
-      });
-
-      if (row.id != null) {
-        await this.prisma.notificationTemplate.update({
-          where: { id: row.id },
-          data,
+    // A partially-failed batch still changed some rows, so the cache is dropped
+    // regardless of the per-row outcomes.
+    try {
+      return await processBulkRows(this.logger, rows, async (row) => {
+        const data = pickDefined({
+          type: row.type,
+          title: row.title,
+          message: row.message,
+          isActive: row.isActive,
         });
-        return { outcome: 'updated', id: row.id };
-      }
 
-      // No id: `type` is unique, so match on it to update in place.
-      if (row.type != null) {
-        const existing = await this.prisma.notificationTemplate.findUnique({
-          where: { type: row.type },
-          select: { id: true },
-        });
-        if (existing) {
+        if (row.id != null) {
           await this.prisma.notificationTemplate.update({
-            where: { id: existing.id },
+            where: { id: row.id },
             data,
           });
-          return { outcome: 'updated', id: existing.id };
+          return { outcome: 'updated', id: row.id };
         }
-      }
 
-      requireBulkFields(row, ['type', 'title', 'message']);
-      const created = await this.prisma.notificationTemplate.create({
-        data: {
-          type: row.type!,
-          title: row.title!,
-          message: row.message!,
-          isActive: row.isActive ?? undefined,
-        },
+        // No id: `type` is unique, so match on it to update in place.
+        if (row.type != null) {
+          const existing = await this.prisma.notificationTemplate.findUnique({
+            where: { type: row.type },
+            select: { id: true },
+          });
+          if (existing) {
+            await this.prisma.notificationTemplate.update({
+              where: { id: existing.id },
+              data,
+            });
+            return { outcome: 'updated', id: existing.id };
+          }
+        }
+
+        requireBulkFields(row, ['type', 'title', 'message']);
+        const created = await this.prisma.notificationTemplate.create({
+          data: {
+            type: row.type!,
+            title: row.title!,
+            message: row.message!,
+            isActive: row.isActive ?? undefined,
+          },
+        });
+        return { outcome: 'created', id: created.id };
       });
-      return { outcome: 'created', id: created.id };
-    });
+    } finally {
+      this.invalidateNotificationCopy();
+    }
   }
 
   async bulkUpsertNotificationTemplateTranslations({
@@ -1372,54 +1398,59 @@ export class AccountService {
   }) {
     this.assertAdmin({ adminId, t: accountMessages[language] });
 
-    return processBulkRows(this.logger, rows, async (row) => {
-      const data = pickDefined({ title: row.title, message: row.message });
+    try {
+      return await processBulkRows(this.logger, rows, async (row) => {
+        const data = pickDefined({ title: row.title, message: row.message });
 
-      if (row.id != null) {
-        await this.prisma.notificationTemplateTranslation.update({
-          where: { id: row.id },
-          data,
-        });
-        return { outcome: 'updated', id: row.id };
-      }
+        if (row.id != null) {
+          await this.prisma.notificationTemplateTranslation.update({
+            where: { id: row.id },
+            data,
+          });
+          return { outcome: 'updated', id: row.id };
+        }
 
-      const { notificationTemplateId, language: rowLanguage } = row;
-      if (notificationTemplateId == null || !rowLanguage) {
-        throw new Error(
-          'notificationTemplateId and language are required when no id is provided',
-        );
-      }
+        const { notificationTemplateId, language: rowLanguage } = row;
+        if (notificationTemplateId == null || !rowLanguage) {
+          throw new Error(
+            'notificationTemplateId and language are required when no id is provided',
+          );
+        }
 
-      const existing =
-        await this.prisma.notificationTemplateTranslation.findUnique({
-          where: {
-            notificationTemplateId_language: {
+        const existing =
+          await this.prisma.notificationTemplateTranslation.findUnique({
+            where: {
+              notificationTemplateId_language: {
+                notificationTemplateId,
+                language: rowLanguage,
+              },
+            },
+            select: { id: true },
+          });
+
+        if (existing) {
+          await this.prisma.notificationTemplateTranslation.update({
+            where: { id: existing.id },
+            data,
+          });
+          return { outcome: 'updated', id: existing.id };
+        }
+
+        requireBulkFields(row, ['title', 'message']);
+        const created =
+          await this.prisma.notificationTemplateTranslation.create({
+            data: {
               notificationTemplateId,
               language: rowLanguage,
+              title: row.title!,
+              message: row.message!,
             },
-          },
-          select: { id: true },
-        });
-
-      if (existing) {
-        await this.prisma.notificationTemplateTranslation.update({
-          where: { id: existing.id },
-          data,
-        });
-        return { outcome: 'updated', id: existing.id };
-      }
-
-      requireBulkFields(row, ['title', 'message']);
-      const created = await this.prisma.notificationTemplateTranslation.create({
-        data: {
-          notificationTemplateId,
-          language: rowLanguage,
-          title: row.title!,
-          message: row.message!,
-        },
+          });
+        return { outcome: 'created', id: created.id };
       });
-      return { outcome: 'created', id: created.id };
-    });
+    } finally {
+      this.invalidateNotificationCopy();
+    }
   }
 
   // ─── Bulk helpers ───────────────────────────────────────────────────────────

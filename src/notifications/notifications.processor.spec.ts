@@ -1,17 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { Job } from 'bullmq';
 import { NotificationPriority, NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsProcessor } from './notifications.processor';
+import { NotificationsService } from './notifications.service';
+import { NotificationsMetrics } from './notifications.metrics';
 import { EmailChannel } from './channels/email.channel';
 import { PushChannel } from './channels/push.channel';
-import { DELIVER_JOB, type DeliverJobData } from './notifications.queue';
+import {
+  DELIVER_JOB,
+  NOTIFICATIONS_QUEUE,
+  PURGE_JOB,
+  type DeliverJobData,
+} from './notifications.queue';
 
 describe('NotificationsProcessor', () => {
   let processor: NotificationsProcessor;
   let findUnique: jest.Mock;
   let email: { send: jest.Mock };
   let push: { send: jest.Mock };
+  let metrics: { recordDelivered: jest.Mock; recordFailed: jest.Mock };
+  let purgeOldNotifications: jest.Mock;
+  let queueAdd: jest.Mock;
 
   const allOn = {
     enableEmailNotifications: true,
@@ -48,6 +60,9 @@ describe('NotificationsProcessor', () => {
     findUnique = jest.fn().mockResolvedValue(stored());
     email = { send: jest.fn().mockResolvedValue(true) };
     push = { send: jest.fn().mockResolvedValue(2) };
+    metrics = { recordDelivered: jest.fn(), recordFailed: jest.fn() };
+    purgeOldNotifications = jest.fn().mockResolvedValue(7);
+    queueAdd = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -58,6 +73,24 @@ describe('NotificationsProcessor', () => {
         },
         { provide: EmailChannel, useValue: email },
         { provide: PushChannel, useValue: push },
+        { provide: NotificationsService, useValue: { purgeOldNotifications } },
+        { provide: NotificationsMetrics, useValue: metrics },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(
+              (key: string, fallback?: number) =>
+                ({
+                  'notifications.retentionDays': 60,
+                  'notifications.purgeEveryHours': 24,
+                })[key] ?? fallback,
+            ),
+          },
+        },
+        {
+          provide: getQueueToken(NOTIFICATIONS_QUEUE),
+          useValue: { add: queueAdd },
+        },
       ],
     }).compile();
 
@@ -248,6 +281,88 @@ describe('NotificationsProcessor', () => {
       } as Job<DeliverJobData>;
       await expect(processor.process(unknown)).resolves.toBeNull();
       expect(findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('metrics', () => {
+    it('counts a delivery per channel, push by messages accepted', async () => {
+      await processor.process(job());
+
+      expect(metrics.recordDelivered).toHaveBeenCalledWith('email');
+      expect(metrics.recordDelivered).toHaveBeenCalledWith('push', 2);
+      expect(metrics.recordFailed).not.toHaveBeenCalled();
+    });
+
+    it('counts push with no reachable device as a failure', async () => {
+      push.send.mockResolvedValue(0);
+
+      await processor.process(job());
+
+      expect(metrics.recordFailed).toHaveBeenCalledWith(
+        'push',
+        'no_device_or_rejected',
+      );
+    });
+
+    it('counts an email the channel could not send', async () => {
+      email.send.mockResolvedValue(false);
+
+      await processor.process(job());
+
+      expect(metrics.recordFailed).toHaveBeenCalledWith(
+        'email',
+        'channel_error',
+      );
+    });
+
+    it('records nothing for a channel the seller has switched off', async () => {
+      findUnique.mockResolvedValue(
+        stored({
+          seller: {
+            ...stored().seller,
+            sellerPreferences: {
+              ...allOn,
+              enableEmailNotifications: false,
+              enablePushNotifications: false,
+            },
+          },
+        }),
+      );
+
+      await processor.process(job());
+
+      // "Not wanted" must stay distinguishable from "wanted but failed".
+      expect(metrics.recordDelivered).not.toHaveBeenCalled();
+      expect(metrics.recordFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('retention', () => {
+    it('runs the purge with the configured window', async () => {
+      const purgeJob = { name: PURGE_JOB, data: {} } as Job<DeliverJobData>;
+
+      await expect(processor.process(purgeJob)).resolves.toBe(7);
+      expect(purgeOldNotifications).toHaveBeenCalledWith(60);
+      expect(findUnique).not.toHaveBeenCalled();
+    });
+
+    it('schedules the purge with a stable id so redeploys do not stack it', async () => {
+      await processor.onModuleInit();
+
+      expect(queueAdd).toHaveBeenCalledWith(
+        PURGE_JOB,
+        {},
+        expect.objectContaining({
+          jobId: 'notifications-purge',
+          repeat: { every: 24 * 3_600_000 },
+        }),
+      );
+    });
+
+    it('still boots when Redis cannot take the schedule', async () => {
+      queueAdd.mockRejectedValue(new Error('redis unreachable'));
+
+      await expect(processor.onModuleInit()).resolves.toBeUndefined();
     });
   });
 });
