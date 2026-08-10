@@ -146,6 +146,9 @@ enum NotificationType {
   QUOTATION_RECEIVED
   QUOTATION_ACCEPTED
   QUOTATION_DECLINED
+  // P2P deals. EXCHANGE_PROPOSAL/SALE_PROPOSAL distinguish what was offered;
+  // the ACCEPTED/DECLINED/COMPLETED states are shared by both deal kinds.
+  SALE_PROPOSAL
   EXCHANGE_PROPOSAL
   EXCHANGE_ACCEPTED
   EXCHANGE_DECLINED
@@ -160,6 +163,15 @@ enum NotificationType {
   SYSTEM_ANNOUNCEMENT
   ACCOUNT_VERIFICATION
   PROFILE_UPDATED
+  // Security notices. Their email copy is hardcoded and is deliberately NOT
+  // admin-editable — an editable security email is a phishing vector.
+  SECURITY_LOGIN_ALERT
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
 }
 
 // ─── Models ──────────────────────────────────────────────────────────────────────
@@ -201,6 +213,7 @@ model Seller {
   personMembershipSubscription           PersonMembershipSubscription[]
   businessMembershipSubscription         BusinessMembershipSubscription[]
   bans                                   BannedSeller[]
+  devices                                SellerDevice[]
 
   @@index([cityId])
   @@index([email])
@@ -730,6 +743,23 @@ model NotificationTemplateTranslation {
 
   @@unique([notificationTemplateId, language])
   @@index([language])
+}
+
+model SellerDevice {
+  id         String         @id @default(uuid())
+  sellerId   String
+  pushToken  String         @unique
+  platform   DevicePlatform
+  deviceName String?
+  /** Cleared when Expo reports the token as no longer deliverable. */
+  isActive   Boolean        @default(true)
+  lastSeenAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  seller     Seller         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([sellerId, isActive])
 }
 
 model Match {

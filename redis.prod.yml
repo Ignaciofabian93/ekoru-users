@@ -1,0 +1,56 @@
+name: 'ekoru-users-redis-prod'
+
+# Production Redis backing the notification-delivery queue. Managed
+# INDEPENDENTLY of the app: start it once and leave it running — app deploys
+# (compose.prod.yml) never touch it, so queued deliveries survive a redeploy.
+#
+#   docker compose -f redis.prod.yml up -d        # start (once)
+#   docker compose -f redis.prod.yml logs -f      # inspect
+#
+# Separate instance from ekoru-transactions' Redis on purpose. Both run with
+# `noeviction`, so a service that fills its Redis starts failing writes — a
+# payment-queue backlog must not be able to stop notification delivery, or the
+# other way round. One small container each keeps that blast radius contained.
+#
+# Requires .env.prod present (for REDIS_PASSWORD) and the external
+# `ekoru-network` to exist. Not published to the host — reachable only over the
+# network, by the container name `ekoru-users-redis` (= REDIS_HOST in .env.prod).
+services:
+  ekoru-users-redis:
+    image: redis:7-alpine
+    restart: always
+    container_name: ekoru-users-redis
+    env_file:
+      - .env.prod
+    # noeviction: BullMQ stores job state as keys — eviction loses deliveries.
+    # appendonly: survive restarts (queued email/push jobs).
+    command: >
+      sh -c 'exec redis-server
+      --requirepass "$$REDIS_PASSWORD"
+      --maxmemory-policy noeviction
+      --appendonly yes'
+    volumes:
+      - ekoru-users-redis-data:/data
+    networks:
+      - ekoru-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  ekoru-users-redis-data:
+
+networks:
+  ekoru-network:
+    external: true

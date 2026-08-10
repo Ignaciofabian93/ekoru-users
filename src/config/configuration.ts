@@ -9,4 +9,11 @@ export default () => ({
     user: process.env.MAIL || '',
     password: process.env.PASSWORD || '',
   },
+  push: {
+    /**
+     * Only required once push security is switched on in the Expo project;
+     * without it Expo accepts unauthenticated sends.
+     */
+    expoAccessToken: process.env.EXPO_ACCESS_TOKEN || '',
+  },
 });

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GqlThrottlerGuard } from './common/guards/gql-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
@@ -14,6 +15,7 @@ import { LocationModule } from './location/location.module';
 import { SellersModule } from './sellers/sellers.module';
 import { AccountModule } from './account/account.module';
 import { MailModule } from './mail/mail.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { AdminsModule } from './admins/admins.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { DateTimeScalar, JSONScalar } from './graphql/scalars';
@@ -45,6 +47,32 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
         limit: 100,
       },
     ]),
+
+    // Notification delivery runs off the request path. Backed by this service's
+    // own Redis container (redis.{staging,prod}.yml), separate from the
+    // transactions one: both run `noeviction`, so a service that fills its
+    // Redis starts failing writes, and a payment backlog must not be able to
+    // stop notification delivery.
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          password: configService.get<string>('REDIS_PASSWORD'),
+          // Managed Redis (Azure Cache, Upstash, Redis Cloud) requires TLS.
+          // Self-hosted Redis on the private ekoru-net doesn't — leave unset.
+          ...(configService.get<string>('REDIS_TLS') === 'true'
+            ? { tls: {} }
+            : {}),
+        },
+        defaultJobOptions: {
+          removeOnComplete: 100,
+          removeOnFail: 500,
+        },
+      }),
+    }),
 
     // GraphQL Federation
     GraphQLModule.forRoot<ApolloFederationDriverConfig>({
@@ -81,6 +109,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     SellersModule,
     AccountModule,
     MailModule,
+    NotificationsModule,
     AdminsModule,
     SubscriptionModule,
   ],

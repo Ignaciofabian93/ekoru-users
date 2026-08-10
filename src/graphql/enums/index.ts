@@ -1,5 +1,10 @@
 import { registerEnumType } from '@nestjs/graphql';
-import { Language } from '@prisma/client';
+import {
+  DevicePlatform,
+  Language,
+  NotificationPriority,
+  NotificationType,
+} from '@prisma/client';
 
 // ============================
 // Subscription Plans
@@ -105,6 +110,36 @@ export enum BanReason {
 }
 
 // ============================
+// Notification emails
+// ============================
+
+/**
+ * Coarse lifecycle stage for the transaction email. Deliberately smaller than
+ * `OrderStatus` / `P2PStatus` — the calling service maps its own transitions
+ * onto these, so buyers get one email per meaningful step rather than one per
+ * internal state change.
+ */
+export enum TransactionEmailStage {
+  STARTED = 'STARTED',
+  IN_PROCESS = 'IN_PROCESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
+}
+
+/** Which side of the transaction the recipient is on. */
+export enum TransactionEmailRole {
+  BUYER = 'BUYER',
+  SELLER = 'SELLER',
+}
+
+/** Mirrors `P2PDealType` in the transactions subgraph. */
+export enum DealOfferKind {
+  SALE = 'SALE',
+  EXCHANGE = 'EXCHANGE',
+}
+
+// ============================
 // Gamification
 // ============================
 export enum TransactionKind {
@@ -133,31 +168,14 @@ export enum ContactMethod {
   TIKTOK = 'TIKTOK',
 }
 
-export enum NotificationType {
-  ORDER_RECEIVED = 'ORDER_RECEIVED',
-  ORDER_CONFIRMED = 'ORDER_CONFIRMED',
-  ORDER_SHIPPED = 'ORDER_SHIPPED',
-  ORDER_DELIVERED = 'ORDER_DELIVERED',
-  ORDER_CANCELLED = 'ORDER_CANCELLED',
-  QUOTATION_REQUEST = 'QUOTATION_REQUEST',
-  QUOTATION_RECEIVED = 'QUOTATION_RECEIVED',
-  QUOTATION_ACCEPTED = 'QUOTATION_ACCEPTED',
-  QUOTATION_DECLINED = 'QUOTATION_DECLINED',
-  EXCHANGE_PROPOSAL = 'EXCHANGE_PROPOSAL',
-  EXCHANGE_ACCEPTED = 'EXCHANGE_ACCEPTED',
-  EXCHANGE_DECLINED = 'EXCHANGE_DECLINED',
-  EXCHANGE_COMPLETED = 'EXCHANGE_COMPLETED',
-  PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
-  PAYMENT_FAILED = 'PAYMENT_FAILED',
-  PAYMENT_REFUNDED = 'PAYMENT_REFUNDED',
-  REVIEW_RECEIVED = 'REVIEW_RECEIVED',
-  MESSAGE_RECEIVED = 'MESSAGE_RECEIVED',
-  PRODUCT_LIKED = 'PRODUCT_LIKED',
-  PRODUCT_COMMENTED = 'PRODUCT_COMMENTED',
-  SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
-  ACCOUNT_VERIFICATION = 'ACCOUNT_VERIFICATION',
-  PROFILE_UPDATED = 'PROFILE_UPDATED',
-}
+/**
+ * Notification enums come straight from Prisma rather than being restated
+ * here. They were duplicated by hand once and drifted — the local copy was
+ * missing values the schema already had — and every consumer only uses them as
+ * a GraphQL field type, so one source of truth is strictly better. Same
+ * approach as `Language` at the bottom of this file.
+ */
+export { NotificationType, NotificationPriority, DevicePlatform };
 
 // ============================
 // Register enums for GraphQL
@@ -212,6 +230,22 @@ registerEnumType(TransactionKind, {
   description: 'Kinds of transactions that can award points or labels',
 });
 
+// Notification emails
+registerEnumType(TransactionEmailStage, {
+  name: 'TransactionEmailStage',
+  description: 'Lifecycle stage reported by a transaction notification email',
+});
+
+registerEnumType(TransactionEmailRole, {
+  name: 'TransactionEmailRole',
+  description: 'Side of the transaction the email recipient is on',
+});
+
+registerEnumType(DealOfferKind, {
+  name: 'DealOfferKind',
+  description: 'Whether a proposed deal is a sale or an exchange',
+});
+
 // Communication & Notifications
 registerEnumType(ContactMethod, {
   name: 'ContactMethod',
@@ -222,6 +256,16 @@ registerEnumType(NotificationType, {
   name: 'NotificationType',
   description:
     'Kinds of seller notifications (also keys notification templates)',
+});
+
+registerEnumType(NotificationPriority, {
+  name: 'NotificationPriority',
+  description: 'How prominently a notification should be surfaced',
+});
+
+registerEnumType(DevicePlatform, {
+  name: 'DevicePlatform',
+  description: 'Platform of a device registered for push notifications',
 });
 
 // Language
