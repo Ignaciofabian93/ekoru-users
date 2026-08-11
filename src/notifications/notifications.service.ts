@@ -66,7 +66,10 @@ export class NotificationsService {
    * so a failure here must not roll back a completed order or deal.
    */
   async emit(input: EmitInput): Promise<number | null> {
-    if (!input.sellerId) return null;
+    if (!input.sellerId) {
+      this.logger.warn(`emit(${input.type}) called with no sellerId`);
+      return null;
+    }
 
     try {
       const seller = await this.prisma.seller.findUnique({
@@ -74,7 +77,12 @@ export class NotificationsService {
         select: { isActive: true, contentLanguage: true },
       });
       // Deactivated and deleted accounts are not notified through any channel.
-      if (!seller?.isActive) return null;
+      if (!seller?.isActive) {
+        this.logger.warn(
+          `emit(${input.type}) skipped — seller ${input.sellerId} ${seller ? 'is inactive' : 'not found'}`,
+        );
+        return null;
+      }
 
       const locale = toLocale(seller.contentLanguage);
       const data = await this.resolveActor(input.data ?? {});
@@ -99,6 +107,12 @@ export class NotificationsService {
         select: { id: true },
       });
 
+      // Logged on the way in, not just on the way out: without this, a
+      // recorded notification is invisible until the worker picks it up, so a
+      // stalled queue looks identical to a call that never arrived.
+      this.logger.log(
+        `Notification ${notification.id} (${input.type}) recorded for seller ${input.sellerId}`,
+      );
       await this.scheduleDelivery({ notificationId: notification.id });
       return notification.id;
     } catch (error) {
