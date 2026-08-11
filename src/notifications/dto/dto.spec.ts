@@ -86,6 +86,39 @@ describe('EmitNotificationInput', () => {
     ).resolves.toBeDefined();
   });
 
+  it('accepts the payloads ekoru-services sends for quotations and bookings', async () => {
+    // The services subgraph was added after this DTO shipped; these are the
+    // exact shapes its UsersClient builds.
+    await expect(
+      through(EmitNotificationInput, {
+        sellerId: 'provider-456',
+        type: NotificationType.QUOTATION_REQUEST,
+        relatedId: '1',
+        actionUrl: 'https://app.ekoru.cl/profile/quotations',
+        data: {
+          actorSellerId: 'client-123',
+          serviceName: 'Reparación de bicicletas',
+          quotationTitle: 'Cambio de cadena',
+        },
+      }),
+    ).resolves.toBeDefined();
+
+    await expect(
+      through(EmitNotificationInput, {
+        sellerId: 'client-123',
+        type: NotificationType.BOOKING_CANCELLED,
+        relatedId: '9',
+        actionUrl: 'https://app.ekoru.cl/profile/bookings',
+        data: {
+          actorSellerId: 'provider-456',
+          serviceName: 'Reparación de bicicletas',
+          scheduledFor: '2026-12-25T10:00:00.000Z',
+          note: 'Sin disponibilidad',
+        },
+      }),
+    ).resolves.toBeDefined();
+  });
+
   it('rejects an unknown notification type', async () => {
     await expect(
       through(EmitNotificationInput, {

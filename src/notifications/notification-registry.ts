@@ -271,6 +271,183 @@ export const NOTIFICATION_REGISTRY: Partial<
     },
   },
 
+  // ─── Services: quotations ─────────────────────────────────────────────────
+  [NotificationType.QUOTATION_REQUEST]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Nueva solicitud de cotización',
+        message: '{{actorName}} solicitó una cotización para {{serviceName}}.',
+      },
+      en: {
+        title: 'New quote request',
+        message: '{{actorName}} requested a quote for {{serviceName}}.',
+      },
+      fr: {
+        title: 'Nouvelle demande de devis',
+        message: '{{actorName}} a demandé un devis pour {{serviceName}}.',
+      },
+    },
+  },
+
+  [NotificationType.QUOTATION_RECEIVED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Recibiste una cotización',
+        message: '{{actorName}} respondió tu solicitud para {{serviceName}}.',
+      },
+      en: {
+        title: 'You received a quote',
+        message: '{{actorName}} replied to your request for {{serviceName}}.',
+      },
+      fr: {
+        title: 'Vous avez reçu un devis',
+        message:
+          '{{actorName}} a répondu à votre demande pour {{serviceName}}.',
+      },
+    },
+  },
+
+  [NotificationType.QUOTATION_ACCEPTED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Cotización aceptada',
+        message: '{{actorName}} aceptó tu cotización para {{serviceName}}.',
+      },
+      en: {
+        title: 'Quote accepted',
+        message: '{{actorName}} accepted your quote for {{serviceName}}.',
+      },
+      fr: {
+        title: 'Devis accepté',
+        message: '{{actorName}} a accepté votre devis pour {{serviceName}}.',
+      },
+    },
+  },
+
+  [NotificationType.QUOTATION_DECLINED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: 'Cotización rechazada',
+        message: 'La cotización para {{serviceName}} fue rechazada. {{note}}',
+      },
+      en: {
+        title: 'Quote declined',
+        message: 'The quote for {{serviceName}} was declined. {{note}}',
+      },
+      fr: {
+        title: 'Devis refusé',
+        message: 'Le devis pour {{serviceName}} a été refusé. {{note}}',
+      },
+    },
+  },
+
+  [NotificationType.QUOTATION_COMPLETED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: 'Servicio finalizado',
+        message: 'El servicio {{serviceName}} se marcó como completado.',
+      },
+      en: {
+        title: 'Service finished',
+        message: '{{serviceName}} was marked as completed.',
+      },
+      fr: {
+        title: 'Service terminé',
+        message: '{{serviceName}} a été marqué comme terminé.',
+      },
+    },
+  },
+
+  // ─── Services: bookings ───────────────────────────────────────────────────
+  [NotificationType.BOOKING_REQUEST]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Nueva reserva',
+        message:
+          '{{actorName}} reservó {{serviceName}} para el {{scheduledFor}}.',
+      },
+      en: {
+        title: 'New booking',
+        message: '{{actorName}} booked {{serviceName}} for {{scheduledFor}}.',
+      },
+      fr: {
+        title: 'Nouvelle réservation',
+        message:
+          '{{actorName}} a réservé {{serviceName}} pour le {{scheduledFor}}.',
+      },
+    },
+  },
+
+  [NotificationType.BOOKING_CONFIRMED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Reserva confirmada',
+        message:
+          'Tu reserva de {{serviceName}} quedó confirmada para el {{scheduledFor}}.',
+      },
+      en: {
+        title: 'Booking confirmed',
+        message:
+          'Your {{serviceName}} booking is confirmed for {{scheduledFor}}.',
+      },
+      fr: {
+        title: 'Réservation confirmée',
+        message:
+          'Votre réservation {{serviceName}} est confirmée pour le {{scheduledFor}}.',
+      },
+    },
+  },
+
+  [NotificationType.BOOKING_CANCELLED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Reserva cancelada',
+        message: 'La reserva de {{serviceName}} fue cancelada. {{note}}',
+      },
+      en: {
+        title: 'Booking cancelled',
+        message: 'The {{serviceName}} booking was cancelled. {{note}}',
+      },
+      fr: {
+        title: 'Réservation annulée',
+        message: 'La réservation {{serviceName}} a été annulée. {{note}}',
+      },
+    },
+  },
+
+  [NotificationType.BOOKING_COMPLETED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: 'Servicio completado',
+        message: '{{serviceName}} se completó. ¡Cuéntanos cómo te fue!',
+      },
+      en: {
+        title: 'Service completed',
+        message: '{{serviceName}} is complete. Tell us how it went!',
+      },
+      fr: {
+        title: 'Service terminé',
+        message:
+          "{{serviceName}} est terminé. Dites-nous comment ça s'est passé !",
+      },
+    },
+  },
+
   // ─── Security ─────────────────────────────────────────────────────────────
   /**
    * The only type gated on `enableLoginAlerts`. Its email copy lives in code

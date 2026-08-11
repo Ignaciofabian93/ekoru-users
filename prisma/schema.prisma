@@ -146,6 +146,13 @@ enum NotificationType {
   QUOTATION_RECEIVED
   QUOTATION_ACCEPTED
   QUOTATION_DECLINED
+  QUOTATION_COMPLETED
+  // Service bookings. CONFIRMED/CANCELLED/COMPLETED mirror BookingStatus; the
+  // request itself is BOOKING_REQUEST, sent to the provider.
+  BOOKING_REQUEST
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_COMPLETED
   // P2P deals. EXCHANGE_PROPOSAL/SALE_PROPOSAL distinguish what was offered;
   // the ACCEPTED/DECLINED/COMPLETED states are shared by both deal kinds.
   SALE_PROPOSAL
