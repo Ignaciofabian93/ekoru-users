@@ -132,6 +132,7 @@ export class EmailChannel {
       offeredProductTitle: str(payload.offeredProductTitle),
       offeredProductImage: str(payload.offeredProductImage),
       offeredProductPrice: num(payload.offeredProductPrice),
+      message: str(payload.message),
       compensationAmount: num(payload.compensationAmount),
       compensationPaidByRecipient: payload.compensationPaidByRecipient === true,
       currency: str(payload.currency),

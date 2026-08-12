@@ -758,7 +758,9 @@ model SellerDevice {
   pushToken  String         @unique
   platform   DevicePlatform
   deviceName String?
-  /** Cleared when Expo reports the token as no longer deliverable. */
+  /**
+   * Cleared when Expo reports the token as no longer deliverable.
+   */
   isActive   Boolean        @default(true)
   lastSeenAt DateTime       @default(now())
   createdAt  DateTime       @default(now())

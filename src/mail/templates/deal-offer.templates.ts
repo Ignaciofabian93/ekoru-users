@@ -29,6 +29,8 @@ export interface DealOfferData {
   offeredProductTitle?: string | null;
   offeredProductImage?: string | null;
   offeredProductPrice?: number | null;
+  /** Free-text note the offerer wrote. Untrusted — escaped before rendering. */
+  message?: string | null;
   /** EXCHANGE only: cash top-up closing a price gap. */
   compensationAmount?: number | null;
   /** True when the recipient is the one who pays the top-up. */
@@ -50,6 +52,7 @@ interface Copy {
   labelFrom: string;
   labelCompensationYouPay: string;
   labelCompensationTheyPay: string;
+  labelMessage: string;
   reminder: string;
   cta: string;
   help: (email: string) => string;
@@ -71,6 +74,7 @@ const COPY: Record<MailLocale, Copy> = {
     labelFrom: 'Propuesta de',
     labelCompensationYouPay: 'Compensación que pagas tú',
     labelCompensationTheyPay: 'Compensación que recibes',
+    labelMessage: 'Su mensaje',
     reminder:
       'Recuerda: los tratos se coordinan y se pagan en persona. Nunca transfieras dinero por adelantado y confirma la entrega desde la plataforma.',
     cta: 'Ver la propuesta',
@@ -94,6 +98,7 @@ const COPY: Record<MailLocale, Copy> = {
     labelFrom: 'Proposal from',
     labelCompensationYouPay: 'Top-up you pay',
     labelCompensationTheyPay: 'Top-up you receive',
+    labelMessage: 'Their message',
     reminder:
       'Remember: deals are arranged and paid in person. Never transfer money in advance, and confirm the handover through the platform.',
     cta: 'View the proposal',
@@ -116,6 +121,7 @@ const COPY: Record<MailLocale, Copy> = {
     labelFrom: 'Proposition de',
     labelCompensationYouPay: 'Complément que vous payez',
     labelCompensationTheyPay: 'Complément que vous recevez',
+    labelMessage: 'Son message',
     reminder:
       "Rappel : les échanges se font et se paient en personne. Ne transférez jamais d'argent à l'avance et confirmez la remise depuis la plateforme.",
     cta: 'Voir la proposition',
@@ -199,6 +205,16 @@ function render(locale: MailLocale, data: DealOfferData) {
     ? t.labelCompensationYouPay
     : t.labelCompensationTheyPay;
 
+  // The offerer's own words — fully escaped, with line breaks preserved.
+  const note = data.message?.trim();
+  const noteBlock = note
+    ? `
+        <div class="notice">
+          <p class="label">${escapeHtml(t.labelMessage)}</p>
+          <p>“${escapeHtml(note).replace(/\n/g, '<br />')}”</p>
+        </div>`
+    : '';
+
   const textParts = [
     `${t.greeting(data.name)}.`,
     subject,
@@ -207,6 +223,7 @@ function render(locale: MailLocale, data: DealOfferData) {
       ? `${t.labelOffered}: ${data.offeredProductTitle}`
       : null,
     compensation ? `${compensationLabel}: ${compensation}` : null,
+    note ? `${t.labelMessage}: ${note}` : null,
     `${t.cta}: ${url}`,
   ].filter(Boolean);
 
@@ -220,6 +237,7 @@ function render(locale: MailLocale, data: DealOfferData) {
         <h2>${escapeHtml(t.greeting(data.name))}</h2>
         <p>${lead}</p>
         ${cards}
+        ${noteBlock}
         ${specTable([
           [t.labelFrom, data.offererName],
           [compensationLabel, compensation],

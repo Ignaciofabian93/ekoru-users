@@ -62,17 +62,22 @@ export const NOTIFICATION_REGISTRY: Partial<
     priority: NotificationPriority.HIGH,
     email: 'dealOffer',
     fallback: {
+      // `{{message}}` is the proposer's own note; it collapses to nothing when
+      // they didn't write one (see `interpolate`).
       es: {
         title: 'Nueva propuesta de compra',
-        message: '{{actorName}} quiere comprar {{requestedProductTitle}}.',
+        message:
+          '{{actorName}} quiere comprar {{requestedProductTitle}}. {{message}}',
       },
       en: {
         title: 'New purchase proposal',
-        message: '{{actorName}} wants to buy {{requestedProductTitle}}.',
+        message:
+          '{{actorName}} wants to buy {{requestedProductTitle}}. {{message}}',
       },
       fr: {
         title: "Nouvelle proposition d'achat",
-        message: '{{actorName}} souhaite acheter {{requestedProductTitle}}.',
+        message:
+          '{{actorName}} souhaite acheter {{requestedProductTitle}}. {{message}}',
       },
     },
   },
@@ -85,17 +90,17 @@ export const NOTIFICATION_REGISTRY: Partial<
       es: {
         title: 'Nueva propuesta de intercambio',
         message:
-          '{{actorName}} te propone un intercambio por {{requestedProductTitle}}.',
+          '{{actorName}} te propone un intercambio por {{requestedProductTitle}}. {{message}}',
       },
       en: {
         title: 'New exchange proposal',
         message:
-          '{{actorName}} is proposing a trade for {{requestedProductTitle}}.',
+          '{{actorName}} is proposing a trade for {{requestedProductTitle}}. {{message}}',
       },
       fr: {
         title: "Nouvelle proposition d'échange",
         message:
-          '{{actorName}} vous propose un échange contre {{requestedProductTitle}}.',
+          '{{actorName}} vous propose un échange contre {{requestedProductTitle}}. {{message}}',
       },
     },
   },
