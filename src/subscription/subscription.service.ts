@@ -1125,6 +1125,82 @@ export class SubscriptionService {
     return { subscriptionId: sub.id };
   }
 
+  /**
+   * The caller's own membership, flattened across the person / business split.
+   *
+   * Returns the newest active subscription, or null for a seller who never
+   * bought one — a plan the profile shows without a subscription row behind it
+   * is the free tier, which has no term and nothing to display.
+   */
+  async getMySubscription(sellerId: string): Promise<{
+    id: number;
+    membershipId: number;
+    plan: string;
+    isBusiness: boolean;
+    startDate: Date;
+    endDate: Date | null;
+    isActive: boolean;
+    autoRenew: boolean;
+  } | null> {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id: sellerId },
+      select: { sellerType: true },
+    });
+    if (!seller) return null;
+
+    if (this.isPersonSeller(seller.sellerType)) {
+      const sub = await this.prisma.personMembershipSubscription.findFirst({
+        where: { sellerId, isActive: true },
+        orderBy: { startDate: 'desc' },
+        select: {
+          id: true,
+          personMembershipId: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
+          autoRenew: true,
+          personMembership: { select: { membershipType: true } },
+        },
+      });
+      if (!sub) return null;
+      return {
+        id: sub.id,
+        membershipId: sub.personMembershipId,
+        plan: sub.personMembership.membershipType,
+        isBusiness: false,
+        startDate: sub.startDate,
+        endDate: sub.endDate,
+        isActive: sub.isActive,
+        autoRenew: sub.autoRenew,
+      };
+    }
+
+    const sub = await this.prisma.businessMembershipSubscription.findFirst({
+      where: { sellerId, isActive: true },
+      orderBy: { startDate: 'desc' },
+      select: {
+        id: true,
+        businessMembershipId: true,
+        startDate: true,
+        endDate: true,
+        isActive: true,
+        autoRenew: true,
+        businessMembership: { select: { membershipType: true } },
+      },
+    });
+    if (!sub) return null;
+    return {
+      id: sub.id,
+      membershipId: sub.businessMembershipId,
+      plan: sub.businessMembership.membershipType,
+      isBusiness: true,
+      startDate: sub.startDate,
+      endDate: sub.endDate,
+      isActive: sub.isActive,
+      autoRenew: sub.autoRenew,
+    };
+  }
+
   // ─── Bulk upserts (admin panel XLSX import / row edits) ─────────────────────
   // Rows with an id update, rows without an id create; translation rows without
   // an id are matched by (membershipId, language), pricing rows by

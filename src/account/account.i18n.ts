@@ -9,6 +9,12 @@ export type AccountMessages = {
   errorDeductPoints: string;
   errorUpdateSellerCategory: string;
   errorUpdatePassword: string;
+  // Password reset
+  invalidResetToken: string;
+  expiredResetToken: string;
+  weakPassword: string;
+  errorRequestPasswordReset: string;
+  errorResetPassword: string;
   // Account deletion
   errorDeleteAccount: string;
   accountHasPendingObligations: string;
@@ -51,6 +57,12 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Error al reducir puntos',
     errorUpdateSellerCategory: 'Error al actualizar categoría del vendedor',
     errorUpdatePassword: 'Error al actualizar contraseña',
+    invalidResetToken: 'El enlace de recuperación no es válido o ya fue usado',
+    expiredResetToken: 'El enlace de recuperación expiró. Solicita uno nuevo.',
+    weakPassword: 'La contraseña debe tener al menos 8 caracteres',
+    errorRequestPasswordReset:
+      'Error al solicitar la recuperación de contraseña',
+    errorResetPassword: 'Error al restablecer la contraseña',
     errorDeleteAccount: 'Error al eliminar cuenta',
     accountHasPendingObligations:
       'No puedes eliminar tu cuenta mientras tengas operaciones en curso (pedidos, pagos, reservas o intercambios pendientes). Complétalas o cancélalas e inténtalo de nuevo.',
@@ -91,6 +103,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Error deducting points',
     errorUpdateSellerCategory: 'Error updating seller category',
     errorUpdatePassword: 'Error updating password',
+    invalidResetToken: 'The recovery link is invalid or has already been used',
+    expiredResetToken: 'The recovery link has expired. Request a new one.',
+    weakPassword: 'The password must be at least 8 characters long',
+    errorRequestPasswordReset: 'Error requesting password recovery',
+    errorResetPassword: 'Error resetting password',
     errorDeleteAccount: 'Error deleting account',
     accountHasPendingObligations:
       'You cannot delete your account while you have ongoing activity (pending orders, payments, bookings or exchanges). Complete or cancel them and try again.',
@@ -131,6 +148,14 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorUpdateSellerCategory:
       'Erreur lors de la mise à jour de la catégorie du vendeur',
     errorUpdatePassword: 'Erreur lors de la mise à jour du mot de passe',
+    invalidResetToken:
+      'Le lien de récupération est invalide ou a déjà été utilisé',
+    expiredResetToken:
+      'Le lien de récupération a expiré. Demandez-en un nouveau.',
+    weakPassword: 'Le mot de passe doit contenir au moins 8 caractères',
+    errorRequestPasswordReset:
+      'Erreur lors de la demande de récupération du mot de passe',
+    errorResetPassword: 'Erreur lors de la réinitialisation du mot de passe',
     errorDeleteAccount: 'Erreur lors de la suppression du compte',
     accountHasPendingObligations:
       'Vous ne pouvez pas supprimer votre compte tant que vous avez des opérations en cours (commandes, paiements, réservations ou échanges en attente). Terminez-les ou annulez-les, puis réessayez.',
@@ -175,6 +200,11 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorDeductPoints: 'Erro ao deduzir pontos',
     errorUpdateSellerCategory: 'Erro ao atualizar categoria do vendedor',
     errorUpdatePassword: 'Erro ao atualizar senha',
+    invalidResetToken: 'O link de recuperação é inválido ou já foi utilizado',
+    expiredResetToken: 'O link de recuperação expirou. Solicite um novo.',
+    weakPassword: 'A senha deve ter pelo menos 8 caracteres',
+    errorRequestPasswordReset: 'Erro ao solicitar a recuperação de senha',
+    errorResetPassword: 'Erro ao redefinir a senha',
     errorDeleteAccount: 'Erro ao excluir conta',
     accountHasPendingObligations:
       'Você não pode excluir sua conta enquanto tiver operações em andamento (pedidos, pagamentos, reservas ou trocas pendentes). Conclua-as ou cancele-as e tente novamente.',
@@ -216,6 +246,14 @@ export const accountMessages: Record<Language, AccountMessages> = {
     errorUpdateSellerCategory:
       'Fehler beim Aktualisieren der Verkäuferkategorie',
     errorUpdatePassword: 'Fehler beim Aktualisieren des Passworts',
+    invalidResetToken:
+      'Der Wiederherstellungslink ist ungültig oder wurde bereits verwendet',
+    expiredResetToken:
+      'Der Wiederherstellungslink ist abgelaufen. Fordern Sie einen neuen an.',
+    weakPassword: 'Das Passwort muss mindestens 8 Zeichen lang sein',
+    errorRequestPasswordReset:
+      'Fehler beim Anfordern der Passwort-Wiederherstellung',
+    errorResetPassword: 'Fehler beim Zurücksetzen des Passworts',
     errorDeleteAccount: 'Fehler beim Löschen des Kontos',
     accountHasPendingObligations:
       'Sie können Ihr Konto nicht löschen, solange Sie laufende Vorgänge haben (offene Bestellungen, Zahlungen, Buchungen oder Tauschgeschäfte). Schließen Sie diese ab oder stornieren Sie sie und versuchen Sie es erneut.',

@@ -247,6 +247,23 @@ model SellerPreferences {
   seller                   Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
+/// Backs the "forgot password" flow owned by `account.service.ts`. Only the
+/// SHA-256 hash of the token is stored, so a leaked table cannot be replayed as
+/// a reset; the plaintext exists once, inside the email. Single-use (`usedAt`)
+/// and short-lived (`expiresAt`). No FK to Seller, matching RefreshToken (which
+/// the gateway owns and this subgraph only touches through raw SQL).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  sellerId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([sellerId])
+  @@index([expiresAt])
+}
+
 model PersonProfile {
   id                             String                        @id @default(uuid())
   sellerId                       String                        @unique

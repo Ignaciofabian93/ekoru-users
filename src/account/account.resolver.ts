@@ -53,10 +53,29 @@ export class AccountResolver {
 
   @Mutation(() => Boolean, {
     name: 'requestPasswordReset',
-    description: 'Request a password reset for a seller',
+    description:
+      'Email a one-time password reset link. Public. Always returns true, whether or not the address has an account.',
   })
-  requestPasswordReset(@Args('email') email: string) {
-    return this.accountService.requestPasswordReset(email);
+  requestPasswordReset(
+    @Args('email') email: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.requestPasswordReset({ email, language });
+  }
+
+  @Mutation(() => Boolean, {
+    name: 'resetPassword',
+    description:
+      'Set a new password using a token from the reset email. Public. Consumes the token and signs every session out.',
+  })
+  resetPassword(
+    @Args('token') token: string,
+    @Args('newPassword') newPassword: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.accountService.resetPassword({ token, newPassword, language });
   }
 
   @Mutation(() => Seller, {

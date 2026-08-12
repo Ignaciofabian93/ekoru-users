@@ -8,6 +8,7 @@ import { PushChannel } from './channels/push.channel';
 import { specFor } from './notification-registry';
 import { NotificationsService, toLocale } from './notifications.service';
 import { NotificationsMetrics } from './notifications.metrics';
+import { sellerDisplayName } from '../utils/display-name';
 import {
   DELIVER_JOB,
   NOTIFICATIONS_QUEUE,
@@ -139,7 +140,7 @@ export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
             spec.email!,
             {
               email: seller.email,
-              name: displayName(seller),
+              name: sellerDisplayName(seller),
               locale: toLocale(seller.contentLanguage),
             },
             payload,
@@ -178,16 +179,4 @@ export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
     );
     return { emailed, pushed };
   }
-}
-
-function displayName(seller: {
-  personProfile?: { displayName: string | null; firstName: string } | null;
-  businessProfile?: { businessName: string } | null;
-}): string {
-  return (
-    seller.personProfile?.displayName ||
-    seller.personProfile?.firstName ||
-    seller.businessProfile?.businessName ||
-    'usuario'
-  );
 }

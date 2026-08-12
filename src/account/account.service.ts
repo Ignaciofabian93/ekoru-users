@@ -8,10 +8,14 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { hash, genSalt, compare } from 'bcrypt';
-import { randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { SellersService } from '../sellers/sellers.service';
 import { NotificationRenderer } from '../notifications/notification-renderer';
+import { toLocale } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
+import { APP_BASE_URL } from '../mail/templates';
+import { sellerDisplayName } from '../utils/display-name';
 import {
   pickDefined,
   requireBulkFields,
@@ -36,6 +40,27 @@ import {
   NotificationTemplateTranslationUpsertRowInput,
 } from './dto';
 
+/** How long a reset link stays valid. Short — email is its only carrier. */
+const RESET_TOKEN_TTL_MINUTES = 30;
+
+/**
+ * Repeat requests inside this window are accepted but not emailed again, so a
+ * spammed "send link" button can't be used to flood someone's inbox.
+ */
+const RESET_RESEND_COOLDOWN_MS = 60_000;
+
+/** Floor for a reset password. Registration is not yet as strict. */
+const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * SHA-256, not bcrypt: the token is 256 bits of CSPRNG output, so there is no
+ * dictionary for a work factor to slow down, and the verify path stays cheap.
+ * Only this digest is stored — the plaintext exists once, inside the email.
+ */
+function hashResetToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
 @Injectable()
 export class AccountService {
   private readonly logger = new Logger(AccountService.name);
@@ -44,6 +69,7 @@ export class AccountService {
     private readonly prisma: PrismaService,
     private readonly sellersService: SellersService,
     private readonly notificationRenderer: NotificationRenderer,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -393,10 +419,158 @@ export class AccountService {
     }
   }
 
-  requestPasswordReset(email: string) {
-    // TODO: Implement password reset logic
-    this.logger.debug(`requestPasswordReset for email: ${email}`);
-    return true;
+  /**
+   * Step one of account recovery: email a one-time link to the address given.
+   *
+   * Always resolves `true`. Reporting "no such account" here would turn a
+   * public mutation into an address-existence oracle, so an unknown or
+   * deactivated address is indistinguishable from a delivered one. The only
+   * failure the caller ever sees is an infrastructure error.
+   */
+  async requestPasswordReset({
+    email,
+    language,
+  }: {
+    email: string;
+    language: Language;
+  }): Promise<boolean> {
+    const t = accountMessages[language];
+    try {
+      const seller = await this.prisma.seller.findUnique({
+        where: { email: email.trim().toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          isActive: true,
+          contentLanguage: true,
+          personProfile: { select: { displayName: true, firstName: true } },
+          businessProfile: { select: { businessName: true } },
+        },
+      });
+
+      // Deactivated accounts included: a locked or deleted account must not be
+      // recoverable through the same door as a live one.
+      if (!seller?.isActive) return true;
+
+      const recentlySent = await this.prisma.passwordResetToken.findFirst({
+        where: {
+          sellerId: seller.id,
+          usedAt: null,
+          createdAt: { gt: new Date(Date.now() - RESET_RESEND_COOLDOWN_MS) },
+        },
+        select: { id: true },
+      });
+      if (recentlySent) return true;
+
+      const token = randomBytes(32).toString('hex');
+      // Issuing a link invalidates every earlier one for this account, so a
+      // forwarded or leaked older email stops working the moment a new one is
+      // requested.
+      await this.prisma.$transaction([
+        this.prisma.passwordResetToken.deleteMany({
+          where: { sellerId: seller.id },
+        }),
+        this.prisma.passwordResetToken.create({
+          data: {
+            sellerId: seller.id,
+            tokenHash: hashResetToken(token),
+            expiresAt: new Date(
+              Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000,
+            ),
+          },
+        }),
+      ]);
+
+      const locale = toLocale(seller.contentLanguage);
+      const sent = await this.mailService.sendPasswordResetEmail({
+        email: seller.email,
+        locale,
+        data: {
+          name: sellerDisplayName(seller),
+          resetUrl: `${APP_BASE_URL}/${locale}/reset-password?token=${token}`,
+          expiresInMinutes: RESET_TOKEN_TTL_MINUTES,
+        },
+      });
+      if (!sent) {
+        this.logger.error(
+          `Password reset email could not be delivered for seller ${seller.id}`,
+        );
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.error('Error requesting password reset:', error);
+      throw new InternalServerError(t.errorRequestPasswordReset);
+    }
+  }
+
+  /**
+   * Step two: exchange a valid token for a new password.
+   *
+   * Consuming the token, writing the hash and revoking sessions happen in one
+   * transaction — a half-applied reset would either leave the link reusable or
+   * leave old sessions alive on a password the owner no longer knows.
+   */
+  async resetPassword({
+    token,
+    newPassword,
+    language,
+  }: {
+    token: string;
+    newPassword: string;
+    language: Language;
+  }): Promise<boolean> {
+    const t = accountMessages[language];
+    try {
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        throw new BadRequestError(t.weakPassword);
+      }
+
+      const record = await this.prisma.passwordResetToken.findUnique({
+        where: { tokenHash: hashResetToken(token) },
+      });
+      if (!record || record.usedAt) {
+        throw new BadRequestError(t.invalidResetToken);
+      }
+      if (record.expiresAt.getTime() <= Date.now()) {
+        throw new BadRequestError(t.expiredResetToken);
+      }
+
+      const hashedPassword = await hash(newPassword, await genSalt(12));
+
+      await this.prisma.$transaction(async (tx) => {
+        // Claim the token first, and only while it is still unused: two
+        // parallel submissions of the same link cannot both win this update.
+        const claimed = await tx.passwordResetToken.updateMany({
+          where: { id: record.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+        if (claimed.count === 0) {
+          throw new BadRequestError(t.invalidResetToken);
+        }
+
+        await tx.seller.update({
+          where: { id: record.sellerId },
+          data: { password: hashedPassword },
+        });
+
+        // Whoever held the old password loses their sessions. RefreshToken is
+        // the gateway's table — same database, absent from this client's
+        // schema — so it is updated with raw SQL, as deleteAccount does for
+        // other subgraphs' tables.
+        await tx.$executeRaw`
+          UPDATE "RefreshToken"
+             SET "isRevoked" = true
+           WHERE "userId" = ${record.sellerId} AND "isRevoked" = false`;
+      });
+
+      this.logger.log(`Password reset completed for seller ${record.sellerId}`);
+      return true;
+    } catch (error) {
+      if (error instanceof BadRequestError) throw error;
+      this.logger.error('Error resetting password:', error);
+      throw new InternalServerError(t.errorResetPassword);
+    }
   }
 
   // ─── Seller Labels (admin) ──────────────────────────────────────────────────

@@ -4,11 +4,13 @@ import * as nodemailer from 'nodemailer';
 import {
   dealOfferTemplates,
   loginAlertTemplates,
+  passwordResetTemplates,
   pickTemplate,
   transactionTemplates,
   welcomeTemplates,
   type DealOfferData,
   type LoginAlertData,
+  type PasswordResetData,
   type RenderedMail,
   type TransactionData,
 } from './templates';
@@ -77,6 +79,28 @@ export class MailService {
   }
 
   /**
+   * One-time link for the "forgot password" flow. Never gated on a preference:
+   * an account owner who cannot sign in must always be able to recover, and
+   * opting out of marketing or activity mail is not consent to be locked out.
+   *
+   * Returns whether SMTP accepted the message so the caller can log a failed
+   * recovery attempt — the mutation itself still answers the same way either
+   * way, so the response never reveals whether the address exists.
+   */
+  async sendPasswordResetEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: PasswordResetData;
+  }): Promise<boolean> {
+    const template = pickTemplate(passwordResetTemplates, locale);
+    return this.send('password reset', email, template(data));
+  }
+
+  /**
    * Order / P2P deal lifecycle update. Gated on
    * `SellerPreferences.enableEmailNotifications` by the caller.
    */
@@ -110,7 +134,12 @@ export class MailService {
     await this.send('deal offer', email, template(data));
   }
 
-  private async send(kind: string, to: string, mail: RenderedMail) {
+  /** Returns true when SMTP accepted the message. Never throws — see the class doc. */
+  private async send(
+    kind: string,
+    to: string,
+    mail: RenderedMail,
+  ): Promise<boolean> {
     try {
       await this.transporter.sendMail({
         from: FROM,
@@ -119,8 +148,10 @@ export class MailService {
         text: mail.text,
         html: mail.html,
       });
+      return true;
     } catch (error) {
       this.logger.error(`Error sending ${kind} email:`, error);
+      return false;
     }
   }
 }

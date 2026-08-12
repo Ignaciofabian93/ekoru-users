@@ -26,6 +26,7 @@ import {
   RawPersonMembershipPricingConnection,
   RawBusinessMembershipPricingConnection,
   MembershipCharge,
+  MySubscription,
 } from './entities';
 import {
   CreatePersonMembershipInput,
@@ -486,6 +487,19 @@ export class SubscriptionResolver {
       membershipId,
       sellerId,
     });
+  }
+
+  /**
+   * The caller's current membership and its term. Session-scoped: there is no
+   * seller argument, so it can only ever answer for whoever is signed in.
+   * Null for a seller on the free tier.
+   */
+  @Query(() => MySubscription, { name: 'mySubscription', nullable: true })
+  async mySubscription(
+    @CurrentSeller() sellerId: string,
+  ): Promise<MySubscription | null> {
+    if (!sellerId) return null;
+    return this.subscriptionService.getMySubscription(sellerId);
   }
 
   /**
