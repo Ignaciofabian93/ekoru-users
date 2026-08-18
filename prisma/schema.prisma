@@ -240,6 +240,18 @@ model Seller {
   @@index([createdAt(sort: Desc)])
 }
 
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  sellerId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([sellerId])
+  @@index([expiresAt])
+}
+
 model SellerPreferences {
   id                       Int      @id @default(autoincrement())
   sellerId                 String   @unique
