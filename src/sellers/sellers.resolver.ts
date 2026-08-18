@@ -51,12 +51,14 @@ export class SellersResolver {
   async awardPoints(
     @Args('sellerId', { type: () => ID }) sellerId: string,
     @Args('points', { type: () => Int }) points: number,
-    @Args('internalSecret', { type: () => String }) internalSecret: string,
     @Context() ctx: { internalSecret?: string },
   ): Promise<number> {
+    // Header-only: the `internalSecret` argument was removed because the
+    // gateway attached the header to every federated request, which made this
+    // callable by anonymous clients.
     const expected = process.env.INTERNAL_SERVICE_SECRET;
     if (!expected) throw new Error('INTERNAL_SERVICE_SECRET no configurado');
-    if ((ctx.internalSecret ?? internalSecret) !== expected) {
+    if (!ctx.internalSecret || ctx.internalSecret !== expected) {
       throw new Error('Unauthorized');
     }
     return this.sellersService.awardPoints(sellerId, points);

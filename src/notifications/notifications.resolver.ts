@@ -29,10 +29,9 @@ export class NotificationsResolver {
   @Mutation(() => Int, { name: 'emitNotification', nullable: true })
   async emitNotification(
     @Args('input') input: EmitNotificationInput,
-    @Args('internalSecret', { type: () => String }) internalSecret: string,
     @Context() ctx: { internalSecret?: string },
   ): Promise<number | null> {
-    assertInternal(ctx.internalSecret ?? internalSecret);
+    assertInternal(ctx.internalSecret);
     return this.notifications.emit(input);
   }
 
@@ -120,10 +119,16 @@ function requireSeller(
   if (!sellerId) throw new UnAuthorizedError('Debe iniciar sesión');
 }
 
+/**
+ * Accepts the secret only from the `x-internal-secret` header of a direct
+ * service-to-service call. It was previously also accepted as a GraphQL
+ * argument; since the gateway attached the header to every federated request,
+ * that made this mutation reachable by anonymous callers.
+ */
 function assertInternal(provided: string | undefined): void {
   const expected = process.env.INTERNAL_SERVICE_SECRET;
   if (!expected) {
     throw new Error('INTERNAL_SERVICE_SECRET no configurado en users');
   }
-  if (provided !== expected) throw new Error('Unauthorized');
+  if (!provided || provided !== expected) throw new Error('Unauthorized');
 }

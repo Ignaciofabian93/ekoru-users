@@ -10,8 +10,6 @@ services:
     container_name: ekoru-users
     env_file:
       - .env.prod
-    ports:
-      - '4101:4001'
     networks:
       - ekoru-network
     deploy:

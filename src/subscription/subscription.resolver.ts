@@ -512,12 +512,11 @@ export class SubscriptionResolver {
     @Args('sellerId', { type: () => ID }) sellerId: string,
     @Args('membershipId', { type: () => Int }) membershipId: number,
     @Args('paymentId', { type: () => Int }) paymentId: number,
-    @Args('internalSecret', { type: () => String }) internalSecret: string,
     @Context() ctx: { internalSecret?: string },
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ): Promise<number> {
-    this._assertInternal(ctx.internalSecret ?? internalSecret);
+    this._assertInternal(ctx.internalSecret);
     const { subscriptionId } =
       await this.subscriptionService.activateMembershipSubscription({
         sellerId,
@@ -528,13 +527,17 @@ export class SubscriptionResolver {
     return subscriptionId;
   }
 
-  /** Verifies the shared internal secret (header preferred, arg fallback). */
+  /**
+   * Verifies the shared internal secret from the `x-internal-secret` header
+   * only. The former argument fallback made this mutation — which grants a
+   * paid subscription — reachable by any anonymous caller through the gateway.
+   */
   private _assertInternal(supplied?: string) {
     const expected = process.env.INTERNAL_SERVICE_SECRET;
     if (!expected) {
       throw new Error('INTERNAL_SERVICE_SECRET no configurado en users');
     }
-    if (supplied !== expected) {
+    if (!supplied || supplied !== expected) {
       throw new Error('Unauthorized');
     }
   }

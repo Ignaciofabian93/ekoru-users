@@ -190,6 +190,13 @@ model Seller {
   sellerType                             SellerType
   isActive                               Boolean                          @default(true)
   isVerified                             Boolean                          @default(false)
+  // Brute-force protection on /session/auth. Unlike Admin — which uses a
+  // permanent `accountLocked` an operator must clear — sellers get a *timed*
+  // lock: a permanent one on a public signup endpoint lets anyone lock any
+  // account out by failing a few logins against their address.
+  loginAttempts                          Int                              @default(0)
+  lockedUntil                            DateTime?
+  lastLoginAt                            DateTime?
   createdAt                              DateTime                         @default(now())
   updatedAt                              DateTime                         @updatedAt
   address                                String?
@@ -245,23 +252,6 @@ model SellerPreferences {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
   seller                   Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-}
-
-/// Backs the "forgot password" flow owned by `account.service.ts`. Only the
-/// SHA-256 hash of the token is stored, so a leaked table cannot be replayed as
-/// a reset; the plaintext exists once, inside the email. Single-use (`usedAt`)
-/// and short-lived (`expiresAt`). No FK to Seller, matching RefreshToken (which
-/// the gateway owns and this subgraph only touches through raw SQL).
-model PasswordResetToken {
-  id        String    @id @default(uuid())
-  sellerId  String
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([sellerId])
-  @@index([expiresAt])
 }
 
 model PersonProfile {

@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GqlThrottlerGuard } from './common/guards/gql-throttler.guard';
+import { resolveIdentity } from './common/identity';
 import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import {
@@ -81,20 +82,21 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
         federation: 2,
       },
       sortSchema: true,
-      playground: process.env.NODE_ENV !== 'production',
+      playground: process.env.ENVIRONMENT !== 'production',
       context: ({ req, res }: { req: Request; res: Response }) => ({
         req,
         res,
-        sellerId: req.headers['x-seller-id'] as string,
-        adminId: req.headers['x-admin-id'] as string,
-        token: req.headers.authorization?.replace('Bearer ', '') as string,
-        // Set by the gateway (and by direct server-to-server callers like
-        // ekoru-transactions). Guards the internal subscription-activation
-        // mutation so only a trusted service can activate a paid subscription.
+        // Identity from the verified access token, not from the unsigned
+        // `x-seller-id` / `x-admin-id` headers. See common/identity.ts.
+        ...resolveIdentity(req.headers),
+        // Set only by direct server-to-server callers (ekoru-transactions,
+        // ekoru-services, the gateway's own clients). The gateway deliberately
+        // does NOT attach it to federated requests — doing so made the internal
+        // mutations guarded by it callable by any anonymous client.
         internalSecret: req.headers['x-internal-secret'] as string | undefined,
       }),
       formatError: (error) => {
-        if (process.env.NODE_ENV === 'production') {
+        if (process.env.ENVIRONMENT === 'production') {
           delete error.extensions?.exception;
         }
         return error;
