@@ -3,7 +3,11 @@ import { Language } from '../graphql/enums';
 import { SellersService } from './sellers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { BusinessType, SellerType } from '../graphql/enums';
+import {
+  BusinessApprovalStatus,
+  BusinessType,
+  SellerType,
+} from '../graphql/enums';
 import { sellerMessages } from './sellers.i18n';
 import * as bcrypt from 'bcrypt';
 
@@ -77,11 +81,18 @@ describe('SellersService', () => {
       pointsByTransactionKind: {
         findFirst: jest.fn().mockResolvedValue({ pointsAwarded: 10 }),
       },
+      admin: {
+        findUnique: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
 
     const mockMailService = {
       sendWelcomeEmail: jest.fn(),
+      sendBusinessApplicationReceivedEmail: jest.fn(),
+      sendBusinessApplicationReviewEmail: jest.fn(),
+      sendBusinessApprovedEmail: jest.fn(),
+      sendBusinessRejectedEmail: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -111,6 +122,16 @@ describe('SellersService', () => {
   });
 
   describe('getSellers', () => {
+    // Every call below without an adminId is a public listing, which hides
+    // businesses EKORU has not approved yet.
+    const APPROVED_ONLY = {
+      NOT: {
+        businessProfile: {
+          is: { approvalStatus: { not: BusinessApprovalStatus.APPROVED } },
+        },
+      },
+    };
+
     it('should return a paginated list of sellers successfully', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
@@ -125,7 +146,7 @@ describe('SellersService', () => {
       expect(result.pageInfo.currentPage).toBe(1);
       expect(result.pageInfo.pageSize).toBe(20);
       expect(prisma.seller.findMany).toHaveBeenCalledWith({
-        where: {},
+        where: APPROVED_ONLY,
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -155,7 +176,7 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { sellerType: SellerType.PERSON },
+          where: { sellerType: SellerType.PERSON, ...APPROVED_ONLY },
         }),
       );
     });
@@ -171,7 +192,7 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isActive: true },
+          where: { isActive: true, ...APPROVED_ONLY },
         }),
       );
     });
@@ -187,7 +208,7 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isVerified: true },
+          where: { isVerified: true, ...APPROVED_ONLY },
         }),
       );
     });
@@ -209,6 +230,7 @@ describe('SellersService', () => {
                 in: [BusinessType.RETAIL, BusinessType.MIXED],
               },
             },
+            ...APPROVED_ONLY,
           },
         }),
       );
@@ -231,6 +253,7 @@ describe('SellersService', () => {
                 in: [BusinessType.SERVICES, BusinessType.MIXED],
               },
             },
+            ...APPROVED_ONLY,
           },
         }),
       );
@@ -255,6 +278,7 @@ describe('SellersService', () => {
                 in: [BusinessType.RETAIL, BusinessType.MIXED],
               },
             },
+            ...APPROVED_ONLY,
           },
         }),
       );
@@ -269,7 +293,35 @@ describe('SellersService', () => {
       });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: APPROVED_ONLY }),
+      );
+    });
+
+    it('should show admins every business, pending and rejected included', async () => {
+      prisma.seller.findMany.mockResolvedValue([mockSeller]);
+
+      await service.getSellers({ language: Language.ES, adminId: 'admin-1' });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: {} }),
+      );
+    });
+
+    it('should let admins filter by approvalStatus', async () => {
+      prisma.seller.findMany.mockResolvedValue([mockSeller]);
+
+      await service.getSellers({
+        language: Language.ES,
+        adminId: 'admin-1',
+        approvalStatus: BusinessApprovalStatus.PENDING,
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            businessProfile: { approvalStatus: BusinessApprovalStatus.PENDING },
+          },
+        }),
       );
     });
 
@@ -712,30 +764,36 @@ describe('SellersService', () => {
   });
 
   describe('registerBusiness', () => {
+    const applicationMessage =
+      'We make reusable beeswax food wraps from organic cotton and local beeswax.';
     const input = {
       email: 'BUSINESS@EXAMPLE.COM',
       password: 'password123',
       businessName: 'Acme Corp',
       businessType: BusinessType.RETAIL,
       sellerType: SellerType.STARTUP,
+      applicationMessage: `  ${applicationMessage}  `,
+    };
+    const businessSeller = {
+      ...mockSeller,
+      email: 'business@example.com',
+      sellerType: SellerType.STARTUP,
     };
 
-    it('should register business successfully and send welcome email with language', async () => {
-      const businessSeller = {
-        ...mockSeller,
-        sellerType: SellerType.STARTUP,
+    const mockRegisterTx = () => {
+      const tx = {
+        seller: { create: jest.fn().mockResolvedValue(businessSeller) },
+        businessProfile: {
+          create: jest.fn().mockResolvedValue(mockBusinessProfile),
+        },
       };
+      prisma.$transaction.mockImplementation((callback) => callback(tx));
+      return tx;
+    };
+
+    it('should store the application as PENDING and email the business and EKORU', async () => {
       prisma.seller.findUnique.mockResolvedValue(null);
-      prisma.$transaction.mockImplementation(async (callback) => {
-        return await callback({
-          seller: {
-            create: jest.fn().mockResolvedValue(businessSeller),
-          },
-          businessProfile: {
-            create: jest.fn().mockResolvedValue(mockBusinessProfile),
-          },
-        });
-      });
+      const tx = mockRegisterTx();
 
       const result = await service.registerBusiness({
         input,
@@ -746,34 +804,52 @@ describe('SellersService', () => {
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
         where: { email: 'business@example.com' },
       });
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
-        email: 'business@example.com',
-        name: '',
-        businessName: 'Acme Corp',
-        locale: Language.ES.toLowerCase(),
+      expect(tx.seller.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ contentLanguage: Language.ES }),
       });
+      // The status is left to the column default (PENDING); the message is trimmed.
+      expect(tx.businessProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ applicationMessage }),
+      });
+      expect(
+        mailService.sendBusinessApplicationReceivedEmail,
+      ).toHaveBeenCalledWith({
+        email: 'business@example.com',
+        locale: Language.ES,
+        data: { businessName: 'Acme Corp' },
+      });
+      expect(
+        mailService.sendBusinessApplicationReviewEmail,
+      ).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sellerId: businessSeller.id,
+          email: 'business@example.com',
+          message: applicationMessage,
+        }),
+      });
+      // The approval email is the welcome now.
+      expect(mailService.sendWelcomeEmail).not.toHaveBeenCalled();
     });
 
-    it('should pass the correct language to sendWelcomeEmail', async () => {
-      const businessSeller = { ...mockSeller, sellerType: SellerType.STARTUP };
+    it('should email the business in the language it signed up in', async () => {
       prisma.seller.findUnique.mockResolvedValue(null);
-      prisma.$transaction.mockImplementation(async (callback) => {
-        return await callback({
-          seller: { create: jest.fn().mockResolvedValue(businessSeller) },
-          businessProfile: {
-            create: jest.fn().mockResolvedValue(mockBusinessProfile),
-          },
-        });
-      });
+      mockRegisterTx();
 
       await service.registerBusiness({ input, language: Language.EN });
 
-      expect(mailService.sendWelcomeEmail).toHaveBeenCalledWith({
-        email: 'business@example.com',
-        name: '',
-        businessName: 'Acme Corp',
-        locale: Language.EN.toLowerCase(),
-      });
+      expect(
+        mailService.sendBusinessApplicationReceivedEmail,
+      ).toHaveBeenCalledWith(expect.objectContaining({ locale: Language.EN }));
+    });
+
+    it('should reject a message that is only long because of whitespace', async () => {
+      await expect(
+        service.registerBusiness({
+          input: { ...input, applicationMessage: `short${' '.repeat(60)}` },
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].applicationMessageTooShort);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with ES message when email already exists', async () => {
@@ -803,6 +879,164 @@ describe('SellersService', () => {
       await expect(
         service.registerBusiness({ input, language: Language.EN }),
       ).rejects.toThrow(sellerMessages[Language.EN].errorRegisterBusiness);
+    });
+  });
+
+  describe('business review', () => {
+    const platformAdmin = {
+      adminType: 'PLATFORM',
+      role: 'SUPER_ADMIN',
+      permissions: [],
+      isActive: true,
+    };
+    const reviewedSeller = {
+      ...mockSeller,
+      email: 'business@example.com',
+      sellerType: SellerType.STARTUP,
+      contentLanguage: Language.EN,
+    };
+
+    const mockReview = (approvalStatus: BusinessApprovalStatus | null) => {
+      prisma.admin.findUnique.mockResolvedValue(platformAdmin);
+      prisma.seller.findUnique.mockResolvedValue({
+        businessProfile: approvalStatus
+          ? { businessName: 'Acme Corp', approvalStatus }
+          : null,
+      });
+      const tx = {
+        businessProfile: { update: jest.fn() },
+        adminActivityLog: { create: jest.fn() },
+        seller: {
+          findUniqueOrThrow: jest.fn().mockResolvedValue(reviewedSeller),
+        },
+      };
+      prisma.$transaction.mockImplementation((callback) => callback(tx));
+      return tx;
+    };
+
+    it('should approve a pending business and email it in its own language', async () => {
+      const tx = mockReview(BusinessApprovalStatus.PENDING);
+
+      await service.approveBusiness({
+        adminId: 'admin-1',
+        id: 'seller-123',
+        language: Language.ES,
+      });
+
+      expect(tx.businessProfile.update).toHaveBeenCalledWith({
+        where: { sellerId: 'seller-123' },
+        data: expect.objectContaining({
+          approvalStatus: BusinessApprovalStatus.APPROVED,
+          reviewedById: 'admin-1',
+          rejectionReason: null,
+        }),
+      });
+      expect(tx.adminActivityLog.create).toHaveBeenCalled();
+      expect(mailService.sendBusinessApprovedEmail).toHaveBeenCalledWith({
+        email: 'business@example.com',
+        locale: Language.EN,
+        data: { businessName: 'Acme Corp' },
+      });
+    });
+
+    it('should approve a previously rejected business', async () => {
+      const tx = mockReview(BusinessApprovalStatus.REJECTED);
+
+      await service.approveBusiness({
+        adminId: 'admin-1',
+        id: 'seller-123',
+        language: Language.ES,
+      });
+
+      expect(tx.businessProfile.update).toHaveBeenCalled();
+    });
+
+    it('should refuse to approve an already approved business', async () => {
+      mockReview(BusinessApprovalStatus.APPROVED);
+
+      await expect(
+        service.approveBusiness({
+          adminId: 'admin-1',
+          id: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].businessAlreadyApproved);
+      expect(mailService.sendBusinessApprovedEmail).not.toHaveBeenCalled();
+    });
+
+    it('should refuse to review a seller that is not a business', async () => {
+      mockReview(null);
+
+      await expect(
+        service.approveBusiness({
+          adminId: 'admin-1',
+          id: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].notABusiness);
+    });
+
+    it('should require an admin', async () => {
+      await expect(
+        service.approveBusiness({
+          adminId: undefined as unknown as string,
+          id: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].unauthorized);
+    });
+
+    it('should reject a pending business, store the reason and email it', async () => {
+      const tx = mockReview(BusinessApprovalStatus.PENDING);
+
+      await service.rejectBusiness({
+        adminId: 'admin-1',
+        id: 'seller-123',
+        reason: '  We could not verify the materials you listed.  ',
+        language: Language.ES,
+      });
+
+      expect(tx.businessProfile.update).toHaveBeenCalledWith({
+        where: { sellerId: 'seller-123' },
+        data: expect.objectContaining({
+          approvalStatus: BusinessApprovalStatus.REJECTED,
+          rejectionReason: 'We could not verify the materials you listed.',
+        }),
+      });
+      expect(mailService.sendBusinessRejectedEmail).toHaveBeenCalledWith({
+        email: 'business@example.com',
+        locale: Language.EN,
+        data: {
+          businessName: 'Acme Corp',
+          reason: 'We could not verify the materials you listed.',
+        },
+      });
+    });
+
+    it('should refuse a rejection without a real reason', async () => {
+      mockReview(BusinessApprovalStatus.PENDING);
+
+      await expect(
+        service.rejectBusiness({
+          adminId: 'admin-1',
+          id: 'seller-123',
+          reason: 'no',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].rejectionReasonTooShort);
+    });
+
+    it('should only reject pending applications', async () => {
+      mockReview(BusinessApprovalStatus.APPROVED);
+
+      await expect(
+        service.rejectBusiness({
+          adminId: 'admin-1',
+          id: 'seller-123',
+          reason: 'We could not verify the materials you listed.',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].businessNotPending);
     });
   });
 

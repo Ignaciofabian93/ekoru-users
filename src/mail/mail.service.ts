@@ -2,12 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import {
+  businessApplicationReceivedTemplates,
+  businessApplicationReviewMail,
+  businessApprovedTemplates,
+  businessRejectedTemplates,
   dealOfferTemplates,
   loginAlertTemplates,
   passwordResetTemplates,
   pickTemplate,
   transactionTemplates,
   welcomeTemplates,
+  type BusinessApplicationData,
+  type BusinessRejectedData,
+  type BusinessReviewData,
   type DealOfferData,
   type LoginAlertData,
   type PasswordResetData,
@@ -134,16 +141,85 @@ export class MailService {
     await this.send('deal offer', email, template(data));
   }
 
+  // ─── Business onboarding review ─────────────────────────────────────────
+  // None of these are gated on a preference: a business that cannot sign in
+  // until it is reviewed has no other way to hear from us.
+
+  /** Confirms to a new business that its application is waiting for review. */
+  async sendBusinessApplicationReceivedEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: BusinessReviewData;
+  }) {
+    const template = pickTemplate(businessApplicationReceivedTemplates, locale);
+    await this.send('business application received', email, template(data));
+  }
+
+  /**
+   * Hands a new application to EKORU's review inbox. Reply-To is the business,
+   * so answering the email writes to the applicant directly.
+   */
+  async sendBusinessApplicationReviewEmail({
+    data,
+  }: {
+    data: Omit<BusinessApplicationData, 'reviewUrl'>;
+  }) {
+    const inbox =
+      this.configService.get<string>('mail.reviewInbox') || 'contacto@ekoru.cl';
+    const panel =
+      this.configService.get<string>('adminPanelUrl') ||
+      'https://admin.ekoru.cl';
+    const reviewUrl = `${panel.replace(/\/$/, '')}/es/users/${data.sellerId}`;
+    await this.send(
+      'business application review',
+      inbox,
+      businessApplicationReviewMail({ ...data, reviewUrl }),
+      data.email,
+    );
+  }
+
+  async sendBusinessApprovedEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: BusinessReviewData;
+  }) {
+    const template = pickTemplate(businessApprovedTemplates, locale);
+    await this.send('business approved', email, template(data));
+  }
+
+  async sendBusinessRejectedEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: BusinessRejectedData;
+  }) {
+    const template = pickTemplate(businessRejectedTemplates, locale);
+    await this.send('business rejected', email, template(data));
+  }
+
   /** Returns true when SMTP accepted the message. Never throws — see the class doc. */
   private async send(
     kind: string,
     to: string,
     mail: RenderedMail,
+    replyTo?: string,
   ): Promise<boolean> {
     try {
       await this.transporter.sendMail({
         from: FROM,
         to,
+        ...(replyTo && { replyTo }),
         subject: mail.subject,
         text: mail.text,
         html: mail.html,

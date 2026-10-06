@@ -30,7 +30,12 @@ import {
 } from './dto';
 import { SellerPreferences } from './entities/seller-preferences.entity';
 import { CurrentAdmin, CurrentSeller } from '../common/decorators';
-import { BusinessType, Language, SellerType } from '../graphql/enums';
+import {
+  BusinessApprovalStatus,
+  BusinessType,
+  Language,
+  SellerType,
+} from '../graphql/enums';
 
 @Resolver(() => Seller)
 export class SellersResolver {
@@ -70,12 +75,21 @@ export class SellersResolver {
     description: 'Get a paginated list of sellers',
   })
   async getSellers(
+    @CurrentAdmin() adminId: string | undefined,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
     @Args('sellerType', { type: () => SellerType, nullable: true })
     sellerType?: SellerType,
     @Args('businessType', { type: () => BusinessType, nullable: true })
     businessType?: BusinessType,
+    @Args('approvalStatus', {
+      type: () => BusinessApprovalStatus,
+      nullable: true,
+      description:
+        'Admin filter on the business review state. Non-admin callers only ever ' +
+        'see approved businesses.',
+    })
+    approvalStatus?: BusinessApprovalStatus,
     @Args('isActive', { nullable: true }) isActive?: boolean,
     @Args('isVerified', { nullable: true }) isVerified?: boolean,
     @Args('page', { type: () => Int, defaultValue: 1 }) page: number = 1,
@@ -85,8 +99,10 @@ export class SellersResolver {
   ) {
     return this.sellersService.getSellers({
       language,
+      adminId,
       sellerType,
       businessType,
+      approvalStatus,
       isActive,
       isVerified,
       page,
@@ -229,6 +245,42 @@ export class SellersResolver {
     language: Language,
   ) {
     return this.sellersService.verifySeller({ adminId, id, language });
+  }
+
+  @Mutation(() => Seller, {
+    name: 'approveBusiness',
+    description:
+      'Approve a business after onboarding review so it can sign in. Works on ' +
+      'PENDING and REJECTED businesses; emails the business. Requires MANAGE_USERS.',
+  })
+  async approveBusiness(
+    @CurrentAdmin() adminId: string,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.approveBusiness({ adminId, id, language });
+  }
+
+  @Mutation(() => Seller, {
+    name: 'rejectBusiness',
+    description:
+      'Reject a PENDING business application. The reason (>= 10 chars) is ' +
+      'emailed to the business. Requires MANAGE_USERS.',
+  })
+  async rejectBusiness(
+    @CurrentAdmin() adminId: string,
+    @Args('id', { type: () => ID }) id: string,
+    @Args('reason') reason: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.rejectBusiness({
+      adminId,
+      id,
+      reason,
+      language,
+    });
   }
 
   @Mutation(() => Seller, {

@@ -1,4 +1,8 @@
 import {
+  businessApplicationReceivedTemplates,
+  businessApplicationReviewMail,
+  businessApprovedTemplates,
+  businessRejectedTemplates,
   dealOfferTemplates,
   loginAlertTemplates,
   pickTemplate,
@@ -56,6 +60,17 @@ describe('every template', () => {
     ['login alert', loginAlertTemplates, loginData],
     ['transaction', transactionTemplates, transactionData],
     ['deal offer', dealOfferTemplates, dealData],
+    [
+      'business application received',
+      businessApplicationReceivedTemplates,
+      { businessName: 'Acme' },
+    ],
+    ['business approved', businessApprovedTemplates, { businessName: 'Acme' }],
+    [
+      'business rejected',
+      businessRejectedTemplates,
+      { businessName: 'Acme', reason: 'Falta información' },
+    ],
   ] as const;
 
   it.each(cases)('renders %s in all three locales', (_label, map, data) => {
@@ -194,5 +209,40 @@ describe('untrusted values', () => {
       detailUrl: 'https://app.ekoru.cl/profile/orders',
     });
     expect(html).toContain('https://app.ekoru.cl/profile/orders');
+  });
+});
+
+describe('business review', () => {
+  it('escapes the rejection reason and keeps its line breaks', () => {
+    const { html } = businessRejectedTemplates.es({
+      businessName: 'Acme',
+      reason: 'Línea 1\n<script>alert(1)</script>',
+    });
+    expect(html).toContain('Línea 1<br />');
+    expect(html).not.toContain('<script>');
+  });
+
+  it('links the approved business to the login in its language', () => {
+    expect(
+      businessApprovedTemplates.en({ businessName: 'Acme' }).html,
+    ).toContain('https://app.ekoru.cl/en/login');
+  });
+
+  it('gives the review inbox the application and a link to the panel', () => {
+    const { subject, html, text } = businessApplicationReviewMail({
+      sellerId: 'seller-1',
+      businessName: 'Acme <Eco>',
+      email: 'acme@example.com',
+      sellerType: 'STARTUP',
+      businessType: 'RETAIL',
+      message: 'Vendemos envoltorios de cera de abeja.\nAlgodón orgánico.',
+      submittedAt: new Date('2026-10-04T12:00:00Z'),
+      reviewUrl: 'https://admin.ekoru.cl/es/users/seller-1',
+    });
+    expect(subject).toContain('Acme <Eco>');
+    expect(html).toContain('Acme &lt;Eco&gt;');
+    expect(html).toContain('cera de abeja.<br />');
+    expect(html).toContain('https://admin.ekoru.cl/es/users/seller-1');
+    expect(text).toContain('acme@example.com');
   });
 });

@@ -8,7 +8,14 @@ export default () => ({
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     user: process.env.MAIL || '',
     password: process.env.PASSWORD || '',
+    /** Inbox that receives new business applications for review. */
+    reviewInbox: process.env.BUSINESS_REVIEW_EMAIL || 'contacto@ekoru.cl',
   },
+  /**
+   * Admin panel origin, used for the "review" link in the internal
+   * new-application email (staging: https://staging-admin.ekoru.cl).
+   */
+  adminPanelUrl: process.env.ADMIN_PANEL_URL || 'https://admin.ekoru.cl',
   notifications: {
     /**
      * How long a read notification stays in the feed before the daily purge

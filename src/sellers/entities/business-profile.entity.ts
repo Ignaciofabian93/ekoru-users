@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
-import { BusinessType } from '../../graphql/enums';
+import { BusinessApprovalStatus, BusinessType } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 import { BusinessMembership } from '../../subscription/entities/business-membership.entity';
 
@@ -73,4 +73,10 @@ export class BusinessProfile {
 
   @Field(() => BusinessMembership, { nullable: true })
   membership?: BusinessMembership;
+
+  // Onboarding review. The private fields (application message, rejection
+  // reason, review date) are resolved in BusinessReviewResolver, which only
+  // shows them to admins and to the business itself.
+  @Field(() => BusinessApprovalStatus)
+  approvalStatus: BusinessApprovalStatus;
 }

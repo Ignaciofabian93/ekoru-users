@@ -1,5 +1,6 @@
 import { registerEnumType } from '@nestjs/graphql';
 import {
+  BusinessApprovalStatus,
   DevicePlatform,
   Language,
   NotificationPriority,
@@ -177,6 +178,9 @@ export enum ContactMethod {
  */
 export { NotificationType, NotificationPriority, DevicePlatform };
 
+/** Onboarding review state of a business account. Straight from Prisma, same as above. */
+export { BusinessApprovalStatus };
+
 // ============================
 // Register enums for GraphQL
 // ============================
@@ -217,6 +221,12 @@ registerEnumType(SellerType, {
 registerEnumType(BusinessType, {
   name: 'BusinessType',
   description: 'Business type (Retail, Services, Mixed)',
+});
+
+registerEnumType(BusinessApprovalStatus, {
+  name: 'BusinessApprovalStatus',
+  description:
+    'Onboarding review of a business account. Only APPROVED businesses can sign in.',
 });
 
 registerEnumType(BanReason, {

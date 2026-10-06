@@ -19,6 +19,7 @@ import {
   BanSellerInput,
   AddBusinessAddressInput,
   UpdateBusinessAddressInput,
+  APPLICATION_MESSAGE_MIN_LENGTH,
 } from './dto';
 import {
   Language,
@@ -27,6 +28,7 @@ import {
   AdminRole,
   AdminPermission,
   BusinessType,
+  BusinessApprovalStatus,
 } from '../graphql/enums';
 import { sellerMessages, SellerMessages } from './sellers.i18n';
 import {
@@ -37,6 +39,9 @@ import {
   calculatePrismaParams,
   createPaginatedResponse,
 } from '../utils/pagination';
+
+/** Shortest rejection reason accepted — the business receives it by email. */
+const REJECTION_REASON_MIN_LENGTH = 10;
 
 @Injectable()
 export class SellersService {
@@ -86,8 +91,10 @@ export class SellersService {
 
   async getSellers({
     language,
+    adminId,
     sellerType,
     businessType,
+    approvalStatus,
     isActive,
     isVerified,
     page = 1,
@@ -95,8 +102,10 @@ export class SellersService {
     searchQuery,
   }: {
     language: Language;
+    adminId?: string;
     sellerType?: SellerType;
     businessType?: BusinessType;
+    approvalStatus?: BusinessApprovalStatus;
     isActive?: boolean;
     isVerified?: boolean;
     page?: number;
@@ -112,10 +121,23 @@ export class SellersService {
       if (searchQuery) {
         where.OR = [{ email: { contains: searchQuery, mode: 'insensitive' } }];
       }
-      if (businessType) {
-        // MIXED sellers serve both retail and service. Always included.
+      if (businessType || approvalStatus) {
         where.businessProfile = {
-          businessType: { in: [businessType, BusinessType.MIXED] },
+          // MIXED sellers serve both retail and service. Always included.
+          ...(businessType && {
+            businessType: { in: [businessType, BusinessType.MIXED] },
+          }),
+          ...(approvalStatus && { approvalStatus }),
+        };
+      }
+      // Public listings (the home page's stores and services) only show
+      // businesses EKORU has approved. Admins see every account, including the
+      // pending review queue.
+      if (!adminId) {
+        where.NOT = {
+          businessProfile: {
+            is: { approvalStatus: { not: BusinessApprovalStatus.APPROVED } },
+          },
         };
       }
 
@@ -371,6 +393,12 @@ export class SellersService {
     try {
       const { email, password, businessName, businessType, sellerType } = input;
 
+      // The DTO bounds the raw length; padding with whitespace must not pass.
+      const applicationMessage = input.applicationMessage.trim();
+      if (applicationMessage.length < APPLICATION_MESSAGE_MIN_LENGTH) {
+        throw new BadRequestError(t.applicationMessageTooShort);
+      }
+
       const existingUser = await this.prisma.seller.findUnique({
         where: { email: email.toLowerCase() },
       });
@@ -395,27 +423,48 @@ export class SellersService {
             sellerType,
             updatedAt: new Date(),
             points: pointsForRegistration?.pointsAwarded || 10,
+            // Emails pick their language from here; the review outcome must
+            // reach the business in the language it signed up in.
+            contentLanguage: language,
           },
         });
 
+        // approvalStatus defaults to PENDING: the gateway refuses the login
+        // until EKORU approves the account.
         await tx.businessProfile.create({
           data: {
             sellerId: user.id,
             businessName,
             updatedAt: new Date(),
             businessType,
+            applicationMessage,
           },
         });
 
         return user;
       });
 
-      await this.mailService.sendWelcomeEmail({
-        email: email.toLowerCase(),
-        name: '',
-        businessName,
-        locale: language.toLowerCase() as Language,
-      });
+      // The approval email doubles as the welcome. Until then the business
+      // only learns that its application is waiting, and EKORU's review inbox
+      // gets the application.
+      await Promise.all([
+        this.mailService.sendBusinessApplicationReceivedEmail({
+          email: result.email,
+          locale: language,
+          data: { businessName },
+        }),
+        this.mailService.sendBusinessApplicationReviewEmail({
+          data: {
+            sellerId: result.id,
+            businessName,
+            email: result.email,
+            sellerType,
+            businessType,
+            message: applicationMessage,
+            submittedAt: result.createdAt,
+          },
+        }),
+      ]);
 
       return result;
     } catch (error) {
@@ -852,6 +901,182 @@ export class SellersService {
       this.logger.error(t.errorVerifySeller, error);
       throw new InternalServerError(t.errorVerifySeller);
     }
+  }
+
+  /**
+   * Approves a business account after EKORU's onboarding review, so it can
+   * sign in. Allowed from PENDING, and from REJECTED when the business follows
+   * up with what was missing. Emails the business. Requires MANAGE_USERS.
+   */
+  async approveBusiness({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId: string;
+    id: string;
+    language: Language;
+  }) {
+    const t = sellerMessages[language];
+    try {
+      await this.assertAdminCan({
+        adminId,
+        permission: AdminPermission.MANAGE_USERS,
+        t,
+      });
+
+      const profile = await this.findBusinessForReview({ id, t });
+      if (profile.approvalStatus === BusinessApprovalStatus.APPROVED) {
+        throw new BadRequestError(t.businessAlreadyApproved);
+      }
+
+      const updated = await this.prisma.$transaction(async (tx) => {
+        await tx.businessProfile.update({
+          where: { sellerId: id },
+          data: {
+            approvalStatus: BusinessApprovalStatus.APPROVED,
+            reviewedAt: new Date(),
+            reviewedById: adminId,
+            rejectionReason: null,
+          },
+        });
+
+        await tx.adminActivityLog.create({
+          data: {
+            adminId,
+            action: 'APPROVE_BUSINESS',
+            entityType: 'Seller',
+            entityId: id,
+            changes: { approvalStatus: BusinessApprovalStatus.APPROVED },
+            metadata: { previousStatus: profile.approvalStatus },
+          },
+        });
+
+        return tx.seller.findUniqueOrThrow({
+          where: { id },
+          include: this.getSellerInclude(language),
+        });
+      });
+
+      await this.mailService.sendBusinessApprovedEmail({
+        email: updated.email,
+        locale: updated.contentLanguage ?? undefined,
+        data: { businessName: profile.businessName },
+      });
+
+      return { ...updated, country: this.mapCountry(updated.country) };
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError
+      )
+        throw error;
+      this.logger.error(t.errorApproveBusiness, error);
+      throw new InternalServerError(t.errorApproveBusiness);
+    }
+  }
+
+  /**
+   * Rejects a pending business application. The reason is stored and emailed
+   * to the business, which stays unable to sign in; if it follows up, the
+   * account can still be approved later. Requires MANAGE_USERS.
+   */
+  async rejectBusiness({
+    adminId,
+    id,
+    reason,
+    language,
+  }: {
+    adminId: string;
+    id: string;
+    reason: string;
+    language: Language;
+  }) {
+    const t = sellerMessages[language];
+    try {
+      await this.assertAdminCan({
+        adminId,
+        permission: AdminPermission.MANAGE_USERS,
+        t,
+      });
+
+      const rejectionReason = reason.trim();
+      if (rejectionReason.length < REJECTION_REASON_MIN_LENGTH) {
+        throw new BadRequestError(t.rejectionReasonTooShort);
+      }
+
+      const profile = await this.findBusinessForReview({ id, t });
+      if (profile.approvalStatus !== BusinessApprovalStatus.PENDING) {
+        throw new BadRequestError(t.businessNotPending);
+      }
+
+      const updated = await this.prisma.$transaction(async (tx) => {
+        await tx.businessProfile.update({
+          where: { sellerId: id },
+          data: {
+            approvalStatus: BusinessApprovalStatus.REJECTED,
+            reviewedAt: new Date(),
+            reviewedById: adminId,
+            rejectionReason,
+          },
+        });
+
+        await tx.adminActivityLog.create({
+          data: {
+            adminId,
+            action: 'REJECT_BUSINESS',
+            entityType: 'Seller',
+            entityId: id,
+            changes: { approvalStatus: BusinessApprovalStatus.REJECTED },
+            metadata: { reason: rejectionReason },
+          },
+        });
+
+        return tx.seller.findUniqueOrThrow({
+          where: { id },
+          include: this.getSellerInclude(language),
+        });
+      });
+
+      await this.mailService.sendBusinessRejectedEmail({
+        email: updated.email,
+        locale: updated.contentLanguage ?? undefined,
+        data: { businessName: profile.businessName, reason: rejectionReason },
+      });
+
+      return { ...updated, country: this.mapCountry(updated.country) };
+    } catch (error) {
+      if (
+        error instanceof UnAuthorizedError ||
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError
+      )
+        throw error;
+      this.logger.error(t.errorRejectBusiness, error);
+      throw new InternalServerError(t.errorRejectBusiness);
+    }
+  }
+
+  /** The business profile under review; NotFound, or BadRequest when not a business. */
+  private async findBusinessForReview({
+    id,
+    t,
+  }: {
+    id: string;
+    t: SellerMessages;
+  }) {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id },
+      select: {
+        businessProfile: {
+          select: { businessName: true, approvalStatus: true },
+        },
+      },
+    });
+    if (!seller) throw new NotFoundError(t.sellerNotFound);
+    if (!seller.businessProfile) throw new BadRequestError(t.notABusiness);
+    return seller.businessProfile;
   }
 
   /**

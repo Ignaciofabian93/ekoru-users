@@ -22,6 +22,13 @@ export type SellerMessages = {
   sellerAlreadyBanned: string;
   sellerNotBanned: string;
   sellerHasPendingObligations: string;
+  notABusiness: string;
+  businessAlreadyApproved: string;
+  businessNotPending: string;
+  rejectionReasonTooShort: string;
+  applicationMessageTooShort: string;
+  errorApproveBusiness: string;
+  errorRejectBusiness: string;
 };
 
 export const sellerMessages: Record<Language, SellerMessages> = {
@@ -48,6 +55,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     sellerNotBanned: 'El usuario no tiene un bloqueo activo',
     sellerHasPendingObligations:
       'No se puede bloquear: el usuario tiene operaciones pendientes (pedidos, pagos, reembolsos, cotizaciones, reservas o intercambios). Resuélvelas antes de bloquear.',
+    notABusiness: 'Este usuario no es un negocio',
+    businessAlreadyApproved: 'Este negocio ya está aprobado',
+    businessNotPending: 'Solo se puede rechazar una solicitud pendiente',
+    rejectionReasonTooShort:
+      'Explica el motivo del rechazo (al menos 10 caracteres)',
+    applicationMessageTooShort:
+      'Cuéntanos sobre tu negocio (al menos 50 caracteres)',
+    errorApproveBusiness: 'Error al aprobar el negocio',
+    errorRejectBusiness: 'Error al rechazar el negocio',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
@@ -72,6 +88,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     sellerNotBanned: 'The seller does not have an active ban',
     sellerHasPendingObligations:
       'Cannot ban: the seller has pending activity (orders, payments, refunds, quotations, bookings or exchanges). Resolve them before banning.',
+    notABusiness: 'This seller is not a business',
+    businessAlreadyApproved: 'This business is already approved',
+    businessNotPending: 'Only a pending application can be rejected',
+    rejectionReasonTooShort:
+      'Explain the reason for the rejection (at least 10 characters)',
+    applicationMessageTooShort:
+      'Tell us about your business (at least 50 characters)',
+    errorApproveBusiness: 'Error approving business',
+    errorRejectBusiness: 'Error rejecting business',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
@@ -99,6 +124,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     sellerNotBanned: "Le vendeur n'a pas de bannissement actif",
     sellerHasPendingObligations:
       'Bannissement impossible : le vendeur a des activités en cours (commandes, paiements, remboursements, devis, réservations ou échanges). Résolvez-les avant de bannir.',
+    notABusiness: "Ce vendeur n'est pas une entreprise",
+    businessAlreadyApproved: 'Cette entreprise est déjà approuvée',
+    businessNotPending: 'Seule une demande en attente peut être refusée',
+    rejectionReasonTooShort:
+      'Expliquez le motif du refus (au moins 10 caractères)',
+    applicationMessageTooShort:
+      'Parlez-nous de votre entreprise (au moins 50 caractères)',
+    errorApproveBusiness: "Erreur lors de l'approbation de l'entreprise",
+    errorRejectBusiness: "Erreur lors du refus de l'entreprise",
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
@@ -123,6 +157,15 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     sellerNotBanned: 'O vendedor não tem um banimento ativo',
     sellerHasPendingObligations:
       'Não é possível banir: o vendedor tem atividades pendentes (pedidos, pagamentos, reembolsos, orçamentos, reservas ou trocas). Resolva-as antes de banir.',
+    notABusiness: 'Este vendedor não é uma empresa',
+    businessAlreadyApproved: 'Esta empresa já está aprovada',
+    businessNotPending: 'Só é possível recusar uma solicitação pendente',
+    rejectionReasonTooShort:
+      'Explique o motivo da recusa (pelo menos 10 caracteres)',
+    applicationMessageTooShort:
+      'Conte-nos sobre o seu negócio (pelo menos 50 caracteres)',
+    errorApproveBusiness: 'Erro ao aprovar a empresa',
+    errorRejectBusiness: 'Erro ao recusar a empresa',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
@@ -149,5 +192,14 @@ export const sellerMessages: Record<Language, SellerMessages> = {
     sellerNotBanned: 'Der Verkäufer hat keine aktive Sperre',
     sellerHasPendingObligations:
       'Sperren nicht möglich: Der Verkäufer hat offene Vorgänge (Bestellungen, Zahlungen, Rückerstattungen, Angebote, Buchungen oder Tauschgeschäfte). Lösen Sie diese vor dem Sperren.',
+    notABusiness: 'Dieser Verkäufer ist kein Unternehmen',
+    businessAlreadyApproved: 'Dieses Unternehmen ist bereits freigegeben',
+    businessNotPending: 'Nur ein ausstehender Antrag kann abgelehnt werden',
+    rejectionReasonTooShort:
+      'Begründen Sie die Ablehnung (mindestens 10 Zeichen)',
+    applicationMessageTooShort:
+      'Erzählen Sie uns von Ihrem Unternehmen (mindestens 50 Zeichen)',
+    errorApproveBusiness: 'Fehler beim Freigeben des Unternehmens',
+    errorRejectBusiness: 'Fehler beim Ablehnen des Unternehmens',
   },
 };
