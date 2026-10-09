@@ -30,15 +30,27 @@ deployment unit — see §3.
 | Channel | Gate | Reach |
 |---|---|---|
 | **In-app feed** (`Notification` row) | none — **always written** | web + mobile |
-| **Email** | `enableEmailNotifications`, or `enableLoginAlerts` for security types | anywhere |
+| **Email** | none for transactional types; `enableLoginAlerts` for security types; `enableEmailNotifications` for optional mail | anywhere |
 | **Mobile push** (Expo → APNs/FCM) | `enablePushNotifications` | iOS + Android app |
 
 The in-app row is deliberately ungated: a user who muted email still needs to
 see "action required" when they open the app.
 
-Both preference columns default to `false`, and a seller with **no**
-`SellerPreferences` row is treated the same way — opted out until they opt in.
-So a fresh account gets in-app only.
+**Transactional email is always sent** (USR-1, decision D2). Orders,
+payments, P2P deals, service bookings and quotations are marked
+`emailGate: 'transactional'` in the registry, because the person is part of
+them and has to act on them. `enableEmailNotifications` only governs optional
+mail (digests, news), and security notices keep their own
+`enableLoginAlerts` switch.
+
+The preference columns default to `false`, and a seller with **no**
+`SellerPreferences` row is treated the same way — opted out of push, login
+alerts and optional mail until they opt in. A fresh account therefore gets the
+in-app feed plus transactional email.
+
+Bookings and quotations use the generic `notice` email: the notification's
+own title and message (the admin-editable template or the registry fallback)
+with a button to its `actionUrl`.
 
 Web push (service workers) is deliberately **not** implemented: Safari only
 supports it for home-screen-installed PWAs, and the in-app bell covers the same
@@ -127,9 +139,9 @@ One file. Add a row to `NOTIFICATION_REGISTRY`:
 
 ```ts
 [NotificationType.REVIEW_RECEIVED]: {
-  ...DEFAULTS,
+  ...DEFAULTS,                 // or ...TRANSACTIONAL: email ignores the opt-in
   priority: NotificationPriority.MEDIUM,
-  email: 'transaction',        // omit for in-app + push only
+  email: 'notice',             // or 'transaction' / 'dealOffer'; omit for in-app + push only
   fallback: { es: {...}, en: {...}, fr: {...} },
 },
 ```

@@ -8,7 +8,7 @@ import {
   NotFoundError,
   InternalServerError,
 } from '../common/exceptions';
-import { hash, genSalt } from 'bcrypt';
+import { hash, genSalt, compare } from 'bcrypt';
 import {
   RegisterPersonInput,
   RegisterBusinessInput,
@@ -19,18 +19,23 @@ import {
   BanSellerInput,
   AddBusinessAddressInput,
   UpdateBusinessAddressInput,
+  ReapplyBusinessInput,
   APPLICATION_MESSAGE_MIN_LENGTH,
 } from './dto';
 import {
   Language,
   SellerType,
   AdminType,
-  AdminRole,
   AdminPermission,
   BusinessType,
   BusinessApprovalStatus,
 } from '../graphql/enums';
 import { sellerMessages, SellerMessages } from './sellers.i18n';
+import {
+  adminRowCan,
+  assertAdminCan,
+  loadAdminAccess,
+} from '../common/admin-access';
 import {
   businessAddressMessages,
   BusinessAddressMessages,
@@ -42,6 +47,22 @@ import {
 
 /** Shortest rejection reason accepted — the business receives it by email. */
 const REJECTION_REASON_MIN_LENGTH = 10;
+
+/**
+ * Password guessing through `reapplyBusiness` counts against the same lock as
+ * the gateway's login (ekoru-gateway `auth.service.ts`): 8 failures lock the
+ * account for 15 minutes. Keep the two in step.
+ */
+const MAX_LOGIN_ATTEMPTS = 8;
+const LOCKOUT_MS = 15 * 60 * 1000;
+
+/**
+ * A real bcrypt hash of a value nothing can match, compared against when the
+ * email is unknown so "no such account" takes as long as "wrong password".
+ * Same value as the gateway's.
+ */
+const DUMMY_HASH =
+  '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 @Injectable()
 export class SellersService {
@@ -130,14 +151,21 @@ export class SellersService {
           ...(approvalStatus && { approvalStatus }),
         };
       }
-      // Public listings (the home page's stores and services) only show
-      // businesses EKORU has approved. Admins see every account, including the
-      // pending review queue.
-      if (!adminId) {
-        where.NOT = {
-          businessProfile: {
-            is: { approvalStatus: { not: BusinessApprovalStatus.APPROVED } },
-          },
+      // Public listings (the home page's stores and services) show only
+      // businesses EKORU has approved (USR-2). Private individuals are never
+      // listed: their email and phone live on Seller, and a public list would
+      // hand them out in bulk. Admins with MANAGE_USERS see every account,
+      // including the pending review queue.
+      if (adminId) {
+        await this.assertAdminCan({
+          adminId,
+          permission: AdminPermission.MANAGE_USERS,
+          t,
+        });
+      } else {
+        where.businessProfile = {
+          ...(where.businessProfile ?? {}),
+          approvalStatus: BusinessApprovalStatus.APPROVED,
         };
       }
 
@@ -161,12 +189,28 @@ export class SellersService {
 
       return createPaginatedResponse(nodes, count, page, pageSize);
     } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
       this.logger.error(t.errorGetSellers, error);
       throw new InternalServerError(t.errorGetSellers);
     }
   }
 
-  async getSellerById({ id, language }: { id: string; language: Language }) {
+  /**
+   * One seller by id. A business EKORU has not approved (pending or rejected)
+   * reads as not found (null) for everyone except the business itself, its
+   * own business admin account, and platform admins with MANAGE_USERS (USR-2).
+   */
+  async getSellerById({
+    id,
+    language,
+    sellerId,
+    adminId,
+  }: {
+    id: string;
+    language: Language;
+    sellerId?: string;
+    adminId?: string;
+  }) {
     const t = sellerMessages[language];
     try {
       const seller = await this.prisma.seller.findUnique({
@@ -175,6 +219,14 @@ export class SellersService {
       });
 
       if (!seller) return null;
+      const approval = seller.businessProfile?.approvalStatus;
+      if (
+        approval &&
+        approval !== BusinessApprovalStatus.APPROVED &&
+        !(await this.canSeeUnapprovedBusiness(seller.id, sellerId, adminId))
+      ) {
+        return null;
+      }
       return { ...seller, country: this.mapCountry(seller.country) };
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
@@ -471,6 +523,123 @@ export class SellersService {
       if (error instanceof BadRequestError) throw error;
       this.logger.error(t.errorRegisterBusiness, error);
       throw new InternalServerError(t.errorRegisterBusiness);
+    }
+  }
+
+  /**
+   * A rejected business sends EKORU a new application (USR-5). It cannot sign
+   * in, so the account is identified by email and password, under the same
+   * lockout as the login. The application goes back to PENDING, the previous
+   * rejection reason travels to the review inbox with the new message, and the
+   * business gets the "application received" email again.
+   *
+   * Unknown email and wrong password give the same answer, so this cannot be
+   * used to find out which addresses have accounts.
+   */
+  async reapplyBusiness({
+    input,
+    language,
+  }: {
+    input: ReapplyBusinessInput;
+    language: Language;
+  }): Promise<boolean> {
+    const t = sellerMessages[language];
+    try {
+      const applicationMessage = input.applicationMessage.trim();
+      if (applicationMessage.length < APPLICATION_MESSAGE_MIN_LENGTH) {
+        throw new BadRequestError(t.applicationMessageTooShort);
+      }
+
+      const seller = await this.prisma.seller.findUnique({
+        where: { email: input.email.trim().toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          sellerType: true,
+          loginAttempts: true,
+          lockedUntil: true,
+          businessProfile: {
+            select: {
+              businessName: true,
+              businessType: true,
+              approvalStatus: true,
+              rejectionReason: true,
+            },
+          },
+        },
+      });
+
+      if (!seller) {
+        await compare(input.password, DUMMY_HASH);
+        throw new BadRequestError(t.reapplyInvalidCredentials);
+      }
+      if (seller.lockedUntil && seller.lockedUntil > new Date()) {
+        throw new BadRequestError(t.reapplyAccountLocked);
+      }
+      if (!(await compare(input.password, seller.password))) {
+        const attempts = seller.loginAttempts + 1;
+        await this.prisma.seller.update({
+          where: { id: seller.id },
+          data: {
+            loginAttempts: attempts,
+            lockedUntil:
+              attempts >= MAX_LOGIN_ATTEMPTS
+                ? new Date(Date.now() + LOCKOUT_MS)
+                : null,
+          },
+        });
+        throw new BadRequestError(t.reapplyInvalidCredentials);
+      }
+
+      const profile = seller.businessProfile;
+      if (profile?.approvalStatus !== BusinessApprovalStatus.REJECTED) {
+        throw new BadRequestError(t.businessNotRejected);
+      }
+
+      const now = new Date();
+      await this.prisma.$transaction([
+        this.prisma.businessProfile.update({
+          where: { sellerId: seller.id },
+          data: {
+            approvalStatus: BusinessApprovalStatus.PENDING,
+            applicationMessage,
+            rejectionReason: null,
+            reviewedAt: null,
+            reviewedById: null,
+          },
+        }),
+        this.prisma.seller.update({
+          where: { id: seller.id },
+          data: { loginAttempts: 0, lockedUntil: null },
+        }),
+      ]);
+
+      await Promise.all([
+        this.mailService.sendBusinessApplicationReceivedEmail({
+          email: seller.email,
+          locale: language,
+          data: { businessName: profile.businessName },
+        }),
+        this.mailService.sendBusinessApplicationReviewEmail({
+          data: {
+            sellerId: seller.id,
+            businessName: profile.businessName,
+            email: seller.email,
+            sellerType: seller.sellerType,
+            businessType: profile.businessType,
+            message: applicationMessage,
+            submittedAt: now,
+            previousRejectionReason: profile.rejectionReason,
+          },
+        }),
+      ]);
+
+      return true;
+    } catch (error) {
+      if (error instanceof BadRequestError) throw error;
+      this.logger.error(t.errorReapplyBusiness, error);
+      throw new InternalServerError(t.errorReapplyBusiness);
     }
   }
 
@@ -832,30 +1001,33 @@ export class SellersService {
     permission: AdminPermission;
     t: SellerMessages;
   }) {
-    if (!adminId) {
-      throw new UnAuthorizedError(t.unauthorized);
-    }
-
-    const admin = await this.prisma.admin.findUnique({
-      where: { id: adminId },
-      select: {
-        adminType: true,
-        role: true,
-        permissions: true,
-        isActive: true,
-      },
+    await assertAdminCan(this.prisma, {
+      adminId,
+      permission,
+      messages: { unauthorized: t.unauthorized, forbidden: t.forbidden },
     });
+  }
 
-    const allowed =
+  /**
+   * Who may read a business that is pending or rejected: the business itself,
+   * its own (active) business admin account, and platform admins with
+   * MANAGE_USERS.
+   */
+  private async canSeeUnapprovedBusiness(
+    businessId: string,
+    sellerId?: string,
+    adminId?: string,
+  ): Promise<boolean> {
+    if (sellerId && sellerId === businessId) return true;
+    if (!adminId) return false;
+    const admin = await loadAdminAccess(this.prisma, adminId);
+    if (adminRowCan(admin, AdminPermission.MANAGE_USERS)) return true;
+    return (
       !!admin &&
       admin.isActive &&
-      (admin.adminType as AdminType) === AdminType.PLATFORM &&
-      ((admin.role as AdminRole) === AdminRole.SUPER_ADMIN ||
-        (admin.permissions as AdminPermission[]).includes(permission));
-
-    if (!allowed) {
-      throw new UnAuthorizedError(t.forbidden);
-    }
+      (admin.adminType as AdminType) === AdminType.BUSINESS &&
+      admin.sellerId === businessId
+    );
   }
 
   /**

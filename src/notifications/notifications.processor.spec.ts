@@ -113,11 +113,12 @@ describe('NotificationsProcessor', () => {
           locale: 'es',
         }),
         expect.objectContaining({ reference: '#1042' }),
+        expect.objectContaining({ title: 'Nueva orden #1042' }),
       );
       expect(push.send).toHaveBeenCalled();
     });
 
-    it('skips email when enableEmailNotifications is off', async () => {
+    it('sends transactional email even when enableEmailNotifications is off (USR-1)', async () => {
       findUnique.mockResolvedValue(
         stored({
           seller: {
@@ -128,10 +129,43 @@ describe('NotificationsProcessor', () => {
       );
 
       await expect(processor.process(job())).resolves.toEqual({
-        emailed: false,
+        emailed: true,
         pushed: 2,
       });
-      expect(email.send).not.toHaveBeenCalled();
+      expect(email.send).toHaveBeenCalledWith(
+        'transaction',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('emails a booking update as a notice with the feed copy (USR-1)', async () => {
+      findUnique.mockResolvedValue(
+        stored({
+          type: NotificationType.BOOKING_CONFIRMED,
+          title: 'Reserva confirmada',
+          message: 'Tu reserva de Reparación de bicicletas fue confirmada.',
+          actionUrl: 'https://app.ekoru.cl/profile/bookings',
+          metadata: { serviceName: 'Reparación de bicicletas' },
+          seller: { ...stored().seller, sellerPreferences: null },
+        }),
+      );
+
+      await expect(processor.process(job())).resolves.toEqual({
+        emailed: true,
+        pushed: 0,
+      });
+      expect(email.send).toHaveBeenCalledWith(
+        'notice',
+        expect.objectContaining({ email: 'seller@example.com' }),
+        expect.anything(),
+        {
+          title: 'Reserva confirmada',
+          message: 'Tu reserva de Reparación de bicicletas fue confirmada.',
+          actionUrl: 'https://app.ekoru.cl/profile/bookings',
+        },
+      );
     });
 
     it('skips push when enablePushNotifications is off', async () => {
@@ -172,6 +206,7 @@ describe('NotificationsProcessor', () => {
         'loginAlert',
         expect.anything(),
         expect.anything(),
+        expect.anything(),
       );
     });
 
@@ -192,9 +227,24 @@ describe('NotificationsProcessor', () => {
       });
     });
 
-    it('treats a missing preferences row as opted out of both channels', async () => {
+    it('treats a missing preferences row as opted out of push, not of transactional email', async () => {
       findUnique.mockResolvedValue(
         stored({
+          seller: { ...stored().seller, sellerPreferences: null },
+        }),
+      );
+
+      await expect(processor.process(job())).resolves.toEqual({
+        emailed: true,
+        pushed: 0,
+      });
+      expect(push.send).not.toHaveBeenCalled();
+    });
+
+    it('still treats a missing preferences row as opted out of login alerts', async () => {
+      findUnique.mockResolvedValue(
+        stored({
+          type: NotificationType.SECURITY_LOGIN_ALERT,
           seller: { ...stored().seller, sellerPreferences: null },
         }),
       );
@@ -203,6 +253,7 @@ describe('NotificationsProcessor', () => {
         emailed: false,
         pushed: 0,
       });
+      expect(email.send).not.toHaveBeenCalled();
     });
 
     it('sends no email for a type with no email template', async () => {
@@ -265,6 +316,7 @@ describe('NotificationsProcessor', () => {
         'transaction',
         expect.anything(),
         {},
+        expect.anything(),
       );
     });
 
@@ -318,11 +370,12 @@ describe('NotificationsProcessor', () => {
     it('records nothing for a channel the seller has switched off', async () => {
       findUnique.mockResolvedValue(
         stored({
+          type: NotificationType.SECURITY_LOGIN_ALERT,
           seller: {
             ...stored().seller,
             sellerPreferences: {
               ...allOn,
-              enableEmailNotifications: false,
+              enableLoginAlerts: false,
               enablePushNotifications: false,
             },
           },

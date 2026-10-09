@@ -4,6 +4,7 @@ import { parseUserAgent } from '../../mail/user-agent';
 import type {
   DealOfferData,
   LoginAlertData,
+  NoticeData,
   TransactionData,
 } from '../../mail/templates';
 import type { EmailKind } from '../notification-registry';
@@ -13,6 +14,13 @@ export interface EmailRecipient {
   email: string;
   name: string;
   locale: string;
+}
+
+/** The notification as the feed shows it, for the generic `notice` email. */
+export interface RenderedNotification {
+  title: string;
+  message: string;
+  actionUrl?: string | null;
 }
 
 /**
@@ -36,9 +44,12 @@ export class EmailChannel {
     kind: EmailKind,
     recipient: EmailRecipient,
     payload: Record<string, unknown>,
+    rendered?: RenderedNotification,
   ): Promise<boolean> {
     try {
       switch (kind) {
+        case 'notice':
+          return await this.sendNotice(recipient, rendered);
         case 'loginAlert':
           return await this.sendLoginAlert(recipient, payload);
         case 'transaction':
@@ -50,6 +61,28 @@ export class EmailChannel {
       this.logger.error(`Email channel (${kind}) failed`, error);
       return false;
     }
+  }
+
+  private async sendNotice(
+    recipient: EmailRecipient,
+    rendered?: RenderedNotification,
+  ): Promise<boolean> {
+    if (!rendered?.title || !rendered.message) {
+      this.logger.warn('Notice email skipped — no rendered title/message');
+      return false;
+    }
+    const data: NoticeData = {
+      name: recipient.name,
+      title: rendered.title,
+      message: rendered.message,
+      actionUrl: rendered.actionUrl ?? null,
+    };
+    await this.mailService.sendNoticeEmail({
+      email: recipient.email,
+      locale: recipient.locale,
+      data,
+    });
+    return true;
   }
 
   private async sendLoginAlert(

@@ -4,8 +4,10 @@ import {
   UnAuthorizedError,
   NotFoundError,
   InternalServerError,
+  BadRequestError,
 } from '../common/exceptions';
-import { Language } from '../graphql/enums';
+import { AdminPermission, Language } from '../graphql/enums';
+import { assertAdminCan } from '../common/admin-access';
 import { subscriptionMessages } from './subscription.i18n';
 import {
   CreatePersonMembershipInput,
@@ -40,6 +42,26 @@ export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Platform admin with MANAGE_SETTINGS, the permission the panel's memberships
+   * screen uses. Any admin token used to pass, so a business admin could
+   * rewrite plans and prices (USR-8).
+   */
+  private async assertAdmin({
+    adminId,
+    language,
+  }: {
+    adminId?: string;
+    language: Language;
+  }): Promise<void> {
+    const t = subscriptionMessages[language];
+    await assertAdminCan(this.prisma, {
+      adminId,
+      permission: AdminPermission.MANAGE_SETTINGS,
+      messages: { unauthorized: t.unauthorized, forbidden: t.forbidden },
+    });
+  }
 
   private personMembershipInclude({
     language,
@@ -108,9 +130,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({ adminId, language });
 
       const where = personMembershipId ? { personMembershipId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -148,9 +168,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({ adminId, language });
 
       const where = businessMembershipId ? { businessMembershipId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -190,9 +208,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({ adminId, language });
 
       const where = {
         ...(personMembershipId ? { personMembershipId } : {}),
@@ -235,9 +251,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({ adminId, language });
 
       const where = {
         ...(businessMembershipId ? { businessMembershipId } : {}),
@@ -321,7 +335,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       const membership = await this.prisma.personMembership.create({
         data: {
           membershipType: input.membershipType,
@@ -350,7 +364,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.personMembership.findUnique({
         where: { id },
@@ -399,7 +413,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.personMembership.findUnique({
         where: { id },
@@ -435,7 +449,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       return await this.prisma.personMembershipTranslation.upsert({
         where: {
           personMembershipId_language: {
@@ -471,7 +485,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.personMembershipTranslation.findUnique(
         {
@@ -516,7 +530,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       return await this.prisma.personMembershipPricing.upsert({
         where: {
           personMembershipId_countryId: {
@@ -557,7 +571,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.personMembershipPricing.findUnique({
         where: {
@@ -583,11 +597,19 @@ export class SubscriptionService {
     }
   }
 
+  /**
+   * Starts a term of a plan. Sellers may call this for the free plan only:
+   * paid plans start through `activateMembershipSubscription` once the payment
+   * completed (`viaPayment`), and only that path may record a `paymentId`
+   * (USR-9: the public mutation used to hand out any plan for free).
+   */
   async assignPersonMembership({
     sellerId,
     input,
     language,
+    viaPayment = false,
   }: {
+    viaPayment?: boolean;
     sellerId: string;
     input: CreatePersonMembershipSubscriptionInput;
     language: Language;
@@ -600,6 +622,9 @@ export class SubscriptionService {
         where: { id: input.personMembershipId, isActive: true },
       });
       if (!plan) throw new NotFoundError(t.membershipNotFound);
+      if (!viaPayment && plan.membershipType !== 'FREEMIUM') {
+        throw new BadRequestError(t.paidPlanNeedsCheckout);
+      }
 
       const startDate = new Date();
       const endDate = new Date(startDate);
@@ -613,7 +638,7 @@ export class SubscriptionService {
             startDate,
             endDate,
             autoRenew: input.autoRenew ?? false,
-            paymentId: input.paymentId,
+            paymentId: viaPayment ? input.paymentId : null,
           },
         });
 
@@ -626,7 +651,8 @@ export class SubscriptionService {
     } catch (error) {
       if (
         error instanceof UnAuthorizedError ||
-        error instanceof NotFoundError
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError
       ) {
         throw error;
       }
@@ -693,7 +719,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       const membership = await this.prisma.businessMembership.create({
         data: {
           membershipType: input.membershipType,
@@ -722,7 +748,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.businessMembership.findUnique({
         where: { id },
@@ -771,7 +797,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.businessMembership.findUnique({
         where: { id },
@@ -807,7 +833,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       return await this.prisma.businessMembershipTranslation.upsert({
         where: {
           businessMembershipId_language: {
@@ -843,7 +869,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing =
         await this.prisma.businessMembershipTranslation.findUnique({
@@ -887,7 +913,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
       return await this.prisma.businessMembershipPricing.upsert({
         where: {
           businessMembershipId_countryId: {
@@ -928,7 +954,7 @@ export class SubscriptionService {
   }) {
     const t = subscriptionMessages[language];
     try {
-      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      await this.assertAdmin({ adminId, language });
 
       const existing = await this.prisma.businessMembershipPricing.findUnique({
         where: {
@@ -954,11 +980,19 @@ export class SubscriptionService {
     }
   }
 
+  /**
+   * Starts a term of a plan. Sellers may call this for the free plan only:
+   * paid plans start through `activateMembershipSubscription` once the payment
+   * completed (`viaPayment`), and only that path may record a `paymentId`
+   * (USR-9: the public mutation used to hand out any plan for free).
+   */
   async assignBusinessMembership({
     sellerId,
     input,
     language,
+    viaPayment = false,
   }: {
+    viaPayment?: boolean;
     sellerId: string;
     input: CreateBusinessMembershipSubscriptionInput;
     language: Language;
@@ -971,6 +1005,9 @@ export class SubscriptionService {
         where: { id: input.businessMembershipId, isActive: true },
       });
       if (!plan) throw new NotFoundError(t.membershipNotFound);
+      if (!viaPayment && plan.membershipType !== 'FREEMIUM') {
+        throw new BadRequestError(t.paidPlanNeedsCheckout);
+      }
 
       const startDate = new Date();
       const endDate = new Date(startDate);
@@ -984,7 +1021,7 @@ export class SubscriptionService {
             startDate,
             endDate,
             autoRenew: input.autoRenew ?? false,
-            paymentId: input.paymentId,
+            paymentId: viaPayment ? input.paymentId : null,
           },
         });
 
@@ -997,7 +1034,8 @@ export class SubscriptionService {
     } catch (error) {
       if (
         error instanceof UnAuthorizedError ||
-        error instanceof NotFoundError
+        error instanceof NotFoundError ||
+        error instanceof BadRequestError
       ) {
         throw error;
       }
@@ -1110,6 +1148,7 @@ export class SubscriptionService {
           autoRenew: false,
         },
         language,
+        viaPayment: true,
       });
       return { subscriptionId: sub.id };
     }
@@ -1121,6 +1160,7 @@ export class SubscriptionService {
         autoRenew: false,
       },
       language,
+      viaPayment: true,
     });
     return { subscriptionId: sub.id };
   }
@@ -1130,8 +1170,18 @@ export class SubscriptionService {
    *
    * Returns the newest active subscription, or null for a seller who never
    * bought one — a plan the profile shows without a subscription row behind it
-   * is the free tier, which has no term and nothing to display.
+   * is the free tier, which has no term and nothing to display. A term past
+   * its end date is never current, even in the hour before the expiry sweep
+   * marks it inactive (USR-3).
    */
+  /** Active and not past its end date (no end date = open-ended). */
+  private currentTermWhere(now: Date = new Date()) {
+    return {
+      isActive: true,
+      OR: [{ endDate: null }, { endDate: { gt: now } }],
+    };
+  }
+
   async getMySubscription(sellerId: string): Promise<{
     id: number;
     membershipId: number;
@@ -1150,7 +1200,7 @@ export class SubscriptionService {
 
     if (this.isPersonSeller(seller.sellerType)) {
       const sub = await this.prisma.personMembershipSubscription.findFirst({
-        where: { sellerId, isActive: true },
+        where: { sellerId, ...this.currentTermWhere() },
         orderBy: { startDate: 'desc' },
         select: {
           id: true,
@@ -1176,7 +1226,7 @@ export class SubscriptionService {
     }
 
     const sub = await this.prisma.businessMembershipSubscription.findFirst({
-      where: { sellerId, isActive: true },
+      where: { sellerId, ...this.currentTermWhere() },
       orderBy: { startDate: 'desc' },
       select: {
         id: true,
@@ -1215,8 +1265,7 @@ export class SubscriptionService {
     rows: PersonMembershipUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1252,8 +1301,7 @@ export class SubscriptionService {
     rows: PersonMembershipTranslationUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1313,8 +1361,7 @@ export class SubscriptionService {
     rows: PersonMembershipPricingUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1371,8 +1418,7 @@ export class SubscriptionService {
     rows: BusinessMembershipUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1408,8 +1454,7 @@ export class SubscriptionService {
     rows: BusinessMembershipTranslationUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1468,8 +1513,7 @@ export class SubscriptionService {
     rows: BusinessMembershipPricingUpsertRowInput[];
     language: Language;
   }) {
-    if (!adminId)
-      throw new UnAuthorizedError(subscriptionMessages[language].unauthorized);
+    await this.assertAdmin({ adminId, language });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({

@@ -10,6 +10,7 @@ import {
   eventCancelledTemplates,
   eventRegistrationTemplates,
   loginAlertTemplates,
+  noticeTemplates,
   passwordResetTemplates,
   pickTemplate,
   transactionTemplates,
@@ -21,6 +22,7 @@ import {
   type EventCancelledData,
   type EventRegistrationData,
   type LoginAlertData,
+  type NoticeData,
   type PasswordResetData,
   type RenderedMail,
   type TransactionData,
@@ -112,8 +114,8 @@ export class MailService {
   }
 
   /**
-   * Order / P2P deal lifecycle update. Gated on
-   * `SellerPreferences.enableEmailNotifications` by the caller.
+   * Order / P2P deal lifecycle update. Transactional: sent whatever the
+   * seller's email opt-in says (USR-1).
    */
   async sendTransactionEmail({
     email,
@@ -130,7 +132,7 @@ export class MailService {
 
   /**
    * Tells a product owner that another seller proposed a sale or exchange.
-   * Gated on `SellerPreferences.enableEmailNotifications` by the caller.
+   * Transactional: sent whatever the seller's email opt-in says (USR-1).
    */
   async sendDealOfferEmail({
     email,
@@ -143,6 +145,23 @@ export class MailService {
   }) {
     const template = pickTemplate(dealOfferTemplates, locale);
     await this.send('deal offer', email, template(data));
+  }
+
+  /**
+   * A notification's own title and message as an email (service bookings and
+   * quotations). Transactional: sent whatever the email opt-in says (USR-1).
+   */
+  async sendNoticeEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: NoticeData;
+  }) {
+    const template = pickTemplate(noticeTemplates, locale);
+    await this.send('notice', email, template(data));
   }
 
   // ─── Business onboarding review ─────────────────────────────────────────

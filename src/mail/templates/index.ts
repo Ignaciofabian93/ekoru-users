@@ -7,3 +7,4 @@ export * from './deal-offer.templates';
 export * from './business-review.templates';
 export * from './event-registration.templates';
 export * from './event-cancelled.templates';
+export * from './notice.templates';

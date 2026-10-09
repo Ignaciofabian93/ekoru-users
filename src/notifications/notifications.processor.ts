@@ -129,9 +129,12 @@ export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
     const prefs = seller.sellerPreferences;
     const payload = (notification.metadata ?? {}) as Record<string, unknown>;
 
-    // Both preference columns default to false and a missing row counts as
-    // opted out, so an unconfigured seller gets in-app only.
-    const wantsEmail = !!spec.email && !!prefs?.[spec.emailGate];
+    // Transactional email (orders, payments, deals, bookings, quotations) is
+    // always sent (USR-1). Other email follows its preference column; those
+    // default to false and a missing row counts as opted out.
+    const wantsEmail =
+      !!spec.email &&
+      (spec.emailGate === 'transactional' || !!prefs?.[spec.emailGate]);
     const wantsPush = spec.push && !!prefs?.enablePushNotifications;
 
     const [emailed, pushed] = await Promise.all([
@@ -144,6 +147,11 @@ export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
               locale: toLocale(seller.contentLanguage),
             },
             payload,
+            {
+              title: notification.title,
+              message: notification.message,
+              actionUrl: notification.actionUrl,
+            },
           )
         : Promise.resolve(false),
 

@@ -7,6 +7,7 @@ import {
   eventCancelledTemplates,
   eventRegistrationTemplates,
   loginAlertTemplates,
+  noticeTemplates,
   pickTemplate,
   transactionTemplates,
   welcomeTemplates,
@@ -68,6 +69,15 @@ describe('every template', () => {
       { businessName: 'Acme' },
     ],
     ['business approved', businessApprovedTemplates, { businessName: 'Acme' }],
+    [
+      'notice',
+      noticeTemplates,
+      {
+        name: 'Nacho',
+        title: 'Reserva confirmada',
+        message: 'Tu reserva fue confirmada.',
+      },
+    ],
     [
       'business rejected',
       businessRejectedTemplates,
@@ -224,6 +234,45 @@ describe('business review', () => {
     expect(html).not.toContain('<script>');
   });
 
+  it('offers a rejected business the re-apply page in its language (USR-5)', () => {
+    const es = businessRejectedTemplates.es({
+      businessName: 'Acme',
+      reason: 'Falta info',
+    });
+    const fr = businessRejectedTemplates.fr({
+      businessName: 'Acme',
+      reason: 'Manque',
+    });
+    expect(es.html).toContain('https://app.ekoru.cl/es/reapply');
+    expect(es.text).toContain('https://app.ekoru.cl/es/reapply');
+    expect(fr.html).toContain('https://app.ekoru.cl/fr/reapply');
+  });
+
+  it('marks a resubmission and shows the previous rejection reason to the reviewer', () => {
+    const base = {
+      sellerId: 'biz-1',
+      businessName: 'Acme',
+      email: 'biz@example.com',
+      sellerType: 'COMPANY',
+      businessType: 'RETAIL',
+      message: 'Nuevo mensaje',
+      submittedAt: new Date('2026-10-09T12:00:00Z'),
+      reviewUrl: 'https://admin.ekoru.cl/es/users/biz-1',
+    };
+    const fresh = businessApplicationReviewMail(base);
+    expect(fresh.subject).toContain('Nueva solicitud');
+    expect(fresh.html).not.toContain('Motivo del rechazo anterior');
+
+    const again = businessApplicationReviewMail({
+      ...base,
+      previousRejectionReason: 'Faltan <materiales>',
+    });
+    expect(again.subject).toContain('reenviada');
+    expect(again.html).toContain('Motivo del rechazo anterior');
+    expect(again.html).toContain('Faltan &lt;materiales&gt;');
+    expect(again.text).toContain('Faltan <materiales>');
+  });
+
   it('links the approved business to the login in its language', () => {
     expect(
       businessApprovedTemplates.en({ businessName: 'Acme' }).html,
@@ -301,4 +350,39 @@ describe('eventCancelledTemplates', () => {
       expect(text).toContain('Ana');
     },
   );
+});
+
+describe('notice', () => {
+  const base = {
+    name: 'Nacho',
+    title: 'Cotización aceptada',
+    message: 'Ana aceptó tu cotización <b>Muebles</b>.',
+  };
+
+  it('uses the notification title as the subject and escapes the message', () => {
+    const mail = noticeTemplates.es(base);
+    expect(mail.subject).toBe('Cotización aceptada');
+    expect(mail.html).toContain('&lt;b&gt;Muebles&lt;/b&gt;');
+    expect(mail.html).not.toContain('<b>Muebles</b>');
+  });
+
+  it('resolves a relative action link against the web app', () => {
+    const mail = noticeTemplates.en({
+      ...base,
+      actionUrl: '/profile/quotations',
+    });
+    expect(mail.html).toContain(
+      'href="https://app.ekoru.cl/profile/quotations"',
+    );
+    expect(mail.text).toContain('https://app.ekoru.cl/profile/quotations');
+  });
+
+  it('drops a javascript: action link', () => {
+    const mail = noticeTemplates.fr({
+      ...base,
+      actionUrl: 'javascript:alert(1)',
+    });
+    expect(mail.html).not.toContain('javascript:');
+    expect(mail.html).not.toContain('class="cta"');
+  });
 });

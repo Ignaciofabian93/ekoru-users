@@ -11,12 +11,26 @@ export class NotFoundError extends GraphQLError {
 }
 
 export class UnAuthorizedError extends GraphQLError {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    code: 'UNAUTHORIZED' | 'FORBIDDEN' = 'UNAUTHORIZED',
+  ) {
     super(message, {
       extensions: {
-        code: 'UNAUTHORIZED',
+        code,
       },
     });
+  }
+}
+
+/**
+ * Signed in, but not allowed. The admin panel keeps the session on FORBIDDEN
+ * and signs out on UNAUTHORIZED. It extends UnAuthorizedError so every
+ * `catch` that re-throws UnAuthorizedError lets it through unchanged.
+ */
+export class ForbiddenError extends UnAuthorizedError {
+  constructor(message: string) {
+    super(message, 'FORBIDDEN');
   }
 }
 

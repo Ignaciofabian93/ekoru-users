@@ -12,6 +12,7 @@ import {
   InternalServerError,
 } from '../common/exceptions';
 import { Language, NotificationType, TransactionKind } from '../graphql/enums';
+import { accountMessages } from './account.i18n';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 
@@ -32,8 +33,20 @@ describe('AccountService', () => {
     sellerLevelId: 1,
   };
 
+  // Platform admin holding both permissions the account module checks.
+  const accountAdmin = {
+    adminType: 'PLATFORM',
+    role: 'MODERATOR',
+    permissions: ['MANAGE_USERS', 'MANAGE_SETTINGS'],
+    isActive: true,
+    sellerId: null,
+  };
+
   beforeEach(async () => {
     const mockPrismaService = {
+      admin: {
+        findUnique: jest.fn().mockResolvedValue(accountAdmin),
+      },
       seller: {
         update: jest.fn(),
         findUnique: jest.fn(),
@@ -131,6 +144,58 @@ describe('AccountService', () => {
 
     service = module.get<AccountService>(AccountService);
     prisma = module.get(PrismaService);
+  });
+
+  describe('admin permissions (USR-8)', () => {
+    it('rejects a business admin on seller labels as FORBIDDEN', async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...accountAdmin,
+        adminType: 'BUSINESS',
+      });
+
+      await expect(
+        service.deleteSellerLabel({
+          adminId: 'admin-biz',
+          id: 1,
+          language: Language.ES,
+        } as any),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+      expect(prisma.sellerLabel.delete).not.toHaveBeenCalled();
+    });
+
+    it("needs MANAGE_USERS to change a seller's points", async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...accountAdmin,
+        permissions: ['MANAGE_SETTINGS'],
+      });
+
+      await expect(
+        service.addPoints({
+          adminId: 'admin-1',
+          targetId: 'target-123',
+          points: 50,
+          language: Language.ES,
+        }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+      expect(prisma.seller.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an inactive admin', async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...accountAdmin,
+        role: 'SUPER_ADMIN',
+        isActive: false,
+      });
+
+      await expect(
+        service.deductPoints({
+          adminId: 'admin-1',
+          targetId: 'target-123',
+          points: 5,
+          language: Language.EN,
+        }),
+      ).rejects.toThrow(accountMessages[Language.EN].forbidden);
+    });
   });
 
   afterEach(() => {

@@ -7,7 +7,8 @@ import {
   ConflictError,
   InternalServerError,
 } from '../common/exceptions';
-import { AdminType, Language } from '../graphql/enums';
+import { AdminPermission, Language } from '../graphql/enums';
+import { assertAdminCan } from '../common/admin-access';
 import { locationMessages } from './location.i18n';
 import {
   CreateCountryInput,
@@ -49,9 +50,7 @@ export class LocationService {
   }) {
     const t = locationMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertPlatformAdmin({ adminId, t });
 
       const { skip, take } = calculatePrismaParams(page, pageSize);
 
@@ -91,9 +90,7 @@ export class LocationService {
   }) {
     const t = locationMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertPlatformAdmin({ adminId, t });
 
       const where = countryId ? { countryId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -135,9 +132,7 @@ export class LocationService {
   }) {
     const t = locationMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertPlatformAdmin({ adminId, t });
 
       const where = countryId ? { countryId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -179,9 +174,7 @@ export class LocationService {
   }) {
     const t = locationMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertPlatformAdmin({ adminId, t });
 
       const where = regionId ? { regionId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -223,9 +216,7 @@ export class LocationService {
   }) {
     const t = locationMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertPlatformAdmin({ adminId, t });
 
       const where = cityId ? { cityId } : {};
       const { skip, take } = calculatePrismaParams(page, pageSize);
@@ -393,18 +384,17 @@ export class LocationService {
     adminId: string;
     t: { unauthorized: string; forbiddenNotPlatformAdmin: string };
   }) {
-    if (!adminId) {
-      throw new UnAuthorizedError(t.unauthorized);
-    }
-
-    const admin = await this.prisma.admin.findUnique({
-      where: { id: adminId },
-      select: { adminType: true },
+    // Active PLATFORM admin with MANAGE_SETTINGS, the permission the panel's
+    // locations screen uses. Checking the admin type alone let an inactive
+    // admin, or one without the permission, edit locations (USR-8).
+    await assertAdminCan(this.prisma, {
+      adminId,
+      permission: AdminPermission.MANAGE_SETTINGS,
+      messages: {
+        unauthorized: t.unauthorized,
+        forbidden: t.forbiddenNotPlatformAdmin,
+      },
     });
-
-    if (!admin || (admin.adminType as AdminType) !== AdminType.PLATFORM) {
-      throw new UnAuthorizedError(t.forbiddenNotPlatformAdmin);
-    }
   }
 
   async createCountry({

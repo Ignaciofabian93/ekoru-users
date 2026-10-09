@@ -10,6 +10,7 @@ import {
   Parent,
   ResolveReference,
 } from '@nestjs/graphql';
+import { Throttle } from '@nestjs/throttler';
 import { SellersService } from './sellers.service';
 import {
   Seller,
@@ -22,6 +23,7 @@ import {
 import {
   RegisterPersonInput,
   RegisterBusinessInput,
+  ReapplyBusinessInput,
   UpdateSellerInput,
   UpdatePersonProfileInput,
   UpdateBusinessProfileInput,
@@ -72,7 +74,9 @@ export class SellersResolver {
   // Queries
   @Query(() => SellerConnection, {
     name: 'getSellers',
-    description: 'Get a paginated list of sellers',
+    description:
+      'Paginated sellers. The public sees approved businesses only; an admin ' +
+      'token needs MANAGE_USERS and sees every account.',
   })
   async getSellers(
     @CurrentAdmin() adminId: string | undefined,
@@ -111,15 +115,25 @@ export class SellersResolver {
     });
   }
 
-  @Query(() => Seller, { name: 'getSeller', nullable: true })
+  @Query(() => Seller, {
+    name: 'getSeller',
+    nullable: true,
+    description:
+      'One seller by id. A business EKORU has not approved reads as null except ' +
+      'for itself, its business admin account and admins with MANAGE_USERS.',
+  })
   async getSeller(
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
+    @CurrentSeller() sellerId?: string,
+    @CurrentAdmin() adminId?: string,
   ) {
     return this.sellersService.getSellerById({
       id,
       language,
+      sellerId,
+      adminId,
     });
   }
 
@@ -151,6 +165,8 @@ export class SellersResolver {
   }
 
   // Mutations
+  // 5 a minute per visitor: each call can send an email (or tries a token).
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Mutation(() => Seller)
   async registerPerson(
     @Args('input') input: RegisterPersonInput,
@@ -160,6 +176,8 @@ export class SellersResolver {
     return this.sellersService.registerPerson({ input, language });
   }
 
+  // 5 a minute per visitor: each call can send an email (or tries a token).
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Mutation(() => Seller)
   async registerBusiness(
     @Args('input') input: RegisterBusinessInput,
@@ -167,6 +185,23 @@ export class SellersResolver {
     language: Language,
   ) {
     return this.sellersService.registerBusiness({ input, language });
+  }
+
+  // 5 a minute per visitor: each call checks a password and sends two emails.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Mutation(() => Boolean, {
+    name: 'reapplyBusiness',
+    description:
+      'A rejected business resubmits its application with its email and ' +
+      'password (it cannot sign in yet). Moves it back to PENDING and emails ' +
+      "EKORU's review inbox. Public; failed passwords count toward the login lock.",
+  })
+  async reapplyBusiness(
+    @Args('input') input: ReapplyBusinessInput,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+  ) {
+    return this.sellersService.reapplyBusiness({ input, language });
   }
 
   @Mutation(() => Seller)

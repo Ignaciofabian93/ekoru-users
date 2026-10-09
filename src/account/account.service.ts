@@ -22,7 +22,8 @@ import {
   processBulkRows,
   bulkErrorMessage,
 } from '../common/bulk';
-import { Language } from '../graphql/enums';
+import { AdminPermission, Language } from '../graphql/enums';
+import { assertAdminCan } from '../common/admin-access';
 import { accountMessages, AccountMessages } from './account.i18n';
 import {
   CreateSellerLabelInput,
@@ -296,9 +297,11 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({
+        adminId,
+        t,
+        permission: AdminPermission.MANAGE_USERS,
+      });
 
       const seller = await this.prisma.seller.update({
         where: { id: targetId },
@@ -326,9 +329,11 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({
+        adminId,
+        t,
+        permission: AdminPermission.MANAGE_USERS,
+      });
 
       const seller = await this.prisma.seller.update({
         where: { id: targetId },
@@ -356,9 +361,11 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertAdmin({
+        adminId,
+        t,
+        permission: AdminPermission.MANAGE_USERS,
+      });
 
       const parsedCategoryId = Number(categoryId);
       const seller = await this.prisma.seller.update({
@@ -575,10 +582,26 @@ export class AccountService {
 
   // ─── Seller Labels (admin) ──────────────────────────────────────────────────
 
-  private assertAdmin({ adminId, t }: { adminId: string; t: AccountMessages }) {
-    if (!adminId) {
-      throw new UnAuthorizedError(t.unauthorized);
-    }
+  /**
+   * Platform admin with the permission the panel gates the screen with:
+   * MANAGE_SETTINGS for seller labels and levels, points per transaction kind
+   * and notification templates; MANAGE_USERS for changing one seller's points
+   * or level. Any admin token used to pass (USR-8).
+   */
+  private async assertAdmin({
+    adminId,
+    t,
+    permission = AdminPermission.MANAGE_SETTINGS,
+  }: {
+    adminId: string;
+    t: AccountMessages;
+    permission?: AdminPermission;
+  }): Promise<void> {
+    await assertAdminCan(this.prisma, {
+      adminId,
+      permission,
+      messages: { unauthorized: t.unauthorized, forbidden: t.forbidden },
+    });
   }
 
   async getSellerLabels(language: Language) {
@@ -627,7 +650,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { labelName: input.labelName },
@@ -670,7 +693,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { id },
@@ -730,7 +753,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabel.findUnique({
         where: { id },
@@ -769,7 +792,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const label = await this.prisma.sellerLabel.findUnique({
         where: { id: input.sellerLabelId },
@@ -817,7 +840,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLabelTranslation.findUnique({
         where: {
@@ -897,7 +920,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const nameTaken = await this.prisma.sellerLevel.findUnique({
         where: { levelName: input.levelName },
@@ -946,7 +969,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevel.findUnique({
         where: { id },
@@ -1011,7 +1034,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevel.findUnique({
         where: { id },
@@ -1050,7 +1073,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const level = await this.prisma.sellerLevel.findUnique({
         where: { id: input.sellerLevelId },
@@ -1097,7 +1120,7 @@ export class AccountService {
   }) {
     const t = accountMessages[language];
     try {
-      this.assertAdmin({ adminId, t });
+      await this.assertAdmin({ adminId, t });
 
       const existing = await this.prisma.sellerLevelTranslation.findUnique({
         where: {
@@ -1144,7 +1167,7 @@ export class AccountService {
     rows: SellerLabelUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1187,7 +1210,7 @@ export class AccountService {
     rows: SellerLabelTranslationUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1247,7 +1270,7 @@ export class AccountService {
     rows: SellerLevelUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1287,7 +1310,7 @@ export class AccountService {
     rows: SellerLevelTranslationUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({ levelName: row.levelName });
@@ -1361,7 +1384,7 @@ export class AccountService {
     language: Language;
   }) {
     const t = accountMessages[language];
-    this.assertAdmin({ adminId, t });
+    await this.assertAdmin({ adminId, t });
     try {
       return await this.prisma.pointsByTransactionKind.delete({
         where: { id },
@@ -1381,7 +1404,7 @@ export class AccountService {
     rows: PointsByTransactionKindUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -1455,7 +1478,7 @@ export class AccountService {
     id: number;
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
     try {
       const deleted = await this.prisma.notificationTemplate.delete({
         where: { id },
@@ -1479,7 +1502,7 @@ export class AccountService {
     translationLanguage: Language;
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
     try {
       const deleted = await this.prisma.notificationTemplateTranslation.delete({
         where: {
@@ -1509,7 +1532,7 @@ export class AccountService {
     rows: NotificationTemplateUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     // A partially-failed batch still changed some rows, so the cache is dropped
     // regardless of the per-row outcomes.
@@ -1570,7 +1593,7 @@ export class AccountService {
     rows: NotificationTemplateTranslationUpsertRowInput[];
     language: Language;
   }) {
-    this.assertAdmin({ adminId, t: accountMessages[language] });
+    await this.assertAdmin({ adminId, t: accountMessages[language] });
 
     try {
       return await processBulkRows(this.logger, rows, async (row) => {

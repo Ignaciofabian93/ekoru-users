@@ -516,8 +516,58 @@ describe('LocationService', () => {
 
   // ─── Create mutations ────────────────────────────────────────────────────────
 
-  const platformAdmin = { adminType: AdminType.PLATFORM };
-  const businessAdmin = { adminType: AdminType.BUSINESS };
+  // Locations need an active platform admin with MANAGE_SETTINGS (USR-8).
+  const platformAdmin = {
+    adminType: AdminType.PLATFORM,
+    role: 'MODERATOR',
+    permissions: ['MANAGE_SETTINGS'],
+    isActive: true,
+    sellerId: null,
+  };
+  const businessAdmin = { ...platformAdmin, adminType: AdminType.BUSINESS };
+
+  describe('admin permissions (USR-8)', () => {
+    it('rejects a platform admin without MANAGE_SETTINGS as FORBIDDEN', async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...platformAdmin,
+        permissions: ['MANAGE_USERS'],
+      });
+
+      await expect(
+        service.deleteCountry({
+          adminId: 'admin-1',
+          id: 1,
+          language: Language.ES,
+        } as any),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    });
+
+    it('rejects an inactive admin', async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...platformAdmin,
+        isActive: false,
+      });
+
+      await expect(
+        service.deleteCountry({
+          adminId: 'admin-1',
+          id: 1,
+          language: Language.ES,
+        } as any),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    });
+
+    it('guards the raw admin reads with the same permission', async () => {
+      prisma.admin.findUnique.mockResolvedValue(businessAdmin);
+
+      await expect(
+        service.getRawCountries({
+          adminId: 'admin-biz',
+          language: Language.ES,
+        }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    });
+  });
 
   describe('createCountry', () => {
     const input = {

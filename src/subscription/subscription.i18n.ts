@@ -2,6 +2,8 @@ import { Language } from '../graphql/enums';
 
 export type SubscriptionMessages = {
   unauthorized: string;
+  /** Signed-in admin without the permission (FORBIDDEN). */
+  forbidden: string;
   membershipNotFound: string;
   translationNotFound: string;
   pricingNotFound: string;
@@ -16,11 +18,14 @@ export type SubscriptionMessages = {
   errorUpsertPricing: string;
   errorDeletePricing: string;
   errorAssignMembership: string;
+  /** A seller tried to give themselves a paid plan without paying. */
+  paidPlanNeedsCheckout: string;
 };
 
 export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
   [Language.ES]: {
     unauthorized: 'No autorizado',
+    forbidden: 'No tienes permisos para realizar esta acción',
     membershipNotFound: 'Membresía no encontrada',
     translationNotFound: 'Traducción de membresía no encontrada',
     pricingNotFound: 'Precio de membresía no encontrado',
@@ -35,9 +40,11 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorUpsertPricing: 'Error al guardar precio de membresía',
     errorDeletePricing: 'Error al eliminar precio de membresía',
     errorAssignMembership: 'Error al asignar membresía',
+    paidPlanNeedsCheckout: 'Los planes pagados se activan al completar el pago',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
+    forbidden: 'You do not have permission to perform this action',
     membershipNotFound: 'Membership not found',
     translationNotFound: 'Membership translation not found',
     pricingNotFound: 'Membership pricing not found',
@@ -52,9 +59,11 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorUpsertPricing: 'Error saving membership pricing',
     errorDeletePricing: 'Error deleting membership pricing',
     errorAssignMembership: 'Error assigning membership',
+    paidPlanNeedsCheckout: 'Paid plans are activated by completing checkout',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
+    forbidden: "Vous n'avez pas la permission d'effectuer cette action",
     membershipNotFound: 'Abonnement non trouvé',
     translationNotFound: "Traduction de l'abonnement non trouvée",
     pricingNotFound: "Prix de l'abonnement non trouvé",
@@ -69,9 +78,12 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorUpsertPricing: 'Erreur lors de la sauvegarde du prix',
     errorDeletePricing: 'Erreur lors de la suppression du prix',
     errorAssignMembership: "Erreur lors de l'attribution de l'abonnement",
+    paidPlanNeedsCheckout:
+      "Les forfaits payants s'activent une fois le paiement effectué",
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
+    forbidden: 'Você não tem permissão para realizar esta ação',
     membershipNotFound: 'Assinatura não encontrada',
     translationNotFound: 'Tradução da assinatura não encontrada',
     pricingNotFound: 'Preço da assinatura não encontrado',
@@ -86,9 +98,12 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorUpsertPricing: 'Erro ao salvar preço da assinatura',
     errorDeletePricing: 'Erro ao excluir preço da assinatura',
     errorAssignMembership: 'Erro ao atribuir assinatura',
+    paidPlanNeedsCheckout:
+      'Os planos pagos são ativados ao concluir o pagamento',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
+    forbidden: 'Sie haben keine Berechtigung, diese Aktion auszuführen',
     membershipNotFound: 'Mitgliedschaft nicht gefunden',
     translationNotFound: 'Übersetzung der Mitgliedschaft nicht gefunden',
     pricingNotFound: 'Preis der Mitgliedschaft nicht gefunden',
@@ -103,5 +118,7 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorUpsertPricing: 'Fehler beim Speichern des Preises',
     errorDeletePricing: 'Fehler beim Löschen des Preises',
     errorAssignMembership: 'Fehler beim Zuweisen der Mitgliedschaft',
+    paidPlanNeedsCheckout:
+      'Kostenpflichtige Tarife werden nach Abschluss der Zahlung aktiviert',
   },
 };

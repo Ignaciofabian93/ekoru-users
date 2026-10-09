@@ -2,6 +2,8 @@ import { Language } from '../graphql/enums';
 
 export type AccountMessages = {
   unauthorized: string;
+  /** Signed-in admin without the permission (FORBIDDEN). */
+  forbidden: string;
   incorrectPassword: string;
   errorDeactivateAccount: string;
   errorReactivateAccount: string;
@@ -50,6 +52,7 @@ export type AccountMessages = {
 export const accountMessages: Record<Language, AccountMessages> = {
   [Language.ES]: {
     unauthorized: 'No autorizado',
+    forbidden: 'No tienes permisos para realizar esta acción',
     incorrectPassword: 'La contraseña actual es incorrecta',
     errorDeactivateAccount: 'Error al desactivar cuenta',
     errorReactivateAccount: 'Error al activar cuenta',
@@ -96,6 +99,7 @@ export const accountMessages: Record<Language, AccountMessages> = {
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
+    forbidden: 'You do not have permission to perform this action',
     incorrectPassword: 'Current password is incorrect',
     errorDeactivateAccount: 'Error deactivating account',
     errorReactivateAccount: 'Error reactivating account',
@@ -140,6 +144,7 @@ export const accountMessages: Record<Language, AccountMessages> = {
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
+    forbidden: "Vous n'avez pas la permission d'effectuer cette action",
     incorrectPassword: 'Le mot de passe actuel est incorrect',
     errorDeactivateAccount: 'Erreur lors de la désactivation du compte',
     errorReactivateAccount: 'Erreur lors de la réactivation du compte',
@@ -193,6 +198,7 @@ export const accountMessages: Record<Language, AccountMessages> = {
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
+    forbidden: 'Você não tem permissão para realizar esta ação',
     incorrectPassword: 'A senha atual está incorreta',
     errorDeactivateAccount: 'Erro ao desativar conta',
     errorReactivateAccount: 'Erro ao reativar conta',
@@ -238,6 +244,7 @@ export const accountMessages: Record<Language, AccountMessages> = {
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
+    forbidden: 'Sie haben keine Berechtigung, diese Aktion auszuführen',
     incorrectPassword: 'Das aktuelle Passwort ist falsch',
     errorDeactivateAccount: 'Fehler beim Deaktivieren des Kontos',
     errorReactivateAccount: 'Fehler beim Reaktivieren des Kontos',

@@ -29,6 +29,10 @@ export type SellerMessages = {
   applicationMessageTooShort: string;
   errorApproveBusiness: string;
   errorRejectBusiness: string;
+  reapplyInvalidCredentials: string;
+  reapplyAccountLocked: string;
+  businessNotRejected: string;
+  errorReapplyBusiness: string;
 };
 
 export const sellerMessages: Record<Language, SellerMessages> = {
@@ -64,6 +68,11 @@ export const sellerMessages: Record<Language, SellerMessages> = {
       'Cuéntanos sobre tu negocio (al menos 50 caracteres)',
     errorApproveBusiness: 'Error al aprobar el negocio',
     errorRejectBusiness: 'Error al rechazar el negocio',
+    reapplyInvalidCredentials: 'Correo o contraseña incorrectos',
+    reapplyAccountLocked:
+      'Demasiados intentos fallidos. Espera 15 minutos e inténtalo de nuevo.',
+    businessNotRejected: 'Solo una solicitud rechazada puede volver a enviarse',
+    errorReapplyBusiness: 'Error al reenviar la solicitud',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
@@ -97,6 +106,11 @@ export const sellerMessages: Record<Language, SellerMessages> = {
       'Tell us about your business (at least 50 characters)',
     errorApproveBusiness: 'Error approving business',
     errorRejectBusiness: 'Error rejecting business',
+    reapplyInvalidCredentials: 'Incorrect email or password',
+    reapplyAccountLocked:
+      'Too many failed attempts. Wait 15 minutes and try again.',
+    businessNotRejected: 'Only a rejected application can be resubmitted',
+    errorReapplyBusiness: 'Error resubmitting the application',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
@@ -133,6 +147,12 @@ export const sellerMessages: Record<Language, SellerMessages> = {
       'Parlez-nous de votre entreprise (au moins 50 caractères)',
     errorApproveBusiness: "Erreur lors de l'approbation de l'entreprise",
     errorRejectBusiness: "Erreur lors du refus de l'entreprise",
+    reapplyInvalidCredentials: 'E-mail ou mot de passe incorrect',
+    reapplyAccountLocked:
+      'Trop de tentatives échouées. Attendez 15 minutes et réessayez.',
+    businessNotRejected:
+      'Seule une demande refusée peut être soumise à nouveau',
+    errorReapplyBusiness: 'Erreur lors du renvoi de la demande',
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
@@ -166,6 +186,11 @@ export const sellerMessages: Record<Language, SellerMessages> = {
       'Conte-nos sobre o seu negócio (pelo menos 50 caracteres)',
     errorApproveBusiness: 'Erro ao aprovar a empresa',
     errorRejectBusiness: 'Erro ao recusar a empresa',
+    reapplyInvalidCredentials: 'E-mail ou senha incorretos',
+    reapplyAccountLocked:
+      'Muitas tentativas falharam. Aguarde 15 minutos e tente novamente.',
+    businessNotRejected: 'Só uma solicitação recusada pode ser reenviada',
+    errorReapplyBusiness: 'Erro ao reenviar a solicitação',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
@@ -201,5 +226,11 @@ export const sellerMessages: Record<Language, SellerMessages> = {
       'Erzählen Sie uns von Ihrem Unternehmen (mindestens 50 Zeichen)',
     errorApproveBusiness: 'Fehler beim Freigeben des Unternehmens',
     errorRejectBusiness: 'Fehler beim Ablehnen des Unternehmens',
+    reapplyInvalidCredentials: 'E-Mail oder Passwort falsch',
+    reapplyAccountLocked:
+      'Zu viele Fehlversuche. Warten Sie 15 Minuten und versuchen Sie es erneut.',
+    businessNotRejected:
+      'Nur ein abgelehnter Antrag kann erneut eingereicht werden',
+    errorReapplyBusiness: 'Fehler beim erneuten Einreichen des Antrags',
   },
 };

@@ -1,4 +1,5 @@
 import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
+import { Throttle } from '@nestjs/throttler';
 import { AccountService } from './account.service';
 import { Seller, SellerLevel } from '../sellers/entities';
 import {
@@ -51,6 +52,8 @@ export class AccountResolver {
     });
   }
 
+  // 5 a minute per visitor: each call can send an email (or tries a token).
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Mutation(() => Boolean, {
     name: 'requestPasswordReset',
     description:
@@ -64,6 +67,8 @@ export class AccountResolver {
     return this.accountService.requestPasswordReset({ email, language });
   }
 
+  // 5 a minute per visitor: each call can send an email (or tries a token).
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Mutation(() => Boolean, {
     name: 'resetPassword',
     description:

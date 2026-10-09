@@ -54,14 +54,16 @@ export class AdminsResolver {
   @Query(() => Admin, {
     name: 'getAdmin',
     nullable: true,
-    description: 'Get a specific admin by ID',
+    description:
+      'Get a specific admin by ID. Your own profile, or anyone with MANAGE_ADMINS.',
   })
   async getAdmin(
+    @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
     @Args('language', { type: () => Language, defaultValue: Language.ES })
     language: Language,
   ) {
-    return this.adminsService.getAdmin({ id, language });
+    return this.adminsService.getAdmin({ adminId, id, language });
   }
 
   @Query(() => Admin, {

@@ -4,16 +4,26 @@ import type { MailLocale } from '../mail/templates';
 /**
  * Which HTML email renders a notification, if any. Maps onto the templates in
  * `src/mail/templates/`. Types without an entry are in-app (and push) only.
+ * `notice` is generic: it emails the notification's own title and message.
  */
-export type EmailKind = 'transaction' | 'dealOffer' | 'loginAlert';
+export type EmailKind = 'transaction' | 'dealOffer' | 'loginAlert' | 'notice';
 
 /**
- * Which `SellerPreferences` column gates the email for this notification.
+ * What decides whether the email for this notification is sent.
  *
- * Security notices ride `enableLoginAlerts` rather than the general email
- * switch: muting activity mail should not mute "someone signed in as you".
+ * - `transactional`: always sent. Orders, payments, P2P deals, bookings and
+ *   quotations are things the person is part of and has to act on, so the
+ *   email opt-in (which defaults to off) must not swallow them (USR-1,
+ *   decision D2).
+ * - `enableEmailNotifications`: optional mail (digests, news). The opt-in
+ *   governs only these.
+ * - `enableLoginAlerts`: security notices keep their own switch, so muting
+ *   activity mail never mutes "someone signed in as you".
  */
-export type EmailGate = 'enableEmailNotifications' | 'enableLoginAlerts';
+export type EmailGate =
+  | 'transactional'
+  | 'enableEmailNotifications'
+  | 'enableLoginAlerts';
 
 export interface NotificationSpec {
   priority: NotificationPriority;
@@ -45,6 +55,12 @@ const DEFAULTS = {
   fallback: GENERIC,
 };
 
+/** Activity the person takes part in: its email ignores the opt-in. */
+const TRANSACTIONAL = {
+  ...DEFAULTS,
+  emailGate: 'transactional' as EmailGate,
+};
+
 /**
  * The contract between domain events and delivery.
  *
@@ -58,7 +74,7 @@ export const NOTIFICATION_REGISTRY: Partial<
 > = {
   // ─── P2P deals ────────────────────────────────────────────────────────────
   [NotificationType.SALE_PROPOSAL]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     priority: NotificationPriority.HIGH,
     email: 'dealOffer',
     fallback: {
@@ -83,7 +99,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.EXCHANGE_PROPOSAL]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     priority: NotificationPriority.HIGH,
     email: 'dealOffer',
     fallback: {
@@ -106,7 +122,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.EXCHANGE_ACCEPTED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     priority: NotificationPriority.HIGH,
     email: 'transaction',
     fallback: {
@@ -127,7 +143,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.EXCHANGE_COMPLETED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -147,7 +163,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.EXCHANGE_DECLINED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -167,7 +183,7 @@ export const NOTIFICATION_REGISTRY: Partial<
 
   // ─── Orders ───────────────────────────────────────────────────────────────
   [NotificationType.ORDER_RECEIVED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     priority: NotificationPriority.HIGH,
     email: 'transaction',
     fallback: {
@@ -187,7 +203,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.ORDER_CONFIRMED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -206,7 +222,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.ORDER_SHIPPED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -219,7 +235,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.ORDER_DELIVERED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -239,7 +255,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.ORDER_CANCELLED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -258,7 +274,7 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.PAYMENT_REFUNDED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
     email: 'transaction',
     fallback: {
       es: {
@@ -278,7 +294,8 @@ export const NOTIFICATION_REGISTRY: Partial<
 
   // ─── Services: quotations ─────────────────────────────────────────────────
   [NotificationType.QUOTATION_REQUEST]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -297,7 +314,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.QUOTATION_RECEIVED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -317,7 +335,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.QUOTATION_ACCEPTED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -336,7 +355,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.QUOTATION_DECLINED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     fallback: {
       es: {
         title: 'Cotización rechazada',
@@ -354,7 +374,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.QUOTATION_COMPLETED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     fallback: {
       es: {
         title: 'Servicio finalizado',
@@ -373,7 +394,8 @@ export const NOTIFICATION_REGISTRY: Partial<
 
   // ─── Services: bookings ───────────────────────────────────────────────────
   [NotificationType.BOOKING_REQUEST]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -394,7 +416,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.BOOKING_CONFIRMED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -416,7 +439,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.BOOKING_CANCELLED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
       es: {
@@ -435,7 +459,8 @@ export const NOTIFICATION_REGISTRY: Partial<
   },
 
   [NotificationType.BOOKING_COMPLETED]: {
-    ...DEFAULTS,
+    ...TRANSACTIONAL,
+    email: 'notice',
     fallback: {
       es: {
         title: 'Servicio completado',
@@ -488,6 +513,54 @@ export const NOTIFICATION_REGISTRY: Partial<
   // In-app and push only: an email per reservation would be noise. The
   // attendee's own confirmation goes out by email from ekoru-blog-community
   // through `sendEventRegistrationEmail`, not through this registry.
+  // ─── Memberships (USR-3) ──────────────────────────────────────────────────
+  // `{{planName}}` and `{{endDate}}` are already in the member's language.
+  [NotificationType.MEMBERSHIP_EXPIRING]: {
+    ...TRANSACTIONAL,
+    email: 'notice',
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Tu plan termina pronto',
+        message:
+          'Tu plan {{planName}} termina el {{endDate}}. Renuévalo para mantener sus beneficios.',
+      },
+      en: {
+        title: 'Your plan ends soon',
+        message:
+          'Your {{planName}} plan ends on {{endDate}}. Renew it to keep its benefits.',
+      },
+      fr: {
+        title: 'Votre forfait se termine bientôt',
+        message:
+          'Votre forfait {{planName}} se termine le {{endDate}}. Renouvelez-le pour conserver ses avantages.',
+      },
+    },
+  },
+
+  [NotificationType.MEMBERSHIP_EXPIRED]: {
+    ...TRANSACTIONAL,
+    email: 'notice',
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Tu plan terminó',
+        message:
+          'Tu plan {{planName}} terminó el {{endDate}} y tu cuenta volvió al plan gratuito. Puedes contratarlo de nuevo cuando quieras.',
+      },
+      en: {
+        title: 'Your plan has ended',
+        message:
+          'Your {{planName}} plan ended on {{endDate}} and your account is back on the free plan. You can buy it again any time.',
+      },
+      fr: {
+        title: 'Votre forfait est terminé',
+        message:
+          "Votre forfait {{planName}} s'est terminé le {{endDate}} et votre compte est revenu au forfait gratuit. Vous pouvez le reprendre à tout moment.",
+      },
+    },
+  },
+
   [NotificationType.EVENT_REGISTRATION_RECEIVED]: {
     ...DEFAULTS,
     fallback: {

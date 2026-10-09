@@ -184,6 +184,9 @@ enum NotificationType {
   EVENT_REGISTRATION_CANCELLED
   // To registered members when the organiser cancels the event.
   EVENT_CANCELLED
+  // Membership terms (USR-3): a week before the end date, and when it ends.
+  MEMBERSHIP_EXPIRING
+  MEMBERSHIP_EXPIRED
 }
 
 enum DevicePlatform {

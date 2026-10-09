@@ -19,6 +19,7 @@ import {
   AdminUpsertRowInput,
 } from './dto';
 import { adminMessages, AdminMessages } from './admins.i18n';
+import { assertAdminCan } from '../common/admin-access';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
@@ -81,9 +82,7 @@ export class AdminsService {
   }) {
     const t = adminMessages[language];
     try {
-      if (!adminId) {
-        throw new UnAuthorizedError(t.unauthorized);
-      }
+      await this.assertCanManageAdmins({ callerId: adminId, t });
 
       const where: Record<string, any> = {};
       if (adminType) where.adminType = adminType;
@@ -108,14 +107,32 @@ export class AdminsService {
 
       return createPaginatedResponse(admins, count, page, pageSize);
     } catch (error) {
+      if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error fetching admins:', error);
       throw new InternalServerError(t.errorGetAdmins);
     }
   }
 
-  async getAdmin({ id, language }: { id: string; language: Language }) {
+  /**
+   * One admin's profile. An admin may read their own; reading anyone else's
+   * needs MANAGE_ADMINS (USR-4: this used to answer signed-out callers).
+   */
+  async getAdmin({
+    adminId,
+    id,
+    language,
+  }: {
+    adminId?: string;
+    id: string;
+    language: Language;
+  }) {
     const t = adminMessages[language];
     try {
+      if (!adminId) throw new UnAuthorizedError(t.unauthorized);
+      if (adminId !== id) {
+        await this.assertCanManageAdmins({ callerId: adminId, t });
+      }
+
       const admin = await this.prisma.admin.findUnique({
         where: { id },
         select: ADMIN_SELECT,
@@ -128,6 +145,7 @@ export class AdminsService {
       return admin;
     } catch (error) {
       if (error instanceof NotFoundError) throw error;
+      if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error fetching admin:', error);
       throw new InternalServerError(t.errorGetAdmin);
     }
@@ -184,32 +202,14 @@ export class AdminsService {
     callerId: string;
     t: AdminMessages;
   }) {
-    if (!callerId) {
-      throw new UnAuthorizedError(t.unauthorized);
-    }
-
-    const caller = await this.prisma.admin.findUnique({
-      where: { id: callerId },
-      select: {
-        adminType: true,
-        role: true,
-        permissions: true,
-        isActive: true,
+    await assertAdminCan(this.prisma, {
+      adminId: callerId,
+      permission: AdminPermission.MANAGE_ADMINS,
+      messages: {
+        unauthorized: t.unauthorized,
+        forbidden: t.forbiddenManageAdmins,
       },
     });
-
-    const canManage =
-      !!caller &&
-      caller.isActive &&
-      (caller.adminType as AdminType) === AdminType.PLATFORM &&
-      ((caller.role as AdminRole) === AdminRole.SUPER_ADMIN ||
-        (caller.permissions as AdminPermission[]).includes(
-          AdminPermission.MANAGE_ADMINS,
-        ));
-
-    if (!canManage) {
-      throw new UnAuthorizedError(t.forbiddenManageAdmins);
-    }
   }
 
   async createAdmin({

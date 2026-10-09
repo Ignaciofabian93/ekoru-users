@@ -37,6 +37,11 @@ export interface BusinessApplicationData {
   message: string;
   submittedAt: Date;
   reviewUrl: string;
+  /**
+   * Set when a rejected business re-applies (USR-5): why EKORU rejected the
+   * previous application, so the reviewer can check what changed.
+   */
+  previousRejectionReason?: string | null;
 }
 
 /** Plain text keeps the business's line breaks; HTML needs them as <br>. */
@@ -186,7 +191,7 @@ export const businessApprovedTemplates: TemplateMap<BusinessReviewData> = {
 export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
   es: ({ businessName, reason }) => ({
     subject: 'Sobre tu solicitud en Ekoru',
-    text: `Hola ${businessName}, revisamos tu solicitud para vender en Ekoru y por ahora no podemos aprobarla. Motivo: ${reason}. Si quieres aclarar algo o enviarnos más información, escríbenos a ${SUPPORT_EMAIL}.`,
+    text: `Hola ${businessName}, revisamos tu solicitud para vender en Ekoru y por ahora no podemos aprobarla. Motivo: ${reason}. Cuando lo hayas resuelto, puedes volver a postular aquí: ${APP_BASE_URL}/es/reapply. Si quieres aclarar algo, escríbenos a ${SUPPORT_EMAIL}.`,
     html: buildHtml(
       `
       ${header('Comercio consciente y sostenible')}
@@ -195,7 +200,11 @@ export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
         <h2>Hola, ${escapeHtml(businessName)}</h2>
         <p>Gracias por tu interés en <strong>Ekoru</strong>. Revisamos tu solicitud y por ahora no podemos aprobarla, por el siguiente motivo:</p>
         <div class="notice"><p>${paragraphs(reason)}</p></div>
-        <p>Si quieres aclarar algo o enviarnos más información, escríbenos a <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> y volveremos a revisar tu solicitud.</p>
+        <p>Cuando lo hayas resuelto, puedes enviarnos una nueva solicitud con tu correo y contraseña. La revisaremos de nuevo.</p>
+        <div class="cta">
+          <a href="${APP_BASE_URL}/es/reapply">Volver a postular</a>
+        </div>
+        <p>Si quieres aclarar algo, escríbenos a <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>
       </div>
       ${footer('Este correo fue enviado porque registraste un negocio en Ekoru.')}
     `,
@@ -205,7 +214,7 @@ export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
 
   en: ({ businessName, reason }) => ({
     subject: 'About your Ekoru application',
-    text: `Hi ${businessName}, we reviewed your application to sell on Ekoru and can't approve it for now. Reason: ${reason}. If you'd like to clarify anything or send us more information, write to ${SUPPORT_EMAIL}.`,
+    text: `Hi ${businessName}, we reviewed your application to sell on Ekoru and can't approve it for now. Reason: ${reason}. Once it's sorted, you can apply again here: ${APP_BASE_URL}/en/reapply. To clarify anything, write to ${SUPPORT_EMAIL}.`,
     html: buildHtml(
       `
       ${header('Conscious & sustainable commerce')}
@@ -214,7 +223,11 @@ export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
         <h2>Hi, ${escapeHtml(businessName)}</h2>
         <p>Thank you for your interest in <strong>Ekoru</strong>. We reviewed your application and can't approve it for now, for the following reason:</p>
         <div class="notice"><p>${paragraphs(reason)}</p></div>
-        <p>If you'd like to clarify anything or send us more information, write to <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> and we'll review your application again.</p>
+        <p>Once it's sorted, you can send us a new application with your email and password, and we'll review it again.</p>
+        <div class="cta">
+          <a href="${APP_BASE_URL}/en/reapply">Apply again</a>
+        </div>
+        <p>To clarify anything, write to <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>
       </div>
       ${footer('You received this email because you registered a business on Ekoru.')}
     `,
@@ -224,7 +237,7 @@ export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
 
   fr: ({ businessName, reason }) => ({
     subject: 'À propos de votre demande Ekoru',
-    text: `Bonjour ${businessName}, nous avons examiné votre demande pour vendre sur Ekoru et ne pouvons pas l'approuver pour le moment. Motif : ${reason}. Pour apporter des précisions ou nous envoyer plus d'informations, écrivez à ${SUPPORT_EMAIL}.`,
+    text: `Bonjour ${businessName}, nous avons examiné votre demande pour vendre sur Ekoru et ne pouvons pas l'approuver pour le moment. Motif : ${reason}. Une fois le problème résolu, vous pouvez postuler à nouveau ici : ${APP_BASE_URL}/fr/reapply. Pour toute précision, écrivez à ${SUPPORT_EMAIL}.`,
     html: buildHtml(
       `
       ${header('Commerce conscient & durable')}
@@ -233,7 +246,11 @@ export const businessRejectedTemplates: TemplateMap<BusinessRejectedData> = {
         <h2>Bonjour, ${escapeHtml(businessName)}</h2>
         <p>Merci de votre intérêt pour <strong>Ekoru</strong>. Nous avons examiné votre demande et ne pouvons pas l'approuver pour le moment, pour la raison suivante :</p>
         <div class="notice"><p>${paragraphs(reason)}</p></div>
-        <p>Pour apporter des précisions ou nous envoyer plus d'informations, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> et nous réexaminerons votre demande.</p>
+        <p>Une fois le problème résolu, vous pouvez nous envoyer une nouvelle demande avec votre e-mail et votre mot de passe. Nous l'examinerons à nouveau.</p>
+        <div class="cta">
+          <a href="${APP_BASE_URL}/fr/reapply">Postuler à nouveau</a>
+        </div>
+        <p>Pour toute précision, écrivez-nous à <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>
       </div>
       ${footer('Vous avez reçu cet e-mail parce que vous avez inscrit une entreprise sur Ekoru.')}
     `,
@@ -248,11 +265,18 @@ export function businessApplicationReviewMail(
   data: BusinessApplicationData,
 ): RenderedMail {
   const submitted = formatDateTime(data.submittedAt, 'es');
+  const previous = data.previousRejectionReason?.trim() || null;
+  const resubmitted = data.previousRejectionReason !== undefined;
   return {
-    subject: `Nueva solicitud de negocio: ${data.businessName}`,
+    subject: resubmitted
+      ? `Solicitud reenviada tras rechazo: ${data.businessName}`
+      : `Nueva solicitud de negocio: ${data.businessName}`,
     text: [
-      `Nueva solicitud de negocio en Ekoru`,
+      resubmitted
+        ? `Un negocio rechazado volvió a postular en Ekoru`
+        : `Nueva solicitud de negocio en Ekoru`,
       ``,
+      ...(previous ? [`Motivo del rechazo anterior: ${previous}`, ``] : []),
       `Negocio: ${data.businessName}`,
       `Email: ${data.email}`,
       `Tipo de cuenta: ${data.sellerType}`,
@@ -269,8 +293,13 @@ export function businessApplicationReviewMail(
       `
       ${header('Revisión de negocios')}
       <div class="body">
-        <span class="badge progress">Pendiente de revisión</span>
+        <span class="badge progress">${resubmitted ? 'Reenviada tras rechazo' : 'Pendiente de revisión'}</span>
         <h2>${escapeHtml(data.businessName)}</h2>
+        ${
+          previous
+            ? `<div class="notice"><p class="label">Motivo del rechazo anterior</p><p>${paragraphs(previous)}</p></div>`
+            : ''
+        }
         ${specTable([
           ['Email', data.email],
           ['Tipo de cuenta', data.sellerType],

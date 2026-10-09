@@ -114,6 +114,7 @@ describe('AdminsService', () => {
 
   describe('getAdmins', () => {
     it('should return paginated admins', async () => {
+      mockLookups();
       prisma.admin.count.mockResolvedValue(1);
       prisma.admin.findMany.mockResolvedValue([mockAdmin]);
 
@@ -128,6 +129,7 @@ describe('AdminsService', () => {
     });
 
     it('should filter by adminType, role, and isActive', async () => {
+      mockLookups();
       prisma.admin.count.mockResolvedValue(0);
       prisma.admin.findMany.mockResolvedValue([]);
 
@@ -155,11 +157,33 @@ describe('AdminsService', () => {
     });
 
     it('should throw InternalServerError on database error', async () => {
+      mockLookups();
       prisma.admin.count.mockRejectedValue(new Error('Database error'));
 
       await expect(
         service.getAdmins({ adminId: CALLER_ID, language: Language.ES }),
       ).rejects.toThrow(InternalServerError);
+    });
+
+    it('should reject a caller without MANAGE_ADMINS as FORBIDDEN', async () => {
+      mockLookups({
+        caller: {
+          ...platformManager,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+        },
+      });
+
+      await expect(
+        service.getAdmins({ adminId: CALLER_ID, language: Language.ES }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+      expect(prisma.admin.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should reject a signed-out caller as UNAUTHORIZED', async () => {
+      await expect(
+        service.getAdmins({ adminId: '', language: Language.ES }),
+      ).rejects.toMatchObject({ extensions: { code: 'UNAUTHORIZED' } });
     });
   });
 
@@ -170,6 +194,7 @@ describe('AdminsService', () => {
       prisma.admin.findUnique.mockResolvedValue(mockAdmin);
 
       const result = await service.getAdmin({
+        adminId: 'admin-123',
         id: 'admin-123',
         language: Language.ES,
       });
@@ -185,7 +210,11 @@ describe('AdminsService', () => {
       prisma.admin.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getAdmin({ id: 'unknown', language: Language.ES }),
+        service.getAdmin({
+          adminId: 'unknown',
+          id: 'unknown',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(NotFoundError);
     });
 
@@ -193,7 +222,11 @@ describe('AdminsService', () => {
       prisma.admin.findUnique.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        service.getAdmin({ id: 'admin-123', language: Language.ES }),
+        service.getAdmin({
+          adminId: 'admin-123',
+          id: 'admin-123',
+          language: Language.ES,
+        }),
       ).rejects.toThrow(InternalServerError);
     });
 
@@ -201,11 +234,57 @@ describe('AdminsService', () => {
       prisma.admin.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.getAdmin({ id: 'unknown', language: Language.EN }),
+        service.getAdmin({
+          adminId: 'unknown',
+          id: 'unknown',
+          language: Language.EN,
+        }),
       ).rejects.toThrow('Admin not found');
       await expect(
-        service.getAdmin({ id: 'unknown', language: Language.ES }),
+        service.getAdmin({
+          adminId: 'unknown',
+          id: 'unknown',
+          language: Language.ES,
+        }),
       ).rejects.toThrow('Administrador no encontrado');
+    });
+
+    it('should reject a signed-out caller as UNAUTHORIZED (USR-4)', async () => {
+      await expect(
+        service.getAdmin({ id: 'admin-123', language: Language.ES }),
+      ).rejects.toMatchObject({ extensions: { code: 'UNAUTHORIZED' } });
+      expect(prisma.admin.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("should refuse another admin's profile without MANAGE_ADMINS", async () => {
+      mockLookups({
+        target: mockAdmin,
+        caller: {
+          ...platformManager,
+          role: AdminRole.MODERATOR,
+          permissions: [],
+        },
+      });
+
+      await expect(
+        service.getAdmin({
+          adminId: CALLER_ID,
+          id: 'admin-123',
+          language: Language.ES,
+        }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    });
+
+    it("should let MANAGE_ADMINS read another admin's profile", async () => {
+      mockLookups({ target: mockAdmin });
+
+      await expect(
+        service.getAdmin({
+          adminId: CALLER_ID,
+          id: 'admin-123',
+          language: Language.ES,
+        }),
+      ).resolves.toEqual(mockAdmin);
     });
   });
 

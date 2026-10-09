@@ -10,8 +10,10 @@ import {
   UnAuthorizedError,
   InternalServerError,
 } from '../common/exceptions';
+import { subscriptionMessages } from './subscription.i18n';
 
 const mockPrisma = {
+  admin: { findUnique: jest.fn() },
   personMembership: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
@@ -44,8 +46,9 @@ const mockPrisma = {
     findUnique: jest.fn(),
     delete: jest.fn(),
   },
-  personMembershipSubscription: { create: jest.fn() },
-  businessMembershipSubscription: { create: jest.fn() },
+  personMembershipSubscription: { create: jest.fn(), findFirst: jest.fn() },
+  businessMembershipSubscription: { create: jest.fn(), findFirst: jest.fn() },
+  seller: { findUnique: jest.fn() },
   personProfile: { update: jest.fn() },
   businessProfile: { update: jest.fn() },
 };
@@ -81,9 +84,65 @@ const businessMembershipRaw = {
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
 
+  // Platform admin with MANAGE_SETTINGS, the memberships screen's permission.
+  const settingsAdmin = {
+    adminType: 'PLATFORM',
+    role: 'MODERATOR',
+    permissions: ['MANAGE_SETTINGS'],
+    isActive: true,
+    sellerId: null,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.admin.findUnique.mockResolvedValue(settingsAdmin);
     service = new SubscriptionService(mockPrisma as unknown as PrismaService);
+  });
+
+  describe('admin permissions (USR-8)', () => {
+    it('rejects a platform admin without MANAGE_SETTINGS as FORBIDDEN', async () => {
+      mockPrisma.admin.findUnique.mockResolvedValue({
+        ...settingsAdmin,
+        permissions: ['MANAGE_USERS'],
+      });
+
+      await expect(
+        service.createPersonMembership({
+          input: {
+            membershipType: PersonSubscriptionPlan.BASIC,
+            durationMonths: 12,
+          } as any,
+          adminId: 'admin-1',
+          language: Language.ES,
+        }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+      expect(mockPrisma.personMembership.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a business admin on bulk imports before touching any row', async () => {
+      mockPrisma.admin.findUnique.mockResolvedValue({
+        ...settingsAdmin,
+        adminType: 'BUSINESS',
+      });
+
+      await expect(
+        service.bulkUpsertPersonMemberships({
+          adminId: 'admin-biz',
+          rows: [{ membershipType: PersonSubscriptionPlan.BASIC } as any],
+          language: Language.ES,
+        }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+    });
+
+    it('rejects a signed-out caller as UNAUTHORIZED', async () => {
+      await expect(
+        service.deletePersonMembership({
+          id: 1,
+          adminId: '',
+          language: Language.ES,
+        } as any),
+      ).rejects.toMatchObject({ extensions: { code: 'UNAUTHORIZED' } });
+    });
   });
 
   // ─── Person Memberships ──────────────────────────────────────────────────────
@@ -585,10 +644,11 @@ describe('SubscriptionService', () => {
     const input = { personMembershipId: 1, autoRenew: false };
     const subscription = { id: 'sub-1', sellerId, personMembershipId: 1 };
 
-    it('creates subscription and returns it', async () => {
-      mockPrisma.personMembership.findUnique.mockResolvedValue(
-        personMembershipRaw,
-      );
+    it('starts the free plan for the seller and drops a client paymentId (USR-9)', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue({
+        ...personMembershipRaw,
+        membershipType: PersonSubscriptionPlan.FREEMIUM,
+      });
       mockPrisma.personMembershipSubscription.create.mockResolvedValue(
         subscription,
       );
@@ -596,9 +656,17 @@ describe('SubscriptionService', () => {
 
       const result = await service.assignPersonMembership({
         sellerId,
-        input,
+        input: { ...input, paymentId: 999 },
         language: lang,
       });
+
+      expect(
+        mockPrisma.personMembershipSubscription.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paymentId: null }),
+        }),
+      );
 
       expect(result).toEqual(subscription);
       expect(
@@ -633,6 +701,44 @@ describe('SubscriptionService', () => {
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
+    it('refuses a paid plan outside checkout (USR-9)', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(
+        personMembershipRaw,
+      );
+
+      await expect(
+        service.assignPersonMembership({ sellerId, input, language: lang }),
+      ).rejects.toThrow(subscriptionMessages[lang].paidPlanNeedsCheckout);
+      expect(
+        mockPrisma.personMembershipSubscription.create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('starts a paid plan from a completed payment and keeps its paymentId', async () => {
+      mockPrisma.personMembership.findUnique.mockResolvedValue(
+        personMembershipRaw,
+      );
+      mockPrisma.personMembershipSubscription.create.mockResolvedValue(
+        subscription,
+      );
+      mockPrisma.personProfile.update.mockResolvedValue({});
+
+      await service.assignPersonMembership({
+        sellerId,
+        input: { ...input, paymentId: 77 },
+        language: lang,
+        viaPayment: true,
+      });
+
+      expect(
+        mockPrisma.personMembershipSubscription.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paymentId: 77 }),
+        }),
+      );
+    });
+
     it('throws InternalServerError when subscription create fails', async () => {
       mockPrisma.personMembership.findUnique.mockResolvedValue(
         personMembershipRaw,
@@ -642,8 +748,31 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.assignPersonMembership({ sellerId, input, language: lang }),
+        service.assignPersonMembership({
+          sellerId,
+          input,
+          language: lang,
+          viaPayment: true,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
+    });
+  });
+
+  describe('getMySubscription (USR-3)', () => {
+    it('never reports a term past its end date as current', async () => {
+      mockPrisma.seller.findUnique.mockResolvedValue({ sellerType: 'PERSON' });
+      mockPrisma.personMembershipSubscription.findFirst.mockResolvedValue(null);
+
+      await expect(service.getMySubscription(sellerId)).resolves.toBeNull();
+
+      const where =
+        mockPrisma.personMembershipSubscription.findFirst.mock.calls[0][0]
+          .where;
+      expect(where).toMatchObject({
+        sellerId,
+        isActive: true,
+        OR: [{ endDate: null }, { endDate: { gt: expect.any(Date) } }],
+      });
     });
   });
 
@@ -1082,10 +1211,11 @@ describe('SubscriptionService', () => {
     const input = { businessMembershipId: 2, autoRenew: false };
     const subscription = { id: 'sub-2', sellerId, businessMembershipId: 2 };
 
-    it('creates subscription and returns it', async () => {
-      mockPrisma.businessMembership.findUnique.mockResolvedValue(
-        businessMembershipRaw,
-      );
+    it('starts the free plan for the seller and drops a client paymentId (USR-9)', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue({
+        ...businessMembershipRaw,
+        membershipType: BusinessSubscriptionPlan.FREEMIUM,
+      });
       mockPrisma.businessMembershipSubscription.create.mockResolvedValue(
         subscription,
       );
@@ -1093,9 +1223,17 @@ describe('SubscriptionService', () => {
 
       const result = await service.assignBusinessMembership({
         sellerId,
-        input,
+        input: { ...input, paymentId: 999 },
         language: lang,
       });
+
+      expect(
+        mockPrisma.businessMembershipSubscription.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paymentId: null }),
+        }),
+      );
 
       expect(result).toEqual(subscription);
       expect(
@@ -1134,6 +1272,44 @@ describe('SubscriptionService', () => {
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 
+    it('refuses a paid plan outside checkout (USR-9)', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+
+      await expect(
+        service.assignBusinessMembership({ sellerId, input, language: lang }),
+      ).rejects.toThrow(subscriptionMessages[lang].paidPlanNeedsCheckout);
+      expect(
+        mockPrisma.businessMembershipSubscription.create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('starts a paid plan from a completed payment and keeps its paymentId', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+      mockPrisma.businessMembershipSubscription.create.mockResolvedValue(
+        subscription,
+      );
+      mockPrisma.businessProfile.update.mockResolvedValue({});
+
+      await service.assignBusinessMembership({
+        sellerId,
+        input: { ...input, paymentId: 77 },
+        language: lang,
+        viaPayment: true,
+      });
+
+      expect(
+        mockPrisma.businessMembershipSubscription.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ paymentId: 77 }),
+        }),
+      );
+    });
+
     it('throws InternalServerError when subscription create fails', async () => {
       mockPrisma.businessMembership.findUnique.mockResolvedValue(
         businessMembershipRaw,
@@ -1143,7 +1319,12 @@ describe('SubscriptionService', () => {
       );
 
       await expect(
-        service.assignBusinessMembership({ sellerId, input, language: lang }),
+        service.assignBusinessMembership({
+          sellerId,
+          input,
+          language: lang,
+          viaPayment: true,
+        }),
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });

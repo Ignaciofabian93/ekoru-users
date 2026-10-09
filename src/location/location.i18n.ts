@@ -40,7 +40,7 @@ export const locationMessages: Record<Language, LocationMessages> = {
   [Language.ES]: {
     unauthorized: 'No autorizado',
     forbiddenNotPlatformAdmin:
-      'Solo los administradores de plataforma pueden realizar esta acción',
+      'Solo los administradores de plataforma con el permiso MANAGE_SETTINGS pueden gestionar ubicaciones',
     noCountries: 'No hay países disponibles',
     noRegions: 'No hay regiones disponibles',
     noCities: 'No hay ciudades disponibles',
@@ -79,7 +79,8 @@ export const locationMessages: Record<Language, LocationMessages> = {
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
-    forbiddenNotPlatformAdmin: 'Only platform admins can perform this action',
+    forbiddenNotPlatformAdmin:
+      'Only platform admins with the MANAGE_SETTINGS permission can manage locations',
     noCountries: 'No countries available',
     noRegions: 'No regions available',
     noCities: 'No cities available',
@@ -118,7 +119,7 @@ export const locationMessages: Record<Language, LocationMessages> = {
   [Language.FR]: {
     unauthorized: 'Non autorisé',
     forbiddenNotPlatformAdmin:
-      'Seuls les administrateurs de plateforme peuvent effectuer cette action',
+      'Seuls les administrateurs de plateforme disposant de la permission MANAGE_SETTINGS peuvent gérer les lieux',
     noCountries: 'Aucun pays disponible',
     noRegions: 'Aucune région disponible',
     noCities: 'Aucune ville disponible',
@@ -158,7 +159,7 @@ export const locationMessages: Record<Language, LocationMessages> = {
   [Language.PT]: {
     unauthorized: 'Não autorizado',
     forbiddenNotPlatformAdmin:
-      'Apenas administradores de plataforma podem realizar esta ação',
+      'Apenas administradores de plataforma com a permissão MANAGE_SETTINGS podem gerenciar localizações',
     noCountries: 'Nenhum país disponível',
     noRegions: 'Nenhuma região disponível',
     noCities: 'Nenhuma cidade disponível',
@@ -198,7 +199,7 @@ export const locationMessages: Record<Language, LocationMessages> = {
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
     forbiddenNotPlatformAdmin:
-      'Nur Plattform-Administratoren können diese Aktion durchführen',
+      'Nur Plattform-Administratoren mit der Berechtigung MANAGE_SETTINGS können Standorte verwalten',
     noCountries: 'Keine Länder verfügbar',
     noRegions: 'Keine Regionen verfügbar',
     noCities: 'Keine Städte verfügbar',

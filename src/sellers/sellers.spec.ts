@@ -122,14 +122,16 @@ describe('SellersService', () => {
   });
 
   describe('getSellers', () => {
-    // Every call below without an adminId is a public listing, which hides
-    // businesses EKORU has not approved yet.
-    const APPROVED_ONLY = {
-      NOT: {
-        businessProfile: {
-          is: { approvalStatus: { not: BusinessApprovalStatus.APPROVED } },
-        },
-      },
+    // Every call below without an adminId is a public listing, which shows
+    // approved businesses only: never pending or rejected ones, and never
+    // private individuals (USR-2).
+    const APPROVED = BusinessApprovalStatus.APPROVED;
+    const usersAdmin = {
+      adminType: 'PLATFORM',
+      role: 'MODERATOR',
+      permissions: ['MANAGE_USERS'],
+      isActive: true,
+      sellerId: null,
     };
 
     it('should return a paginated list of sellers successfully', async () => {
@@ -146,7 +148,7 @@ describe('SellersService', () => {
       expect(result.pageInfo.currentPage).toBe(1);
       expect(result.pageInfo.pageSize).toBe(20);
       expect(prisma.seller.findMany).toHaveBeenCalledWith({
-        where: APPROVED_ONLY,
+        where: { businessProfile: { approvalStatus: APPROVED } },
         include: expect.any(Object),
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -176,7 +178,10 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { sellerType: SellerType.PERSON, ...APPROVED_ONLY },
+          where: {
+            sellerType: SellerType.PERSON,
+            businessProfile: { approvalStatus: APPROVED },
+          },
         }),
       );
     });
@@ -192,7 +197,10 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isActive: true, ...APPROVED_ONLY },
+          where: {
+            isActive: true,
+            businessProfile: { approvalStatus: APPROVED },
+          },
         }),
       );
     });
@@ -208,7 +216,10 @@ describe('SellersService', () => {
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { isVerified: true, ...APPROVED_ONLY },
+          where: {
+            isVerified: true,
+            businessProfile: { approvalStatus: APPROVED },
+          },
         }),
       );
     });
@@ -229,8 +240,8 @@ describe('SellersService', () => {
               businessType: {
                 in: [BusinessType.RETAIL, BusinessType.MIXED],
               },
+              approvalStatus: APPROVED,
             },
-            ...APPROVED_ONLY,
           },
         }),
       );
@@ -252,8 +263,8 @@ describe('SellersService', () => {
               businessType: {
                 in: [BusinessType.SERVICES, BusinessType.MIXED],
               },
+              approvalStatus: APPROVED,
             },
-            ...APPROVED_ONLY,
           },
         }),
       );
@@ -277,14 +288,14 @@ describe('SellersService', () => {
               businessType: {
                 in: [BusinessType.RETAIL, BusinessType.MIXED],
               },
+              approvalStatus: APPROVED,
             },
-            ...APPROVED_ONLY,
           },
         }),
       );
     });
 
-    it('should not apply a businessProfile filter when businessType is omitted', async () => {
+    it('should list approved businesses only when businessType is omitted', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);
 
@@ -293,11 +304,41 @@ describe('SellersService', () => {
       });
 
       expect(prisma.seller.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: APPROVED_ONLY }),
+        expect.objectContaining({
+          where: { businessProfile: { approvalStatus: APPROVED } },
+        }),
       );
     });
 
+    it('should ignore an approvalStatus filter from the public', async () => {
+      prisma.seller.findMany.mockResolvedValue([]);
+
+      await service.getSellers({
+        language: Language.ES,
+        approvalStatus: BusinessApprovalStatus.PENDING,
+      });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { businessProfile: { approvalStatus: APPROVED } },
+        }),
+      );
+    });
+
+    it('should reject an admin token without MANAGE_USERS as FORBIDDEN', async () => {
+      prisma.admin.findUnique.mockResolvedValue({
+        ...usersAdmin,
+        adminType: 'BUSINESS',
+      });
+
+      await expect(
+        service.getSellers({ language: Language.ES, adminId: 'admin-biz' }),
+      ).rejects.toMatchObject({ extensions: { code: 'FORBIDDEN' } });
+      expect(prisma.seller.findMany).not.toHaveBeenCalled();
+    });
+
     it('should show admins every business, pending and rejected included', async () => {
+      prisma.admin.findUnique.mockResolvedValue(usersAdmin);
       prisma.seller.findMany.mockResolvedValue([mockSeller]);
 
       await service.getSellers({ language: Language.ES, adminId: 'admin-1' });
@@ -308,6 +349,7 @@ describe('SellersService', () => {
     });
 
     it('should let admins filter by approvalStatus', async () => {
+      prisma.admin.findUnique.mockResolvedValue(usersAdmin);
       prisma.seller.findMany.mockResolvedValue([mockSeller]);
 
       await service.getSellers({
@@ -394,6 +436,109 @@ describe('SellersService', () => {
       });
 
       expect(result).toBeNull();
+    });
+
+    describe('a business EKORU has not approved (USR-2)', () => {
+      const pendingBusiness = {
+        ...mockSeller,
+        id: 'biz-1',
+        sellerType: SellerType.COMPANY,
+        businessProfile: {
+          ...mockBusinessProfile,
+          sellerId: 'biz-1',
+          approvalStatus: BusinessApprovalStatus.PENDING,
+        },
+      };
+
+      beforeEach(() => {
+        prisma.seller.findUnique.mockResolvedValue(pendingBusiness);
+      });
+
+      it('reads as null for the public', async () => {
+        await expect(
+          service.getSellerById({ id: 'biz-1', language: Language.ES }),
+        ).resolves.toBeNull();
+      });
+
+      it('reads as null for another seller', async () => {
+        await expect(
+          service.getSellerById({
+            id: 'biz-1',
+            language: Language.ES,
+            sellerId: 'seller-123',
+          }),
+        ).resolves.toBeNull();
+      });
+
+      it('is visible to the business itself', async () => {
+        const result = await service.getSellerById({
+          id: 'biz-1',
+          language: Language.ES,
+          sellerId: 'biz-1',
+        });
+        expect(result?.id).toBe('biz-1');
+      });
+
+      it('is visible to a platform admin with MANAGE_USERS', async () => {
+        prisma.admin.findUnique.mockResolvedValue({
+          adminType: 'PLATFORM',
+          role: 'SUPPORT',
+          permissions: ['MANAGE_USERS'],
+          isActive: true,
+          sellerId: null,
+        });
+        const result = await service.getSellerById({
+          id: 'biz-1',
+          language: Language.ES,
+          adminId: 'admin-1',
+        });
+        expect(result?.id).toBe('biz-1');
+      });
+
+      it("is visible to the business's own business admin only", async () => {
+        const own = {
+          adminType: 'BUSINESS',
+          role: 'BUSINESS_OWNER',
+          permissions: [],
+          isActive: true,
+          sellerId: 'biz-1',
+        };
+        prisma.admin.findUnique.mockResolvedValue(own);
+        await expect(
+          service.getSellerById({
+            id: 'biz-1',
+            language: Language.ES,
+            adminId: 'admin-own',
+          }),
+        ).resolves.toMatchObject({ id: 'biz-1' });
+
+        prisma.admin.findUnique.mockResolvedValue({
+          ...own,
+          sellerId: 'other',
+        });
+        await expect(
+          service.getSellerById({
+            id: 'biz-1',
+            language: Language.ES,
+            adminId: 'admin-other',
+          }),
+        ).resolves.toBeNull();
+      });
+
+      it('shows an approved business to everyone', async () => {
+        prisma.seller.findUnique.mockResolvedValue({
+          ...pendingBusiness,
+          businessProfile: {
+            ...pendingBusiness.businessProfile,
+            approvalStatus: BusinessApprovalStatus.APPROVED,
+          },
+        });
+        const result = await service.getSellerById({
+          id: 'biz-1',
+          language: Language.ES,
+        });
+        expect(result?.id).toBe('biz-1');
+      });
     });
 
     it('should throw InternalServerError with ES message on database error', async () => {
@@ -1037,6 +1182,151 @@ describe('SellersService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(sellerMessages[Language.ES].businessNotPending);
+    });
+  });
+
+  describe('reapplyBusiness (USR-5)', () => {
+    const message =
+      'Ahora fabricamos todo con madera recuperada certificada y adjuntamos la lista de materiales por producto.';
+    const rejected = {
+      id: 'biz-1',
+      email: 'biz@example.com',
+      password: 'stored-hash',
+      sellerType: SellerType.COMPANY,
+      loginAttempts: 0,
+      lockedUntil: null,
+      businessProfile: {
+        businessName: 'Acme',
+        businessType: BusinessType.RETAIL,
+        approvalStatus: BusinessApprovalStatus.REJECTED,
+        rejectionReason: 'Faltan los materiales de cada producto.',
+      },
+    };
+    const input = {
+      email: 'Biz@Example.com ',
+      password: 'secret123',
+      applicationMessage: message,
+    };
+
+    beforeEach(() => {
+      prisma.$transaction.mockResolvedValue([]);
+    });
+
+    it('moves a rejected business back to PENDING and emails both sides', async () => {
+      prisma.seller.findUnique.mockResolvedValue(rejected);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.reapplyBusiness({ input, language: Language.ES }),
+      ).resolves.toBe(true);
+
+      expect(prisma.seller.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { email: 'biz@example.com' } }),
+      );
+      expect(prisma.businessProfile.update).toHaveBeenCalledWith({
+        where: { sellerId: 'biz-1' },
+        data: {
+          approvalStatus: BusinessApprovalStatus.PENDING,
+          applicationMessage: message,
+          rejectionReason: null,
+          reviewedAt: null,
+          reviewedById: null,
+        },
+      });
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(
+        mailService.sendBusinessApplicationReceivedEmail,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'biz@example.com' }),
+      );
+      expect(
+        mailService.sendBusinessApplicationReviewEmail,
+      ).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          sellerId: 'biz-1',
+          message,
+          previousRejectionReason: 'Faltan los materiales de cada producto.',
+        }),
+      });
+    });
+
+    it('answers an unknown email like a wrong password, after a dummy compare', async () => {
+      prisma.seller.findUnique.mockResolvedValue(null);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.reapplyBusiness({ input, language: Language.EN }),
+      ).rejects.toThrow(sellerMessages[Language.EN].reapplyInvalidCredentials);
+      expect(bcrypt.compare).toHaveBeenCalled();
+      expect(prisma.businessProfile.update).not.toHaveBeenCalled();
+    });
+
+    it('counts a wrong password toward the login lock', async () => {
+      prisma.seller.findUnique.mockResolvedValue({
+        ...rejected,
+        loginAttempts: 7,
+      });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.reapplyBusiness({ input, language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].reapplyInvalidCredentials);
+      expect(prisma.seller.update).toHaveBeenCalledWith({
+        where: { id: 'biz-1' },
+        data: { loginAttempts: 8, lockedUntil: expect.any(Date) },
+      });
+      expect(prisma.businessProfile.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a locked account without checking the password', async () => {
+      prisma.seller.findUnique.mockResolvedValue({
+        ...rejected,
+        lockedUntil: new Date(Date.now() + 60_000),
+      });
+
+      await expect(
+        service.reapplyBusiness({ input, language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].reapplyAccountLocked);
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it.each([BusinessApprovalStatus.PENDING, BusinessApprovalStatus.APPROVED])(
+      'refuses a business that is %s',
+      async (approvalStatus) => {
+        prisma.seller.findUnique.mockResolvedValue({
+          ...rejected,
+          businessProfile: { ...rejected.businessProfile, approvalStatus },
+        });
+        (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+        await expect(
+          service.reapplyBusiness({ input, language: Language.ES }),
+        ).rejects.toThrow(sellerMessages[Language.ES].businessNotRejected);
+        expect(prisma.businessProfile.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a person account', async () => {
+      prisma.seller.findUnique.mockResolvedValue({
+        ...rejected,
+        sellerType: SellerType.PERSON,
+        businessProfile: null,
+      });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.reapplyBusiness({ input, language: Language.ES }),
+      ).rejects.toThrow(sellerMessages[Language.ES].businessNotRejected);
+    });
+
+    it('rejects a padded, too-short message before any lookup', async () => {
+      await expect(
+        service.reapplyBusiness({
+          input: { ...input, applicationMessage: `  short  ${' '.repeat(60)}` },
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(sellerMessages[Language.ES].applicationMessageTooShort);
+      expect(prisma.seller.findUnique).not.toHaveBeenCalled();
     });
   });
 
