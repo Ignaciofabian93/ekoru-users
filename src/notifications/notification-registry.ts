@@ -483,6 +483,66 @@ export const NOTIFICATION_REGISTRY: Partial<
       },
     },
   },
+
+  // ─── Community events (to the organising business) ────────────────────────
+  // In-app and push only: an email per reservation would be noise. The
+  // attendee's own confirmation goes out by email from ekoru-blog-community
+  // through `sendEventRegistrationEmail`, not through this registry.
+  [NotificationType.EVENT_REGISTRATION_RECEIVED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: 'Nueva inscripción',
+        message: '{{attendeeName}} reservó un cupo en {{eventTitle}}.',
+      },
+      en: {
+        title: 'New registration',
+        message: '{{attendeeName}} reserved a place at {{eventTitle}}.',
+      },
+      fr: {
+        title: 'Nouvelle inscription',
+        message: '{{attendeeName}} a réservé une place pour {{eventTitle}}.',
+      },
+    },
+  },
+  // To registered members; guests get the email from blog-community instead.
+  [NotificationType.EVENT_CANCELLED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    fallback: {
+      es: {
+        title: 'Evento cancelado',
+        message: 'Se canceló {{eventTitle}}. Tu cupo quedó liberado.',
+      },
+      en: {
+        title: 'Event cancelled',
+        message: '{{eventTitle}} was cancelled. Your place was released.',
+      },
+      fr: {
+        title: 'Événement annulé',
+        message: '{{eventTitle}} a été annulé. Votre place a été libérée.',
+      },
+    },
+  },
+  [NotificationType.EVENT_REGISTRATION_CANCELLED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.LOW,
+    push: false,
+    fallback: {
+      es: {
+        title: 'Cupo liberado',
+        message: '{{attendeeName}} canceló su cupo en {{eventTitle}}.',
+      },
+      en: {
+        title: 'Place released',
+        message: '{{attendeeName}} cancelled their place at {{eventTitle}}.',
+      },
+      fr: {
+        title: 'Place libérée',
+        message: '{{attendeeName}} a annulé sa place pour {{eventTitle}}.',
+      },
+    },
+  },
 };
 
 /** Types whose copy must never come from an admin-editable template. */

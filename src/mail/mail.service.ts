@@ -7,6 +7,8 @@ import {
   businessApprovedTemplates,
   businessRejectedTemplates,
   dealOfferTemplates,
+  eventCancelledTemplates,
+  eventRegistrationTemplates,
   loginAlertTemplates,
   passwordResetTemplates,
   pickTemplate,
@@ -16,6 +18,8 @@ import {
   type BusinessRejectedData,
   type BusinessReviewData,
   type DealOfferData,
+  type EventCancelledData,
+  type EventRegistrationData,
   type LoginAlertData,
   type PasswordResetData,
   type RenderedMail,
@@ -206,6 +210,38 @@ export class MailService {
   }) {
     const template = pickTemplate(businessRejectedTemplates, locale);
     await this.send('business rejected', email, template(data));
+  }
+
+  /**
+   * Confirms a community-event reservation to the address the attendee typed.
+   * Not preference-gated: guests have no account, and the person asked for
+   * this place moments ago.
+   */
+  async sendEventRegistrationEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: EventRegistrationData;
+  }): Promise<boolean> {
+    const template = pickTemplate(eventRegistrationTemplates, locale);
+    return this.send('event registration', email, template(data));
+  }
+
+  /** Tells a registrant (guest or member) that the event was cancelled. */
+  async sendEventCancelledEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: EventCancelledData;
+  }): Promise<boolean> {
+    const template = pickTemplate(eventCancelledTemplates, locale);
+    return this.send('event cancelled', email, template(data));
   }
 
   /** Returns true when SMTP accepted the message. Never throws — see the class doc. */

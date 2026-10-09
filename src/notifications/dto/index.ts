@@ -1,17 +1,25 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
+  IsDate,
+  IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { DevicePlatform, NotificationType } from '../../graphql/enums';
 // This subgraph registers its own `JSON` scalar. Importing the one from
 // graphql-type-json would register a second type of the same name and the
 // federated schema would refuse to build — same trap as `DateTime`.
-import { JSONScalar } from '../../graphql/scalars';
+import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
 
 /**
  * The single wire format every domain event uses to reach a user.
@@ -78,4 +86,105 @@ export class RegisterDeviceInput {
   @IsString()
   @MaxLength(120)
   deviceName?: string;
+}
+
+/**
+ * Internal (ekoru-blog-community): confirms a community-event reservation by
+ * email. The attendee may be a guest with no account, so this is addressed by
+ * email rather than seller id and is not tied to any preference.
+ */
+@InputType()
+export class EventRegistrationEmailInput {
+  @Field(() => String)
+  @IsEmail()
+  email!: string;
+
+  @Field(() => String)
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @Field(() => String, { description: 'es | en | fr' })
+  @IsIn(['es', 'en', 'fr'])
+  language!: string;
+
+  @Field(() => String)
+  @IsString()
+  @MaxLength(200)
+  eventTitle!: string;
+
+  @Field(() => DateTimeScalar, { nullable: true })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date | null;
+
+  @Field(() => DateTimeScalar, { nullable: true })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  endDate?: Date | null;
+
+  @Field(() => String, { nullable: true, description: 'Address, comuna, city' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  place?: string | null;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  onlineUrl?: string | null;
+
+  @Field(() => String)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  eventUrl!: string;
+}
+
+@InputType()
+export class EventEmailRecipientInput {
+  @Field(() => String)
+  @IsEmail()
+  email!: string;
+
+  @Field(() => String)
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+}
+
+/** Internal (ekoru-blog-community): an event was cancelled; tell everyone registered. */
+@InputType()
+export class EventCancelledEmailInput {
+  @Field(() => String, { description: 'es | en | fr' })
+  @IsIn(['es', 'en', 'fr'])
+  language!: string;
+
+  @Field(() => String)
+  @IsString()
+  @MaxLength(200)
+  eventTitle!: string;
+
+  @Field(() => DateTimeScalar, { nullable: true })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date | null;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string | null;
+
+  @Field(() => String)
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  communityUrl!: string;
+
+  @Field(() => [EventEmailRecipientInput])
+  @ArrayNotEmpty()
+  @ArrayMaxSize(2000)
+  @ValidateNested({ each: true })
+  @Type(() => EventEmailRecipientInput)
+  recipients!: EventEmailRecipientInput[];
 }

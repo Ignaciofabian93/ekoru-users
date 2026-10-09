@@ -5,3 +5,5 @@ export * from './password-reset.templates';
 export * from './transaction.templates';
 export * from './deal-offer.templates';
 export * from './business-review.templates';
+export * from './event-registration.templates';
+export * from './event-cancelled.templates';

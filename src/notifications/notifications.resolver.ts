@@ -2,7 +2,13 @@ import { Args, Context, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotificationsService } from './notifications.service';
 import { DevicesService } from './devices.service';
 import { Notification, NotificationConnection, SellerDevice } from './entities';
-import { EmitNotificationInput, RegisterDeviceInput } from './dto';
+import {
+  EmitNotificationInput,
+  EventCancelledEmailInput,
+  EventRegistrationEmailInput,
+  RegisterDeviceInput,
+} from './dto';
+import { MailService } from '../mail/mail.service';
 import { CurrentSeller } from '../common/decorators';
 import { UnAuthorizedError } from '../common/exceptions';
 
@@ -11,6 +17,7 @@ export class NotificationsResolver {
   constructor(
     private readonly notifications: NotificationsService,
     private readonly devices: DevicesService,
+    private readonly mail: MailService,
   ) {}
 
   // ─── Internal: the emit seam ──────────────────────────────────────────────
@@ -33,6 +40,62 @@ export class NotificationsResolver {
   ): Promise<number | null> {
     assertInternal(ctx.internalSecret);
     return this.notifications.emit(input);
+  }
+
+  /**
+   * Confirms a community-event reservation to the address the attendee gave.
+   * Service-to-service only (ekoru-blog-community). Returns whether SMTP
+   * accepted the message; it never throws on delivery failure.
+   */
+  @Mutation(() => Boolean, { name: 'sendEventRegistrationEmail' })
+  async sendEventRegistrationEmail(
+    @Args('input') input: EventRegistrationEmailInput,
+    @Context() ctx: { internalSecret?: string },
+  ): Promise<boolean> {
+    assertInternal(ctx.internalSecret);
+    return this.mail.sendEventRegistrationEmail({
+      email: input.email,
+      locale: input.language,
+      data: {
+        name: input.name,
+        eventTitle: input.eventTitle,
+        startDate: input.startDate ?? null,
+        endDate: input.endDate ?? null,
+        place: input.place ?? null,
+        onlineUrl: input.onlineUrl ?? null,
+        eventUrl: input.eventUrl,
+      },
+    });
+  }
+
+  /**
+   * Emails every registrant of a cancelled community event (guests included).
+   * Service-to-service only (ekoru-blog-community). Returns how many emails
+   * SMTP accepted; delivery failures are logged, never thrown.
+   */
+  @Mutation(() => Int, { name: 'sendEventCancelledEmails' })
+  async sendEventCancelledEmails(
+    @Args('input') input: EventCancelledEmailInput,
+    @Context() ctx: { internalSecret?: string },
+  ): Promise<number> {
+    assertInternal(ctx.internalSecret);
+    let sent = 0;
+    // Sequential on purpose: a few dozen messages, and SMTP providers throttle bursts.
+    for (const recipient of input.recipients) {
+      const ok = await this.mail.sendEventCancelledEmail({
+        email: recipient.email,
+        locale: input.language,
+        data: {
+          name: recipient.name,
+          eventTitle: input.eventTitle,
+          startDate: input.startDate ?? null,
+          reason: input.reason ?? null,
+          communityUrl: input.communityUrl,
+        },
+      });
+      if (ok) sent++;
+    }
+    return sent;
   }
 
   // ─── Feed ─────────────────────────────────────────────────────────────────

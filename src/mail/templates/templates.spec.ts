@@ -4,6 +4,8 @@ import {
   businessApprovedTemplates,
   businessRejectedTemplates,
   dealOfferTemplates,
+  eventCancelledTemplates,
+  eventRegistrationTemplates,
   loginAlertTemplates,
   pickTemplate,
   transactionTemplates,
@@ -245,4 +247,58 @@ describe('business review', () => {
     expect(html).toContain('https://admin.ekoru.cl/es/users/seller-1');
     expect(text).toContain('acme@example.com');
   });
+});
+
+describe('eventRegistrationTemplates', () => {
+  const data = {
+    name: 'Ana',
+    eventTitle: 'Taller <de> reparación',
+    startDate: new Date('2026-11-14T15:00:00Z'),
+    place: 'Av. Irarrázaval 1000, Ñuñoa, Santiago',
+    eventUrl: 'https://app.ekoru.cl/es/community',
+  };
+
+  it.each(['es', 'en', 'fr'] as const)(
+    'renders %s with the event details',
+    (lang) => {
+      const { subject, html, text } = eventRegistrationTemplates[lang](data);
+      expect(subject).toContain('Taller <de> reparación');
+      expect(html).toContain('Taller &lt;de&gt; reparación');
+      expect(html).not.toContain('<de>');
+      expect(html).toContain('Ñuñoa');
+      expect(html).toContain('https://app.ekoru.cl/es/community');
+      expect(text).toContain('Ana');
+    },
+  );
+
+  it('adds the join link only for online events', () => {
+    const inPerson = eventRegistrationTemplates.es(data);
+    expect(inPerson.html).not.toContain('meet.example.com');
+    const online = eventRegistrationTemplates.es({
+      ...data,
+      place: null,
+      onlineUrl: 'https://meet.example.com/x',
+    });
+    expect(online.html).toContain('href="https://meet.example.com/x"');
+    expect(online.text).toContain('https://meet.example.com/x');
+  });
+});
+
+describe('eventCancelledTemplates', () => {
+  it.each(['es', 'en', 'fr'] as const)(
+    'renders %s with the reason escaped',
+    (lang) => {
+      const { subject, html, text } = eventCancelledTemplates[lang]({
+        name: 'Ana',
+        eventTitle: 'Charla',
+        startDate: new Date('2026-11-14T15:00:00Z'),
+        reason: 'Lluvia <fuerte>',
+        communityUrl: 'https://app.ekoru.cl/es/community',
+      });
+      expect(subject).toContain('Charla');
+      expect(html).toContain('Lluvia &lt;fuerte&gt;');
+      expect(html).toContain('https://app.ekoru.cl/es/community');
+      expect(text).toContain('Ana');
+    },
+  );
 });

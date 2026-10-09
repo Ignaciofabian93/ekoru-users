@@ -179,6 +179,11 @@ enum NotificationType {
   // Security notices. Their email copy is hardcoded and is deliberately NOT
   // admin-editable — an editable security email is a phishing vector.
   SECURITY_LOGIN_ALERT
+  // Community events, to the organising business.
+  EVENT_REGISTRATION_RECEIVED
+  EVENT_REGISTRATION_CANCELLED
+  // To registered members when the organiser cancels the event.
+  EVENT_CANCELLED
 }
 
 enum DevicePlatform {
