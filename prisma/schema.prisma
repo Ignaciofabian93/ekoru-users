@@ -76,6 +76,11 @@ enum TransactionKind {
   ATTENDTOEVENT
   REGISTRATION
   BONUS
+  // Points system (2026-10-09): hiring any other service, providing a service,
+  // and hosting an event people attended.
+  SERVICE
+  PROVIDESERVICE
+  ORGANIZEEVENT
 }
 
 enum PersonSubscriptionPlan {
@@ -187,6 +192,9 @@ enum NotificationType {
   // Membership terms (USR-3): a week before the end date, and when it ends.
   MEMBERSHIP_EXPIRING
   MEMBERSHIP_EXPIRED
+  // Points system: reached a new seller level, earned a label.
+  LEVEL_REACHED
+  LABEL_ACHIEVED
 }
 
 enum DevicePlatform {
@@ -237,6 +245,7 @@ model Seller {
   region                                 Region?                          @relation(fields: [regionId], references: [id])
   sellerLevel                            SellerLevel?                     @relation(fields: [sellerLevelId], references: [id])
   achievedLabels                         SellerAchievedLabel[]
+  pointsAwards                           PointsAward[]
   sellerPreferences                      SellerPreferences?
   personMembershipSubscription           PersonMembershipSubscription[]
   businessMembershipSubscription         BusinessMembershipSubscription[]
@@ -449,6 +458,25 @@ model SellerAchievedLabel {
   @@index([achievedAt])
 }
 
+model PointsAward {
+  id             Int             @id @default(autoincrement())
+  sellerId       String
+  kind           TransactionKind
+  reference      String
+  /// Total credited (may be negative for an admin deduction).
+  points         Int
+  basePoints     Int             @default(0)
+  impactPoints   Int             @default(0)
+  co2SavingsKG   Float?
+  waterSavingsLT Float?
+  createdAt      DateTime        @default(now())
+  seller         Seller          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, reference])
+  @@index([sellerId, createdAt(sort: Desc)])
+  @@index([sellerId, kind])
+}
+
 model SellerLevel {
   id           Int                      @id @default(autoincrement())
   levelName    String                   @unique
@@ -478,12 +506,15 @@ model SellerLevelTranslation {
 }
 
 model PointsByTransactionKind {
-  id              Int             @id @default(autoincrement())
-  transactionKind TransactionKind @unique
-  pointsAwarded   Int
-  description     String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                       Int             @id @default(autoincrement())
+  transactionKind          TransactionKind @unique
+  pointsAwarded            Int
+  pointsPerKgCo2           Float           @default(0)
+  pointsPerCubicMeterWater Float           @default(0)
+  maxImpactPoints          Int?
+  description              String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 
   @@index([transactionKind])
 }

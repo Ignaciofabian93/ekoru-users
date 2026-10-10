@@ -11,6 +11,7 @@ import { hash, genSalt, compare } from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { SellersService } from '../sellers/sellers.service';
+import { PointsService } from '../points/points.service';
 import { NotificationRenderer } from '../notifications/notification-renderer';
 import { toLocale } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
@@ -71,6 +72,7 @@ export class AccountService {
     private readonly sellersService: SellersService,
     private readonly notificationRenderer: NotificationRenderer,
     private readonly mailService: MailService,
+    private readonly points: PointsService,
   ) {}
 
   /**
@@ -303,12 +305,17 @@ export class AccountService {
         permission: AdminPermission.MANAGE_USERS,
       });
 
-      const seller = await this.prisma.seller.update({
-        where: { id: targetId },
-        data: { points: { increment: points } },
+      // An admin grant (or deduction) is a BONUS award, so it shows in the
+      // seller's history and moves their level.
+      await this.points.award({
+        sellerId: targetId,
+        kind: 'BONUS',
+        reference: `admin-grant:${randomUUID()}`,
+        points: points,
       });
-
-      return seller;
+      return await this.prisma.seller.findUniqueOrThrow({
+        where: { id: targetId },
+      });
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error adding points:', error);
@@ -335,12 +342,17 @@ export class AccountService {
         permission: AdminPermission.MANAGE_USERS,
       });
 
-      const seller = await this.prisma.seller.update({
-        where: { id: targetId },
-        data: { points: { decrement: points } },
+      // An admin grant (or deduction) is a BONUS award, so it shows in the
+      // seller's history and moves their level.
+      await this.points.award({
+        sellerId: targetId,
+        kind: 'BONUS',
+        reference: `admin-grant:${randomUUID()}`,
+        points: -points,
       });
-
-      return seller;
+      return await this.prisma.seller.findUniqueOrThrow({
+        where: { id: targetId },
+      });
     } catch (error) {
       if (error instanceof UnAuthorizedError) throw error;
       this.logger.error('Error deducting points:', error);
@@ -1410,6 +1422,9 @@ export class AccountService {
       const data = pickDefined({
         transactionKind: row.transactionKind,
         pointsAwarded: row.pointsAwarded,
+        pointsPerKgCo2: row.pointsPerKgCo2,
+        pointsPerCubicMeterWater: row.pointsPerCubicMeterWater,
+        maxImpactPoints: row.maxImpactPoints,
         description: row.description,
       });
 
@@ -1441,6 +1456,9 @@ export class AccountService {
         data: {
           transactionKind: row.transactionKind!,
           pointsAwarded: row.pointsAwarded!,
+          pointsPerKgCo2: row.pointsPerKgCo2 ?? 0,
+          pointsPerCubicMeterWater: row.pointsPerCubicMeterWater ?? 0,
+          maxImpactPoints: row.maxImpactPoints ?? null,
           description: row.description,
         },
       });

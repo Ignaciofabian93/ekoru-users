@@ -561,6 +561,48 @@ export const NOTIFICATION_REGISTRY: Partial<
     },
   },
 
+  // ─── Points (docs/POINTS.md) ───────────────────────────────────────────────
+  // In-app and push only: an achievement is nice to hear about, not worth an
+  // email.
+  [NotificationType.LEVEL_REACHED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: '¡Subiste de nivel!',
+        message:
+          'Ahora eres {{levelName}}, con {{points}} puntos. Gracias por cada compra, venta o reparación circular.',
+      },
+      en: {
+        title: 'You levelled up!',
+        message:
+          "You're now {{levelName}}, with {{points}} points. Thanks for every circular purchase, sale or repair.",
+      },
+      fr: {
+        title: 'Vous montez de niveau !',
+        message:
+          'Vous êtes maintenant {{levelName}}, avec {{points}} points. Merci pour chaque achat, vente ou réparation circulaire.',
+      },
+    },
+  },
+
+  [NotificationType.LABEL_ACHIEVED]: {
+    ...DEFAULTS,
+    fallback: {
+      es: {
+        title: 'Nueva insignia',
+        message: 'Ganaste la insignia {{labelName}}.',
+      },
+      en: {
+        title: 'New badge',
+        message: 'You earned the {{labelName}} badge.',
+      },
+      fr: {
+        title: 'Nouveau badge',
+        message: 'Vous avez obtenu le badge {{labelName}}.',
+      },
+    },
+  },
+
   [NotificationType.EVENT_REGISTRATION_RECEIVED]: {
     ...DEFAULTS,
     fallback: {

@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SellersService } from '../sellers/sellers.service';
 import { NotificationRenderer } from '../notifications/notification-renderer';
 import { MailService } from '../mail/mail.service';
+import { PointsService } from '../points/points.service';
 import {
   UnAuthorizedError,
   BadRequestError,
@@ -42,6 +43,11 @@ describe('AccountService', () => {
     sellerId: null,
   };
 
+  const mockPointsService = {
+    award: jest.fn().mockResolvedValue(50),
+    updateLevel: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const mockPrismaService = {
       admin: {
@@ -50,6 +56,7 @@ describe('AccountService', () => {
       seller: {
         update: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
       sellerLabel: {
@@ -138,6 +145,10 @@ describe('AccountService', () => {
         {
           provide: MailService,
           useValue: mockMailService,
+        },
+        {
+          provide: PointsService,
+          useValue: mockPointsService,
         },
       ],
     }).compile();
@@ -277,7 +288,7 @@ describe('AccountService', () => {
   describe('addPoints', () => {
     it('should add points to seller successfully', async () => {
       const updatedSeller = { ...mockSeller, points: 150 };
-      prisma.seller.update.mockResolvedValue(updatedSeller as any);
+      prisma.seller.findUniqueOrThrow.mockResolvedValue(updatedSeller as any);
 
       const result = await service.addPoints({
         adminId: 'admin-1',
@@ -287,9 +298,12 @@ describe('AccountService', () => {
       });
 
       expect(result).toEqual(updatedSeller);
-      expect(prisma.seller.update).toHaveBeenCalledWith({
-        where: { id: 'target-123' },
-        data: { points: { increment: 50 } },
+      // Admin grants are BONUS awards through the points engine.
+      expect(mockPointsService.award).toHaveBeenCalledWith({
+        sellerId: 'target-123',
+        kind: 'BONUS',
+        reference: expect.stringMatching(/^admin-grant:/),
+        points: 50,
       });
     });
 
@@ -302,11 +316,13 @@ describe('AccountService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(UnAuthorizedError);
-      expect(prisma.seller.update).not.toHaveBeenCalled();
+      expect(mockPointsService.award).not.toHaveBeenCalled();
     });
 
     it('should throw InternalServerError on database error', async () => {
-      prisma.seller.update.mockRejectedValue(new Error('Database error'));
+      mockPointsService.award.mockRejectedValueOnce(
+        new Error('Database error'),
+      );
 
       await expect(
         service.addPoints({
@@ -322,7 +338,7 @@ describe('AccountService', () => {
   describe('deductPoints', () => {
     it('should deduct points from seller successfully', async () => {
       const updatedSeller = { ...mockSeller, points: 50 };
-      prisma.seller.update.mockResolvedValue(updatedSeller as any);
+      prisma.seller.findUniqueOrThrow.mockResolvedValue(updatedSeller as any);
 
       const result = await service.deductPoints({
         adminId: 'admin-1',
@@ -332,9 +348,12 @@ describe('AccountService', () => {
       });
 
       expect(result).toEqual(updatedSeller);
-      expect(prisma.seller.update).toHaveBeenCalledWith({
-        where: { id: 'target-123' },
-        data: { points: { decrement: 50 } },
+      // Admin grants are BONUS awards through the points engine.
+      expect(mockPointsService.award).toHaveBeenCalledWith({
+        sellerId: 'target-123',
+        kind: 'BONUS',
+        reference: expect.stringMatching(/^admin-grant:/),
+        points: -50,
       });
     });
 
@@ -347,11 +366,13 @@ describe('AccountService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(UnAuthorizedError);
-      expect(prisma.seller.update).not.toHaveBeenCalled();
+      expect(mockPointsService.award).not.toHaveBeenCalled();
     });
 
     it('should throw InternalServerError on database error', async () => {
-      prisma.seller.update.mockRejectedValue(new Error('Database error'));
+      mockPointsService.award.mockRejectedValueOnce(
+        new Error('Database error'),
+      );
 
       await expect(
         service.deductPoints({

@@ -4,6 +4,7 @@ import { AccountResolver } from './account.resolver';
 import { SellersModule } from '../sellers/sellers.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MailModule } from '../mail/mail.module';
+import { PointsModule } from '../points/points.module';
 
 @Module({
   // NotificationsModule for NotificationRenderer: editing a notification
@@ -13,7 +14,7 @@ import { MailModule } from '../mail/mail.module';
   // MailModule for the password-reset link, which goes straight to SMTP rather
   // than through NotificationsService: account recovery is not subject to a
   // notification preference.
-  imports: [SellersModule, NotificationsModule, MailModule],
+  imports: [SellersModule, NotificationsModule, MailModule, PointsModule],
   providers: [AccountService, AccountResolver],
   exports: [AccountService],
 })

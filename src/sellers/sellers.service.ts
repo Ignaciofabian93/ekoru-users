@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PointsService } from '../points/points.service';
 import {
   UnAuthorizedError,
   BadRequestError,
@@ -71,7 +72,26 @@ export class SellersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly points: PointsService,
   ) {}
+
+  /**
+   * The welcome points (REGISTRATION rule), through the points engine so the
+   * award is in the seller's history. Never fails a sign-up. Returns the
+   * points credited.
+   */
+  private async awardRegistration(sellerId: string): Promise<number> {
+    try {
+      return await this.points.award({
+        sellerId,
+        kind: 'REGISTRATION',
+        reference: 'registration',
+      });
+    } catch (error) {
+      this.logger.error(`Registration points failed for ${sellerId}`, error);
+      return 0;
+    }
+  }
 
   private getSellerInclude(language: Language) {
     return {
@@ -392,11 +412,6 @@ export class SellersService {
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
-      const pointsForRegistration =
-        await this.prisma.pointsByTransactionKind.findFirst({
-          where: { transactionKind: 'REGISTRATION' },
-        });
-
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.seller.create({
           data: {
@@ -404,7 +419,6 @@ export class SellersService {
             password: hashedPassword,
             sellerType: SellerType.PERSON,
             updatedAt: new Date(),
-            points: pointsForRegistration?.pointsAwarded || 10,
           },
         });
 
@@ -419,6 +433,8 @@ export class SellersService {
         return user;
       });
 
+      const welcomePoints = await this.awardRegistration(result.id);
+
       await this.mailService.sendWelcomeEmail({
         email: email.toLowerCase(),
         name: firstName,
@@ -426,7 +442,7 @@ export class SellersService {
         locale: language.toLowerCase() as Language,
       });
 
-      return result;
+      return { ...result, points: result.points + welcomePoints };
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
       this.logger.error(t.errorRegisterPerson, error);
@@ -462,11 +478,6 @@ export class SellersService {
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
-      const pointsForRegistration =
-        await this.prisma.pointsByTransactionKind.findFirst({
-          where: { transactionKind: 'REGISTRATION' },
-        });
-
       const result = await this.prisma.$transaction(async (tx) => {
         const user = await tx.seller.create({
           data: {
@@ -474,7 +485,6 @@ export class SellersService {
             password: hashedPassword,
             sellerType,
             updatedAt: new Date(),
-            points: pointsForRegistration?.pointsAwarded || 10,
             // Emails pick their language from here; the review outcome must
             // reach the business in the language it signed up in.
             contentLanguage: language,
@@ -495,6 +505,8 @@ export class SellersService {
 
         return user;
       });
+
+      const welcomePoints = await this.awardRegistration(result.id);
 
       // The approval email doubles as the welcome. Until then the business
       // only learns that its application is waiting, and EKORU's review inbox
@@ -518,7 +530,7 @@ export class SellersService {
         }),
       ]);
 
-      return result;
+      return { ...result, points: result.points + welcomePoints };
     } catch (error) {
       if (error instanceof BadRequestError) throw error;
       this.logger.error(t.errorRegisterBusiness, error);
@@ -653,6 +665,13 @@ export class SellersService {
       data: { points: { increment: points } },
       select: { points: true },
     });
+    // Legacy path (older transactions deploys); the engine's
+    // awardActivityPoints records history too. Keep the level in step.
+    await this.points
+      .updateLevel(sellerId, updated.points)
+      .catch((error) =>
+        this.logger.error(`Level update failed for ${sellerId}`, error),
+      );
     return updated.points;
   }
 

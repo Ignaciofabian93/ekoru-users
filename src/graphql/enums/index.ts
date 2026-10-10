@@ -154,6 +154,9 @@ export enum TransactionKind {
   ATTENDTOEVENT = 'ATTENDTOEVENT',
   REGISTRATION = 'REGISTRATION',
   BONUS = 'BONUS',
+  SERVICE = 'SERVICE',
+  PROVIDESERVICE = 'PROVIDESERVICE',
+  ORGANIZEEVENT = 'ORGANIZEEVENT',
 }
 
 // ============================

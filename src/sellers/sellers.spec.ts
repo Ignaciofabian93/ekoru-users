@@ -3,6 +3,7 @@ import { Language } from '../graphql/enums';
 import { SellersService } from './sellers.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PointsService } from '../points/points.service';
 import {
   BusinessApprovalStatus,
   BusinessType,
@@ -52,6 +53,11 @@ describe('SellersService', () => {
     id: 1,
     levelName: 'Bronze',
     description: 'Entry level',
+  };
+
+  const mockPointsService = {
+    award: jest.fn().mockResolvedValue(10),
+    updateLevel: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeEach(async () => {
@@ -105,6 +111,10 @@ describe('SellersService', () => {
         {
           provide: MailService,
           useValue: mockMailService,
+        },
+        {
+          provide: PointsService,
+          useValue: mockPointsService,
         },
       ],
     }).compile();
@@ -843,7 +853,13 @@ describe('SellersService', () => {
         language: Language.ES,
       });
 
-      expect(result).toEqual(mockSeller);
+      // The welcome points come from the points engine (REGISTRATION rule).
+      expect(result).toEqual({ ...mockSeller, points: 10 });
+      expect(mockPointsService.award).toHaveBeenCalledWith({
+        sellerId: mockSeller.id,
+        kind: 'REGISTRATION',
+        reference: 'registration',
+      });
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
       });
@@ -945,7 +961,7 @@ describe('SellersService', () => {
         language: Language.ES,
       });
 
-      expect(result).toEqual(businessSeller);
+      expect(result).toEqual({ ...businessSeller, points: 10 });
       expect(prisma.seller.findUnique).toHaveBeenCalledWith({
         where: { email: 'business@example.com' },
       });

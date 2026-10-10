@@ -1,8 +1,9 @@
-import { Field, InputType, Int } from '@nestjs/graphql';
+import { Field, Float, InputType, Int } from '@nestjs/graphql';
 import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -268,6 +269,33 @@ export class PointsByTransactionKindUpsertRowInput {
   @IsOptional()
   @IsInt()
   pointsAwarded?: number;
+
+  @Field(() => Float, {
+    nullable: true,
+    description: 'Impact points per kg of CO2 the activity saved.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pointsPerKgCo2?: number;
+
+  @Field(() => Float, {
+    nullable: true,
+    description: 'Impact points per cubic metre (1,000 L) of water saved.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pointsPerCubicMeterWater?: number;
+
+  @Field(() => Int, {
+    nullable: true,
+    description: 'Cap on impact points per activity; null = no cap.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxImpactPoints?: number | null;
 
   @Field(() => String, { nullable: true })
   @IsOptional()
