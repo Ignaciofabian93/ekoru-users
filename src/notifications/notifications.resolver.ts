@@ -1,4 +1,12 @@
-import { Args, Context, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import {
+  Args,
+  Context,
+  Int,
+  Mutation,
+  Query,
+  Resolver,
+  Directive,
+} from '@nestjs/graphql';
 import { NotificationsService } from './notifications.service';
 import { DevicesService } from './devices.service';
 import { Notification, NotificationConnection, SellerDevice } from './entities';
@@ -33,6 +41,8 @@ export class NotificationsResolver {
    * here. Returns the new notification id, or null when the seller could not
    * be notified at all (unknown or deactivated account).
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Int, { name: 'emitNotification', nullable: true })
   async emitNotification(
     @Args('input') input: EmitNotificationInput,
@@ -47,6 +57,8 @@ export class NotificationsResolver {
    * Service-to-service only (ekoru-blog-community). Returns whether SMTP
    * accepted the message; it never throws on delivery failure.
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Boolean, { name: 'sendEventRegistrationEmail' })
   async sendEventRegistrationEmail(
     @Args('input') input: EventRegistrationEmailInput,
@@ -73,6 +85,8 @@ export class NotificationsResolver {
    * Service-to-service only (ekoru-blog-community). Returns how many emails
    * SMTP accepted; delivery failures are logged, never thrown.
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Int, { name: 'sendEventCancelledEmails' })
   async sendEventCancelledEmails(
     @Args('input') input: EventCancelledEmailInput,

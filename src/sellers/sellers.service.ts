@@ -141,9 +141,11 @@ export class SellersService {
     page = 1,
     pageSize = 20,
     searchQuery,
+    createdAfter,
   }: {
     language: Language;
     adminId?: string;
+    createdAfter?: Date;
     sellerType?: SellerType;
     businessType?: BusinessType;
     approvalStatus?: BusinessApprovalStatus;
@@ -159,6 +161,7 @@ export class SellersService {
       if (sellerType) where.sellerType = sellerType;
       if (isActive !== undefined) where.isActive = isActive;
       if (isVerified !== undefined) where.isVerified = isVerified;
+      if (createdAfter) where.createdAt = { gte: createdAfter };
       if (searchQuery) {
         where.OR = [{ email: { contains: searchQuery, mode: 'insensitive' } }];
       }

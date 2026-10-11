@@ -292,6 +292,30 @@ export const NOTIFICATION_REGISTRY: Partial<
     },
   },
 
+  /**
+   * A payment that settles something other than an order: today a service
+   * quote (WEB-4). Transactional like every other money movement, so it is
+   * emailed even to sellers who muted optional mail.
+   */
+  [NotificationType.PAYMENT_RECEIVED]: {
+    ...TRANSACTIONAL,
+    email: 'transaction',
+    fallback: {
+      es: {
+        title: 'Pago de {{reference}} recibido',
+        message: 'El pago de {{reference}} fue confirmado.',
+      },
+      en: {
+        title: 'Payment for {{reference}} received',
+        message: 'The payment for {{reference}} was confirmed.',
+      },
+      fr: {
+        title: 'Paiement de {{reference}} reçu',
+        message: 'Le paiement de {{reference}} a été confirmé.',
+      },
+    },
+  },
+
   // ─── Services: quotations ─────────────────────────────────────────────────
   [NotificationType.QUOTATION_REQUEST]: {
     ...TRANSACTIONAL,

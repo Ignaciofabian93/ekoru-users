@@ -9,9 +9,11 @@ import {
   ResolveField,
   Parent,
   ResolveReference,
+  Directive,
 } from '@nestjs/graphql';
 import { Throttle } from '@nestjs/throttler';
 import { SellersService } from './sellers.service';
+import { DateTimeScalar } from '../graphql/scalars';
 import {
   Seller,
   SellerConnection,
@@ -54,6 +56,8 @@ export class SellersResolver {
    * subgraph when a P2P deal completes — guarded by INTERNAL_SERVICE_SECRET.
    * Returns the seller's new points total.
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Int, { name: 'awardPoints' })
   async awardPoints(
     @Args('sellerId', { type: () => ID }) sellerId: string,
@@ -100,8 +104,16 @@ export class SellersResolver {
     @Args('pageSize', { type: () => Int, defaultValue: 10 })
     pageSize: number = 10,
     @Args('searchQuery', { nullable: true }) searchQuery?: string,
+    @Args('createdAfter', {
+      type: () => DateTimeScalar,
+      nullable: true,
+      description:
+        "Accounts created on or after this moment (the dashboard's new sign-ups).",
+    })
+    createdAfter?: Date,
   ) {
     return this.sellersService.getSellers({
+      createdAfter,
       language,
       adminId,
       sellerType,

@@ -7,6 +7,7 @@ import {
   ID,
   Float,
   Context,
+  Directive,
 } from '@nestjs/graphql';
 import { TransactionKind as PrismaTransactionKind } from '@prisma/client';
 import { PointsService } from './points.service';
@@ -43,6 +44,8 @@ export class PointsResolver {
    * INTERNAL_SERVICE_SECRET. Idempotent per seller + reference. Returns the
    * points credited, 0 when the reference was already paid.
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Int, { name: 'awardActivityPoints' })
   async awardActivityPoints(
     @Args('sellerId', { type: () => ID }) sellerId: string,

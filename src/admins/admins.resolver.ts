@@ -1,6 +1,7 @@
 import { Resolver, Query, Mutation, Args, Int, ID } from '@nestjs/graphql';
 import { AdminsService } from './admins.service';
-import { Admin, AdminConnection } from './entities';
+import { Admin, AdminActivityLogConnection, AdminConnection } from './entities';
+import { DateTimeScalar } from '../graphql/scalars';
 import {
   RegisterAdminInput,
   UpdateAdminInput,
@@ -48,6 +49,38 @@ export class AdminsResolver {
       page,
       pageSize,
       searchQuery,
+    });
+  }
+
+  @Query(() => AdminActivityLogConnection, {
+    name: 'adminActivityLogs',
+    description:
+      'What admins did, newest first (ADM-7). Platform admins with VIEW_SYSTEM_LOGS.',
+  })
+  async adminActivityLogs(
+    @CurrentAdmin() adminId: string,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language,
+    @Args('page', { type: () => Int, defaultValue: 1 }) page: number,
+    @Args('pageSize', { type: () => Int, defaultValue: 20 }) pageSize: number,
+    @Args('actorId', { type: () => ID, nullable: true }) actorId?: string,
+    @Args('action', { nullable: true }) action?: string,
+    @Args('entityType', { nullable: true }) entityType?: string,
+    @Args('entityId', { nullable: true }) entityId?: string,
+    @Args('from', { type: () => DateTimeScalar, nullable: true }) from?: Date,
+    @Args('to', { type: () => DateTimeScalar, nullable: true }) to?: Date,
+  ) {
+    return this.adminsService.getActivityLogs({
+      adminId,
+      language,
+      page,
+      pageSize,
+      actorId,
+      action,
+      entityType,
+      entityId,
+      from,
+      to,
     });
   }
 

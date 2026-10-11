@@ -19,7 +19,7 @@ import {
   AdminUpsertRowInput,
 } from './dto';
 import { adminMessages, AdminMessages } from './admins.i18n';
-import { assertAdminCan } from '../common/admin-access';
+import { assertAdminCan, adminAccessMessages } from '../common/admin-access';
 import {
   calculatePrismaParams,
   createPaginatedResponse,
@@ -60,6 +60,69 @@ export class AdminsService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ─── Queries ──────────────────────────────────────────────────────────────────
+
+  /**
+   * The admin activity log, newest first (ADM-7, SEC-26). Platform admins
+   * with VIEW_SYSTEM_LOGS. Filters by admin, action, entity and date.
+   */
+  async getActivityLogs({
+    adminId,
+    language,
+    page,
+    pageSize,
+    actorId,
+    action,
+    entityType,
+    entityId,
+    from,
+    to,
+  }: {
+    adminId?: string;
+    language: Language;
+    page: number;
+    pageSize: number;
+    actorId?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+    from?: Date;
+    to?: Date;
+  }) {
+    await assertAdminCan(this.prisma, {
+      adminId,
+      permission: AdminPermission.VIEW_SYSTEM_LOGS,
+      messages: adminAccessMessages[language],
+    });
+    const where = {
+      ...(actorId && { adminId: actorId }),
+      ...(action && { action }),
+      ...(entityType && { entityType }),
+      ...(entityId && { entityId }),
+      ...((from || to) && {
+        createdAt: { ...(from && { gte: from }), ...(to && { lt: to }) },
+      }),
+    };
+    const { skip, take } = calculatePrismaParams(page, pageSize);
+    const [count, rows] = await Promise.all([
+      this.prisma.adminActivityLog.count({ where }),
+      this.prisma.adminActivityLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        include: { admin: { select: { email: true } } },
+      }),
+    ]);
+    return createPaginatedResponse(
+      rows.map(({ admin, ...row }) => ({
+        ...row,
+        adminEmail: admin?.email ?? null,
+      })),
+      count,
+      page,
+      pageSize,
+    );
+  }
 
   async getAdmins({
     adminId,

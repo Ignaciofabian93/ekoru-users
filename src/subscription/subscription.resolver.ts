@@ -8,6 +8,7 @@ import {
   Context,
   ResolveField,
   Parent,
+  Directive,
 } from '@nestjs/graphql';
 import { SubscriptionService } from './subscription.service';
 import { PersonMembershipLoader } from './loaders/person-membership.loader';
@@ -507,6 +508,8 @@ export class SubscriptionResolver {
    * completed. Guarded by INTERNAL_SERVICE_SECRET — only the transactions
    * subgraph (which owns the Payment) may call it. Returns the subscription id.
    */
+  // Internal: hidden from the public supergraph (GW-2); sibling services call it on this subgraph directly.
+  @Directive('@inaccessible')
   @Mutation(() => Int, { name: 'activateMembershipSubscription' })
   async activateMembershipSubscription(
     @Args('sellerId', { type: () => ID }) sellerId: string,
