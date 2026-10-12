@@ -422,19 +422,21 @@ export const NOTIFICATION_REGISTRY: Partial<
     email: 'notice',
     priority: NotificationPriority.HIGH,
     fallback: {
+      // Bookings are paid on site (SRV-5, decision D7).
       es: {
         title: 'Nueva reserva',
         message:
-          '{{actorName}} reservó {{serviceName}} para el {{scheduledFor}}.',
+          '{{actorName}} reservó {{serviceName}} para el {{scheduledFor}}. Te paga directamente a ti, en el lugar del servicio.',
       },
       en: {
         title: 'New booking',
-        message: '{{actorName}} booked {{serviceName}} for {{scheduledFor}}.',
+        message:
+          '{{actorName}} booked {{serviceName}} for {{scheduledFor}}. They pay you directly, at the place of service.',
       },
       fr: {
         title: 'Nouvelle réservation',
         message:
-          '{{actorName}} a réservé {{serviceName}} pour le {{scheduledFor}}.',
+          '{{actorName}} a réservé {{serviceName}} pour le {{scheduledFor}}. Le paiement se fait directement auprès de vous, sur le lieu du service.',
       },
     },
   },
@@ -447,17 +449,17 @@ export const NOTIFICATION_REGISTRY: Partial<
       es: {
         title: 'Reserva confirmada',
         message:
-          'Tu reserva de {{serviceName}} quedó confirmada para el {{scheduledFor}}.',
+          'Tu reserva de {{serviceName}} quedó confirmada para el {{scheduledFor}}. No pagas nada en EKORU: pagas directamente al proveedor, en el lugar del servicio.',
       },
       en: {
         title: 'Booking confirmed',
         message:
-          'Your {{serviceName}} booking is confirmed for {{scheduledFor}}.',
+          'Your {{serviceName}} booking is confirmed for {{scheduledFor}}. Nothing is charged on EKORU: you pay the provider directly, at the place of service.',
       },
       fr: {
         title: 'Réservation confirmée',
         message:
-          'Votre réservation {{serviceName}} est confirmée pour le {{scheduledFor}}.',
+          "Votre réservation {{serviceName}} est confirmée pour le {{scheduledFor}}. Rien n'est débité sur EKORU : vous payez directement le prestataire, sur le lieu du service.",
       },
     },
   },
