@@ -65,8 +65,12 @@ describe('SellerPrivacyService (USR-10)', () => {
     ).toBe(false);
   });
 
-  it("shows a business's contact and address, and socials only by choice", async () => {
-    expect(await privacy.canSeeContact({}, business)).toBe(true);
+  it("shows a business's address, its contact only to counterparties and socials by choice (USR-14)", async () => {
+    expect(await privacy.canSeeContact({}, business)).toBe(false);
+    prisma.$queryRaw.mockResolvedValueOnce([{ linked: true }]);
+    expect(await privacy.canSeeContact({ sellerId: 'buyer-1' }, business)).toBe(
+      true,
+    );
     expect(await privacy.canSeeAddress({}, business)).toBe(true);
     expect(await privacy.canSeeSocials({}, business)).toBe(false);
   });

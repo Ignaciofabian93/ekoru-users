@@ -44,10 +44,11 @@ interface RequestMemo {
  * - `address`: those, plus everyone when the seller is a business (it trades
  *   from a place) or has turned on `showMyAddress`.
  * - `socialMediaLinks`: those, plus everyone with `showMySocials` on.
- * - `email` and `phone`: those, plus everyone for a business, which wants to
- *   be reached, plus a person's counterparties: the other side of an accepted
- *   deal, a paid order or a booking. A proposed deal is not enough, so nobody
- *   can collect phone numbers by proposing deals.
+ * - `email` and `phone`: those, plus the seller's counterparties: the other
+ *   side of an accepted deal, a paid order or a booking. A proposed deal is not
+ *   enough, so nobody can collect phone numbers by proposing deals. This holds
+ *   for businesses too since USR-14: buyers reach a business through chat
+ *   (TRX-18), which keeps the deal on EKORU.
  *
  * Ley 21.719 treats a private person's contact details as personal data; the
  * web already hid most of this on screen, but the API handed it to anyone.
@@ -60,7 +61,6 @@ export class SellerPrivacyService {
 
   async canSeeContact(viewer: SellerViewer, seller: SellerSubject) {
     if (this.isOwnerOrStaff(viewer, seller)) return true;
-    if (isBusiness(seller)) return true;
     return this.isCounterparty(viewer, seller.id);
   }
 

@@ -587,6 +587,31 @@ export const NOTIFICATION_REGISTRY: Partial<
     },
   },
 
+  // ─── Chat (TRX-18, USR-13) ─────────────────────────────────────────────────
+  // ekoru-transactions sends one per unread burst, so this never floods. Email
+  // follows the seller's opt-in: a reply in a chat is worth a push, not
+  // necessarily a mail. `{{preview}}` is the message as stored, so contact
+  // details are already masked.
+  [NotificationType.MESSAGE_RECEIVED]: {
+    ...DEFAULTS,
+    priority: NotificationPriority.HIGH,
+    email: 'notice',
+    fallback: {
+      es: {
+        title: 'Nuevo mensaje de {{actorName}}',
+        message: '«{{preview}}»',
+      },
+      en: {
+        title: 'New message from {{actorName}}',
+        message: '"{{preview}}"',
+      },
+      fr: {
+        title: 'Nouveau message de {{actorName}}',
+        message: '« {{preview}} »',
+      },
+    },
+  },
+
   // ─── Points (docs/POINTS.md) ───────────────────────────────────────────────
   // In-app and push only: an achievement is nice to hear about, not worth an
   // email.
