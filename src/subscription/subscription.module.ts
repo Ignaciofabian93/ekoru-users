@@ -3,6 +3,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SubscriptionService } from './subscription.service';
 import { MembershipExpiryService } from './membership-expiry.service';
+import { SubscriptionAdminService } from './subscription-admin.service';
+import { SubscriptionAdminResolver } from './subscription-admin.resolver';
 import { MembershipExpiryProcessor } from './membership-expiry.processor';
 import { MEMBERSHIPS_QUEUE } from './membership-expiry.queue';
 import {
@@ -20,6 +22,8 @@ import { BusinessMembershipLoader } from './loaders/business-membership.loader';
   ],
   providers: [
     SubscriptionService,
+    SubscriptionAdminService,
+    SubscriptionAdminResolver,
     MembershipExpiryService,
     MembershipExpiryProcessor,
     SubscriptionResolver,

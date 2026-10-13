@@ -13,15 +13,22 @@ import {
 } from '@nestjs/graphql';
 import { Throttle } from '@nestjs/throttler';
 import { SellersService } from './sellers.service';
-import { DateTimeScalar } from '../graphql/scalars';
+import {
+  SellerPrivacyService,
+  type SellerSubject,
+  type SellerViewer,
+} from './seller-privacy.service';
+import { DateTimeScalar, JSONScalar } from '../graphql/scalars';
 import {
   Seller,
   SellerConnection,
   SellerLevel,
   PersonProfile,
   BusinessProfile,
+  BusinessTag,
   Profile,
 } from './entities';
+import { BUSINESS_TAG_IDS } from './business-tags';
 import {
   RegisterPersonInput,
   RegisterBusinessInput,
@@ -40,10 +47,20 @@ import {
   Language,
   SellerType,
 } from '../graphql/enums';
+import { LogsOwnActivity } from '../common/admin-activity.interceptor';
 
 @Resolver(() => Seller)
 export class SellersResolver {
-  constructor(private readonly sellersService: SellersService) {}
+  constructor(
+    private readonly sellersService: SellersService,
+    private readonly privacy: SellerPrivacyService,
+  ) {}
+
+  /** Tags a business may pick in Edit profile (USR-11). Public. */
+  @Query(() => [BusinessTag])
+  businessTags(): BusinessTag[] {
+    return BUSINESS_TAG_IDS.map((id) => ({ id }));
+  }
 
   // Federation reference resolver
   @ResolveReference()
@@ -300,6 +317,7 @@ export class SellersResolver {
       'Approve a business after onboarding review so it can sign in. Works on ' +
       'PENDING and REJECTED businesses; emails the business. Requires MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   async approveBusiness(
     @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
@@ -315,6 +333,7 @@ export class SellersResolver {
       'Reject a PENDING business application. The reason (>= 10 chars) is ' +
       'emailed to the business. Requires MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   async rejectBusiness(
     @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
@@ -337,6 +356,7 @@ export class SellersResolver {
       'refunds, quotations, bookings or exchanges. Deactivates and unverifies the ' +
       'account and records a ban history row. Requires BAN_USERS.',
   })
+  @LogsOwnActivity()
   async banSeller(
     @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
@@ -353,6 +373,7 @@ export class SellersResolver {
       "Lift a seller's active ban and reactivate the account. Verification is not " +
       'restored automatically. Requires BAN_USERS.',
   })
+  @LogsOwnActivity()
   async reinstateSeller(
     @CurrentAdmin() adminId: string,
     @Args('id', { type: () => ID }) id: string,
@@ -399,8 +420,55 @@ export class SellersResolver {
     return seller.sellerLevel || null;
   }
 
-  @ResolveField()
-  preferences(@Parent() seller: any) {
-    return seller.sellerPreferences || null;
+  // ─── Private fields (USR-10): see SellerPrivacyService for the rules ──────
+
+  @ResolveField(() => String, { nullable: true })
+  async email(
+    @Parent() seller: SellerSubject & { email?: string | null },
+    @Context() viewer: SellerViewer,
+  ) {
+    return (await this.privacy.canSeeContact(viewer, seller))
+      ? (seller.email ?? null)
+      : null;
+  }
+
+  @ResolveField(() => String, { nullable: true })
+  async phone(
+    @Parent() seller: SellerSubject & { phone?: string | null },
+    @Context() viewer: SellerViewer,
+  ) {
+    return (await this.privacy.canSeeContact(viewer, seller))
+      ? (seller.phone ?? null)
+      : null;
+  }
+
+  @ResolveField(() => String, { nullable: true })
+  async address(
+    @Parent() seller: SellerSubject & { address?: string | null },
+    @Context() viewer: SellerViewer,
+  ) {
+    return (await this.privacy.canSeeAddress(viewer, seller))
+      ? (seller.address ?? null)
+      : null;
+  }
+
+  @ResolveField(() => JSONScalar, { nullable: true })
+  async socialMediaLinks(
+    @Parent() seller: SellerSubject & { socialMediaLinks?: unknown },
+    @Context() viewer: SellerViewer,
+  ) {
+    return (await this.privacy.canSeeSocials(viewer, seller))
+      ? (seller.socialMediaLinks ?? null)
+      : null;
+  }
+
+  @ResolveField(() => SellerPreferences, { nullable: true })
+  preferences(
+    @Parent() seller: SellerSubject & { sellerPreferences?: unknown },
+    @Context() viewer: SellerViewer,
+  ) {
+    return this.privacy.canSeePreferences(viewer, seller)
+      ? seller.sellerPreferences || null
+      : null;
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SellersService } from './sellers.service';
 import { SellersResolver } from './sellers.resolver';
+import { SellerPrivacyService } from './seller-privacy.service';
 import { BusinessAddressResolver } from './business-address.resolver';
 import { BusinessReviewResolver } from './business-review.resolver';
 import { SellerAdminService } from './admin/seller-admin.service';
@@ -12,6 +13,7 @@ import { PointsModule } from '../points/points.module';
   imports: [MailModule, PointsModule],
   providers: [
     SellersService,
+    SellerPrivacyService,
     SellersResolver,
     BusinessAddressResolver,
     BusinessReviewResolver,

@@ -56,6 +56,10 @@ export class BusinessProfile {
   @Field(() => [String])
   certifications: string[];
 
+  /** Ids from the businessTags catalog. */
+  @Field(() => [String])
+  tags: string[];
+
   @Field(() => Int, { nullable: true })
   travelRadius?: number;
 

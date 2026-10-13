@@ -10,6 +10,7 @@ import {
   SellerPreferencesUpsertRowInput,
   SellerUpsertRowInput,
 } from './seller-bulk.input';
+import { LogsOwnActivity } from '../../common/admin-activity.interceptor';
 
 /** The sellers workbook (export, edit, import). Admins with MANAGE_USERS. */
 @Resolver()
@@ -48,6 +49,7 @@ export class SellerAdminResolver {
     description:
       'Sheet `sellers`: id updates (or restores under that id); no id matches by email, else creates. MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   bulkUpsertSellers(
     @CurrentAdmin() adminId: string | undefined,
     @Args('rows', { type: () => [SellerUpsertRowInput] })
@@ -62,6 +64,7 @@ export class SellerAdminResolver {
     name: 'bulkUpsertPersonProfiles',
     description: 'Sheet `persons`, matched by sellerId. MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   bulkUpsertPersonProfiles(
     @CurrentAdmin() adminId: string | undefined,
     @Args('rows', { type: () => [PersonProfileUpsertRowInput] })
@@ -80,6 +83,7 @@ export class SellerAdminResolver {
     name: 'bulkUpsertBusinessProfiles',
     description: 'Sheet `businesses`, matched by sellerId. MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   bulkUpsertBusinessProfiles(
     @CurrentAdmin() adminId: string | undefined,
     @Args('rows', { type: () => [BusinessProfileUpsertRowInput] })
@@ -98,6 +102,7 @@ export class SellerAdminResolver {
     name: 'bulkUpsertSellerPreferences',
     description: 'Sheet `preferences`, matched by sellerId. MANAGE_USERS.',
   })
+  @LogsOwnActivity()
   bulkUpsertSellerPreferences(
     @CurrentAdmin() adminId: string | undefined,
     @Args('rows', { type: () => [SellerPreferencesUpsertRowInput] })

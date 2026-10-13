@@ -1,7 +1,17 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsString, IsOptional, IsEnum, IsInt } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { BusinessType } from '../../graphql/enums';
 import { DateTimeScalar, JSONScalar } from '../../graphql/scalars';
+import { BUSINESS_TAG_IDS, MAX_BUSINESS_TAGS } from '../business-tags';
 
 @InputType()
 export class UpdateBusinessProfileInput {
@@ -77,6 +87,15 @@ export class UpdateBusinessProfileInput {
   @Field(() => [String], { nullable: true })
   @IsOptional()
   certifications?: string[];
+
+  /** Ids from the businessTags catalog; replaces the stored list. */
+  @Field(() => [String], { nullable: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_BUSINESS_TAGS)
+  @ArrayUnique()
+  @IsIn(BUSINESS_TAG_IDS, { each: true })
+  tags?: string[];
 
   @Field(() => Int, { nullable: true })
   @IsInt()

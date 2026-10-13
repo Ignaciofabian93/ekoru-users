@@ -20,6 +20,8 @@ export type SubscriptionMessages = {
   errorAssignMembership: string;
   /** A seller tried to give themselves a paid plan without paying. */
   paidPlanNeedsCheckout: string;
+  subscriptionNotFound: string;
+  errorCancelSubscription: string;
 };
 
 export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
@@ -41,6 +43,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorDeletePricing: 'Error al eliminar precio de membresía',
     errorAssignMembership: 'Error al asignar membresía',
     paidPlanNeedsCheckout: 'Los planes pagados se activan al completar el pago',
+    subscriptionNotFound: 'Suscripción no encontrada',
+    errorCancelSubscription: 'Error al cancelar la suscripción',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
@@ -60,6 +64,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorDeletePricing: 'Error deleting membership pricing',
     errorAssignMembership: 'Error assigning membership',
     paidPlanNeedsCheckout: 'Paid plans are activated by completing checkout',
+    subscriptionNotFound: 'Subscription not found',
+    errorCancelSubscription: 'Error cancelling the subscription',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
@@ -80,6 +86,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: "Erreur lors de l'attribution de l'abonnement",
     paidPlanNeedsCheckout:
       "Les forfaits payants s'activent une fois le paiement effectué",
+    subscriptionNotFound: 'Abonnement introuvable',
+    errorCancelSubscription: "Erreur lors de l'annulation de l'abonnement",
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
@@ -100,6 +108,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: 'Erro ao atribuir assinatura',
     paidPlanNeedsCheckout:
       'Os planos pagos são ativados ao concluir o pagamento',
+    subscriptionNotFound: 'Assinatura não encontrada',
+    errorCancelSubscription: 'Erro ao cancelar a assinatura',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
@@ -120,5 +130,7 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: 'Fehler beim Zuweisen der Mitgliedschaft',
     paidPlanNeedsCheckout:
       'Kostenpflichtige Tarife werden nach Abschluss der Zahlung aktiviert',
+    subscriptionNotFound: 'Abonnement nicht gefunden',
+    errorCancelSubscription: 'Fehler beim Kündigen des Abonnements',
   },
 };

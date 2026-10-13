@@ -35,7 +35,8 @@ export class Seller {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  /** Hidden from strangers for persons (USR-10): see SellerPrivacyService. */
+  @Field(() => String, { nullable: true })
   email: string;
 
   @Field(() => String)
