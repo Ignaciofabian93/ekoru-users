@@ -4,8 +4,9 @@ import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { GqlThrottlerGuard } from './common/guards/gql-throttler.guard';
 import { resolveIdentity } from './common/identity';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AdminActivityInterceptor } from './common/admin-activity.interceptor';
+import { GraphQLErrorLogFilter } from './common/exceptions/graphql-error-log.filter';
 import { GraphQLModule } from '@nestjs/graphql';
 import {
   ApolloFederationDriver,
@@ -125,6 +126,8 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     { provide: APP_GUARD, useClass: GqlThrottlerGuard },
     // Every admin mutation leaves an AdminActivityLog row (USR-12).
     { provide: APP_INTERCEPTOR, useClass: AdminActivityInterceptor },
+    // One line per expected GraphQL error instead of Nest's stack trace.
+    { provide: APP_FILTER, useClass: GraphQLErrorLogFilter },
   ],
 })
 export class AppModule {}

@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders } from 'http';
-import { verify } from 'jsonwebtoken';
+import { TokenExpiredError, verify } from 'jsonwebtoken';
 
 /**
  * Who is making this request.
@@ -26,6 +26,8 @@ export interface RequestIdentity {
   adminSellerId?: string;
   /** The verified token, for onward service-to-service calls. */
   token?: string;
+  /** Why a token that arrived was not accepted. For the error log only. */
+  tokenRejected?: string;
 }
 
 interface AccessClaims {
@@ -66,9 +68,16 @@ export function resolveIdentity(headers: IncomingHttpHeaders): RequestIdentity {
   let claims: AccessClaims;
   try {
     claims = verify(token, secret) as AccessClaims;
-  } catch {
+  } catch (error) {
     // Expired or forged. Anonymous, not trusted.
-    return {};
+    return {
+      tokenRejected:
+        error instanceof TokenExpiredError
+          ? `expired at ${error.expiredAt.toISOString()}`
+          : error instanceof Error
+            ? error.message
+            : String(error),
+    };
   }
 
   return {
