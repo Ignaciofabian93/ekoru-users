@@ -1,5 +1,9 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BeforeApplicationShutdown,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,7 +32,10 @@ import {
  * cause the push to be re-sent on every attempt.
  */
 @Processor(NOTIFICATIONS_QUEUE)
-export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
+export class NotificationsProcessor
+  extends WorkerHost
+  implements OnModuleInit, BeforeApplicationShutdown
+{
   private readonly logger = new Logger(NotificationsProcessor.name);
 
   constructor(
@@ -69,6 +76,14 @@ export class NotificationsProcessor extends WorkerHost implements OnModuleInit {
       // already degrades to in-app only in that case.
       this.logger.error('Could not schedule the notification purge', error);
     }
+  }
+
+  /**
+   * On shutdown, waits for the job in progress before anything else closes:
+   * Prisma and Redis close later, in onApplicationShutdown.
+   */
+  async beforeApplicationShutdown(): Promise<void> {
+    await this.worker.close();
   }
 
   async process(job: Job<DeliverJobData>): Promise<unknown> {

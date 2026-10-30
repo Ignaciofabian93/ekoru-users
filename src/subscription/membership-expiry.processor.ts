@@ -1,5 +1,9 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BeforeApplicationShutdown,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { MembershipExpiryService } from './membership-expiry.service';
 import {
@@ -16,7 +20,7 @@ import {
 @Processor(MEMBERSHIPS_QUEUE)
 export class MembershipExpiryProcessor
   extends WorkerHost
-  implements OnModuleInit
+  implements OnModuleInit, BeforeApplicationShutdown
 {
   private readonly logger = new Logger(MembershipExpiryProcessor.name);
 
@@ -50,6 +54,14 @@ export class MembershipExpiryProcessor
         error,
       );
     }
+  }
+
+  /**
+   * On shutdown, waits for the job in progress before anything else closes:
+   * Prisma and Redis close later, in onApplicationShutdown.
+   */
+  async beforeApplicationShutdown(): Promise<void> {
+    await this.worker.close();
   }
 
   async process(job: Job): Promise<unknown> {
