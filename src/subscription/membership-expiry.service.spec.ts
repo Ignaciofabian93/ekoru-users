@@ -200,4 +200,29 @@ describe('MembershipExpiryService (USR-3)', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(notifications.emit).not.toHaveBeenCalled();
   });
+
+  it('moves the profile to a prepaid extension instead of the free plan (USR-16)', async () => {
+    const { prisma, notifications, service } = setup();
+    prisma.personMembershipSubscription.findMany
+      .mockResolvedValueOnce([personRow()])
+      .mockResolvedValueOnce([]);
+    // The extension that starts where the expired term ended.
+    prisma.personMembershipSubscription.findFirst.mockResolvedValue({ id: 12 });
+
+    await service.sweep(NOW);
+
+    expect(
+      prisma.personMembershipSubscription.findFirst.mock.calls[0][0].where,
+    ).toMatchObject({
+      sellerId: 'seller-1',
+      isActive: true,
+      startDate: { lte: NOW },
+    });
+    expect(prisma.personProfile.updateMany).toHaveBeenCalledWith({
+      where: { sellerId: 'seller-1', personMembershipSubscriptionId: null },
+      data: { personMembershipSubscriptionId: 12 },
+    });
+    // Renewed ahead of time: nothing to tell them.
+    expect(notifications.emit).not.toHaveBeenCalled();
+  });
 });

@@ -17,12 +17,14 @@ const mockPrisma = {
   personMembership: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
   businessMembership: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
@@ -39,18 +41,32 @@ const mockPrisma = {
   personMembershipPricing: {
     upsert: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     delete: jest.fn(),
   },
   businessMembershipPricing: {
     upsert: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     delete: jest.fn(),
   },
-  personMembershipSubscription: { create: jest.fn(), findFirst: jest.fn() },
-  businessMembershipSubscription: { create: jest.fn(), findFirst: jest.fn() },
+  personMembershipSubscription: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    updateMany: jest.fn(),
+  },
+  businessMembershipSubscription: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    updateMany: jest.fn(),
+  },
   seller: { findUnique: jest.fn() },
   personProfile: { update: jest.fn() },
   businessProfile: { update: jest.fn() },
+  // Interactive transactions run against the same mocks.
+  $transaction: jest.fn(),
 };
 
 const lang = Language.EN;
@@ -96,6 +112,14 @@ describe('SubscriptionService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.admin.findUnique.mockResolvedValue(settingsAdmin);
+    mockPrisma.$transaction.mockImplementation(
+      (fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma),
+    );
+    // No terms held by default, so a purchase starts now.
+    mockPrisma.personMembershipSubscription.findMany.mockResolvedValue([]);
+    mockPrisma.businessMembershipSubscription.findMany.mockResolvedValue([]);
+    mockPrisma.personMembershipSubscription.findFirst.mockResolvedValue(null);
+    mockPrisma.businessMembershipSubscription.findFirst.mockResolvedValue(null);
     service = new SubscriptionService(mockPrisma as unknown as PrismaService);
   });
 
@@ -755,6 +779,127 @@ describe('SubscriptionService', () => {
           viaPayment: true,
         }),
       ).rejects.toBeInstanceOf(InternalServerError);
+    });
+  });
+
+  describe('terms around held ones (USR-16)', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const heldStartup = (endInDays: number) => ({
+      id: 5,
+      startDate: new Date(Date.now() - 10 * DAY),
+      endDate: new Date(Date.now() + endInDays * DAY),
+      businessMembership: {
+        membershipType: BusinessSubscriptionPlan.STARTUP,
+        pricing: [{ price: 1000 }],
+      },
+    });
+
+    beforeEach(() => {
+      mockPrisma.seller.findUnique.mockResolvedValue({ countryId: 1 });
+      mockPrisma.businessMembershipSubscription.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => ({ id: 9, ...data }),
+      );
+    });
+
+    it('activates a payment once, however often it is reported', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+      const existing = { id: 3, paymentId: 77 };
+      mockPrisma.businessMembershipSubscription.findFirst.mockResolvedValue(
+        existing,
+      );
+
+      await expect(
+        service.assignBusinessMembership({
+          sellerId,
+          input: { businessMembershipId: 2, paymentId: 77 },
+          language: lang,
+          viaPayment: true,
+        }),
+      ).resolves.toBe(existing);
+      expect(
+        mockPrisma.businessMembershipSubscription.create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('extends the same plan from the held end date and keeps the profile on the term in force', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue(
+        businessMembershipRaw,
+      );
+      const held = heldStartup(20);
+      mockPrisma.businessMembershipSubscription.findMany.mockResolvedValue([
+        held,
+      ]);
+
+      const sub = (await service.assignBusinessMembership({
+        sellerId,
+        input: { businessMembershipId: 2, paymentId: 78 },
+        language: lang,
+        viaPayment: true,
+      })) as unknown as { startDate: Date };
+
+      expect(sub.startDate).toEqual(held.endDate);
+      expect(
+        mockPrisma.businessMembershipSubscription.updateMany,
+      ).not.toHaveBeenCalled();
+      expect(mockPrisma.businessProfile.update).not.toHaveBeenCalled();
+    });
+
+    it('upgrades now, ends the held term and links the profile to the new one', async () => {
+      mockPrisma.businessMembership.findUnique.mockResolvedValue({
+        ...businessMembershipRaw,
+        membershipType: BusinessSubscriptionPlan.BASIC,
+        durationMonths: 1,
+      });
+      mockPrisma.businessMembershipSubscription.findMany.mockResolvedValue([
+        heldStartup(20),
+      ]);
+      mockPrisma.businessMembershipPricing.findFirst.mockResolvedValue({
+        price: 2000,
+      });
+
+      await service.assignBusinessMembership({
+        sellerId,
+        input: { businessMembershipId: 3, paymentId: 79 },
+        language: lang,
+        viaPayment: true,
+      });
+
+      expect(
+        mockPrisma.businessMembershipSubscription.updateMany,
+      ).toHaveBeenCalledWith({
+        where: { id: { in: [5] } },
+        data: { isActive: false, endDate: expect.any(Date) },
+      });
+      expect(mockPrisma.businessProfile.update).toHaveBeenCalledWith({
+        where: { sellerId },
+        data: { businessMembershipSubscriptionId: 9 },
+      });
+    });
+
+    it('refuses to charge a lower plan while a term runs', async () => {
+      mockPrisma.seller.findUnique.mockResolvedValue({
+        countryId: 1,
+        sellerType: 'STARTUP',
+      });
+      mockPrisma.businessMembership.findFirst.mockResolvedValue({
+        durationMonths: 1,
+        membershipType: BusinessSubscriptionPlan.STARTUP,
+      });
+      mockPrisma.businessMembershipSubscription.findMany.mockResolvedValue([
+        {
+          ...heldStartup(20),
+          businessMembership: {
+            membershipType: BusinessSubscriptionPlan.BASIC,
+            pricing: [{ price: 2000 }],
+          },
+        },
+      ]);
+
+      await expect(
+        service.getMembershipCharge({ membershipId: 2, sellerId }),
+      ).rejects.toThrow(subscriptionMessages[Language.ES].lowerPlanWhileActive);
     });
   });
 

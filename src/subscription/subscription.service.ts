@@ -10,6 +10,12 @@ import { AdminPermission, Language } from '../graphql/enums';
 import { assertAdminCan } from '../common/admin-access';
 import { subscriptionMessages } from './subscription.i18n';
 import {
+  canBuy,
+  scheduleTerm,
+  type HeldTerm,
+  type MembershipKind,
+} from './membership-terms';
+import {
   CreatePersonMembershipInput,
   CreateBusinessMembershipInput,
   UpdatePersonMembershipInput,
@@ -626,28 +632,61 @@ export class SubscriptionService {
         throw new BadRequestError(t.paidPlanNeedsCheckout);
       }
 
-      const startDate = new Date();
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+      // A payment activates its term once, however often it is reported.
+      if (viaPayment && input.paymentId) {
+        const done = await this.prisma.personMembershipSubscription.findFirst({
+          where: { sellerId, paymentId: input.paymentId },
+        });
+        if (done) return done;
+      }
 
-      const subscription =
-        await this.prisma.personMembershipSubscription.create({
+      const now = new Date();
+      const { held, price } = await this.termContext(
+        'person',
+        sellerId,
+        plan.id,
+      );
+      if (!viaPayment && !canBuy('person', held, plan.membershipType, now)) {
+        throw new BadRequestError(t.lowerPlanWhileActive);
+      }
+      const term = scheduleTerm(
+        'person',
+        held,
+        {
+          plan: plan.membershipType,
+          durationMonths: plan.durationMonths,
+          price,
+        },
+        now,
+      );
+
+      return await this.prisma.$transaction(async (tx) => {
+        if (term.endNow.length) {
+          await tx.personMembershipSubscription.updateMany({
+            where: { id: { in: term.endNow } },
+            data: { isActive: false, endDate: now },
+          });
+        }
+        const subscription = await tx.personMembershipSubscription.create({
           data: {
             sellerId,
             personMembershipId: input.personMembershipId,
-            startDate,
-            endDate,
+            startDate: term.startDate,
+            endDate: term.endDate,
             autoRenew: input.autoRenew ?? false,
             paymentId: viaPayment ? input.paymentId : null,
           },
         });
-
-      await this.prisma.personProfile.update({
-        where: { sellerId },
-        data: { personMembershipSubscriptionId: subscription.id },
+        // A term that waits its turn leaves the profile on the one in force;
+        // the expiry sweep moves it over when that one ends.
+        if (term.startDate <= now) {
+          await tx.personProfile.update({
+            where: { sellerId },
+            data: { personMembershipSubscriptionId: subscription.id },
+          });
+        }
+        return subscription;
       });
-
-      return subscription;
     } catch (error) {
       if (
         error instanceof UnAuthorizedError ||
@@ -1009,28 +1048,63 @@ export class SubscriptionService {
         throw new BadRequestError(t.paidPlanNeedsCheckout);
       }
 
-      const startDate = new Date();
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + plan.durationMonths);
+      // A payment activates its term once, however often it is reported.
+      if (viaPayment && input.paymentId) {
+        const done = await this.prisma.businessMembershipSubscription.findFirst(
+          {
+            where: { sellerId, paymentId: input.paymentId },
+          },
+        );
+        if (done) return done;
+      }
 
-      const subscription =
-        await this.prisma.businessMembershipSubscription.create({
+      const now = new Date();
+      const { held, price } = await this.termContext(
+        'business',
+        sellerId,
+        plan.id,
+      );
+      if (!viaPayment && !canBuy('business', held, plan.membershipType, now)) {
+        throw new BadRequestError(t.lowerPlanWhileActive);
+      }
+      const term = scheduleTerm(
+        'business',
+        held,
+        {
+          plan: plan.membershipType,
+          durationMonths: plan.durationMonths,
+          price,
+        },
+        now,
+      );
+
+      return await this.prisma.$transaction(async (tx) => {
+        if (term.endNow.length) {
+          await tx.businessMembershipSubscription.updateMany({
+            where: { id: { in: term.endNow } },
+            data: { isActive: false, endDate: now },
+          });
+        }
+        const subscription = await tx.businessMembershipSubscription.create({
           data: {
             sellerId,
             businessMembershipId: input.businessMembershipId,
-            startDate,
-            endDate,
+            startDate: term.startDate,
+            endDate: term.endDate,
             autoRenew: input.autoRenew ?? false,
             paymentId: viaPayment ? input.paymentId : null,
           },
         });
-
-      await this.prisma.businessProfile.update({
-        where: { sellerId },
-        data: { businessMembershipSubscriptionId: subscription.id },
+        // A term that waits its turn leaves the profile on the one in force;
+        // the expiry sweep moves it over when that one ends.
+        if (term.startDate <= now) {
+          await tx.businessProfile.update({
+            where: { sellerId },
+            data: { businessMembershipSubscriptionId: subscription.id },
+          });
+        }
+        return subscription;
       });
-
-      return subscription;
     } catch (error) {
       if (
         error instanceof UnAuthorizedError ||
@@ -1052,6 +1126,110 @@ export class SubscriptionService {
    */
   private isPersonSeller(sellerType: string): boolean {
     return sellerType === 'PERSON';
+  }
+
+  /**
+   * The seller's active terms, each with what its plan costs in the seller's
+   * country today, and the price of the membership being bought. The unused
+   * part of a term is valued at today's price: the amount actually paid lives
+   * in transactions (USR-16).
+   */
+  private async termContext(
+    kind: MembershipKind,
+    sellerId: string,
+    membershipId: number,
+  ): Promise<{ held: HeldTerm[]; price: number | null }> {
+    const seller = await this.prisma.seller.findUnique({
+      where: { id: sellerId },
+      select: { countryId: true },
+    });
+    // No country, no price: -1 matches no pricing row.
+    const countryId = seller?.countryId ?? -1;
+    const pricing = {
+      where: { countryId, isActive: true },
+      select: { price: true },
+      take: 1,
+    };
+
+    if (kind === 'person') {
+      const [rows, next] = await Promise.all([
+        this.prisma.personMembershipSubscription.findMany({
+          where: { sellerId, isActive: true },
+          select: {
+            id: true,
+            startDate: true,
+            endDate: true,
+            personMembership: { select: { membershipType: true, pricing } },
+          },
+        }),
+        this.prisma.personMembershipPricing.findFirst({
+          where: {
+            personMembershipId: membershipId,
+            countryId,
+            isActive: true,
+          },
+          select: { price: true },
+        }),
+      ]);
+      return {
+        held: rows.map((row) => ({
+          id: row.id,
+          plan: row.personMembership.membershipType,
+          startDate: row.startDate,
+          endDate: row.endDate,
+          price: row.personMembership.pricing[0]?.price ?? null,
+        })),
+        price: next?.price ?? null,
+      };
+    }
+
+    const [rows, next] = await Promise.all([
+      this.prisma.businessMembershipSubscription.findMany({
+        where: { sellerId, isActive: true },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          businessMembership: { select: { membershipType: true, pricing } },
+        },
+      }),
+      this.prisma.businessMembershipPricing.findFirst({
+        where: {
+          businessMembershipId: membershipId,
+          countryId,
+          isActive: true,
+        },
+        select: { price: true },
+      }),
+    ]);
+    return {
+      held: rows.map((row) => ({
+        id: row.id,
+        plan: row.businessMembership.membershipType,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        price: row.businessMembership.pricing[0]?.price ?? null,
+      })),
+      price: next?.price ?? null,
+    };
+  }
+
+  /**
+   * Refuses a lower plan than the one in force before anything is charged
+   * (USR-16). Same or higher plans pass: they extend or upgrade.
+   */
+  private async assertCanBuy(
+    kind: MembershipKind,
+    sellerId: string,
+    membershipId: number,
+    plan: string,
+  ): Promise<void> {
+    const { held } = await this.termContext(kind, sellerId, membershipId);
+    if (!canBuy(kind, held, plan, new Date())) {
+      throw new BadRequestError(
+        subscriptionMessages[Language.ES].lowerPlanWhileActive,
+      );
+    }
   }
 
   /**
@@ -1080,9 +1258,15 @@ export class SubscriptionService {
     if (this.isPersonSeller(seller.sellerType)) {
       const plan = await this.prisma.personMembership.findFirst({
         where: { id: membershipId, isActive: true },
-        select: { durationMonths: true },
+        select: { durationMonths: true, membershipType: true },
       });
       if (!plan) throw new NotFoundError('Plan de suscripción no encontrado');
+      await this.assertCanBuy(
+        'person',
+        sellerId,
+        membershipId,
+        plan.membershipType,
+      );
       const pricing = await this.prisma.personMembershipPricing.findFirst({
         where: {
           personMembershipId: membershipId,
@@ -1099,9 +1283,15 @@ export class SubscriptionService {
 
     const plan = await this.prisma.businessMembership.findFirst({
       where: { id: membershipId, isActive: true },
-      select: { durationMonths: true },
+      select: { durationMonths: true, membershipType: true },
     });
     if (!plan) throw new NotFoundError('Plan de suscripción no encontrado');
+    await this.assertCanBuy(
+      'business',
+      sellerId,
+      membershipId,
+      plan.membershipType,
+    );
     const pricing = await this.prisma.businessMembershipPricing.findFirst({
       where: {
         businessMembershipId: membershipId,
@@ -1174,12 +1364,25 @@ export class SubscriptionService {
    * its end date is never current, even in the hour before the expiry sweep
    * marks it inactive (USR-3).
    */
-  /** Active and not past its end date (no end date = open-ended). */
+  /**
+   * Active, already started and not past its end date (no end date =
+   * open-ended). A prepaid extension waiting its turn is not current yet.
+   */
   private currentTermWhere(now: Date = new Date()) {
     return {
       isActive: true,
+      startDate: { lte: now },
       OR: [{ endDate: null }, { endDate: { gt: now } }],
     };
+  }
+
+  /** An open-ended term stays open; otherwise the later of the two ends. */
+  private paidUntil(
+    end: Date | null,
+    lastEnd: Date | null | undefined,
+  ): Date | null {
+    if (!end) return null;
+    return lastEnd && lastEnd > end ? lastEnd : end;
   }
 
   async getMySubscription(sellerId: string): Promise<{
@@ -1213,13 +1416,27 @@ export class SubscriptionService {
         },
       });
       if (!sub) return null;
+      // Prepaid extensions of the same plan follow this term: report the end
+      // of the whole run, which is what the seller paid up to (USR-16).
+      const last = await this.prisma.personMembershipSubscription.findFirst({
+        where: {
+          sellerId,
+          isActive: true,
+          endDate: { not: null },
+          personMembership: {
+            membershipType: sub.personMembership.membershipType,
+          },
+        },
+        orderBy: { endDate: 'desc' },
+        select: { endDate: true },
+      });
       return {
         id: sub.id,
         membershipId: sub.personMembershipId,
         plan: sub.personMembership.membershipType,
         isBusiness: false,
         startDate: sub.startDate,
-        endDate: sub.endDate,
+        endDate: this.paidUntil(sub.endDate, last?.endDate),
         isActive: sub.isActive,
         autoRenew: sub.autoRenew,
       };
@@ -1239,13 +1456,25 @@ export class SubscriptionService {
       },
     });
     if (!sub) return null;
+    const last = await this.prisma.businessMembershipSubscription.findFirst({
+      where: {
+        sellerId,
+        isActive: true,
+        endDate: { not: null },
+        businessMembership: {
+          membershipType: sub.businessMembership.membershipType,
+        },
+      },
+      orderBy: { endDate: 'desc' },
+      select: { endDate: true },
+    });
     return {
       id: sub.id,
       membershipId: sub.businessMembershipId,
       plan: sub.businessMembership.membershipType,
       isBusiness: true,
       startDate: sub.startDate,
-      endDate: sub.endDate,
+      endDate: this.paidUntil(sub.endDate, last?.endDate),
       isActive: sub.isActive,
       autoRenew: sub.autoRenew,
     };

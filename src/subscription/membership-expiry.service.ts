@@ -46,8 +46,9 @@ export interface SweepResult {
  * (`MembershipExpiryProcessor`):
  *
  * - Terms past their end date become inactive, and the profile that pointed at
- *   one goes back to the free plan (no linked subscription). The owner gets a
- *   MEMBERSHIP_EXPIRED notification.
+ *   one moves to the seller's next term already in force (a prepaid
+ *   extension, USR-16) or else back to the free plan (no linked
+ *   subscription). The owner gets a MEMBERSHIP_EXPIRED notification.
  * - Terms ending within a week get one MEMBERSHIP_EXPIRING notification. A
  *   notification with the same `relatedId` marks it as sent, so running the
  *   sweep often never warns twice.
@@ -115,11 +116,50 @@ export class MembershipExpiryService {
       ]);
     }
 
+    // A prepaid extension starts where the expired term ended: the profile
+    // moves to it instead of dropping to the free plan (USR-16).
+    for (const sellerId of new Set(due.map((row) => row.sellerId))) {
+      await this.relink(kind, sellerId, now);
+    }
+
     for (const row of due) {
       if (await this.hasLaterActiveTerm(kind, row, now)) continue;
       await this.notify(kind, row, NotificationType.MEMBERSHIP_EXPIRED);
     }
     return due.length;
+  }
+
+  /** Points an unlinked profile at the seller's term in force, if any. */
+  private async relink(kind: Kind, sellerId: string, now: Date) {
+    const where = {
+      sellerId,
+      isActive: true,
+      startDate: { lte: now },
+      OR: [{ endDate: null }, { endDate: { gt: now } }],
+    };
+    if (kind === 'person') {
+      const next = await this.prisma.personMembershipSubscription.findFirst({
+        where,
+        orderBy: { startDate: 'desc' },
+        select: { id: true },
+      });
+      if (!next) return;
+      await this.prisma.personProfile.updateMany({
+        where: { sellerId, personMembershipSubscriptionId: null },
+        data: { personMembershipSubscriptionId: next.id },
+      });
+      return;
+    }
+    const next = await this.prisma.businessMembershipSubscription.findFirst({
+      where,
+      orderBy: { startDate: 'desc' },
+      select: { id: true },
+    });
+    if (!next) return;
+    await this.prisma.businessProfile.updateMany({
+      where: { sellerId, businessMembershipSubscriptionId: null },
+      data: { businessMembershipSubscriptionId: next.id },
+    });
   }
 
   // ─── Warn ──────────────────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ export type SubscriptionMessages = {
   errorAssignMembership: string;
   /** A seller tried to give themselves a paid plan without paying. */
   paidPlanNeedsCheckout: string;
+  /** A lower plan than the one in force, bought before it ends (USR-16). */
+  lowerPlanWhileActive: string;
   subscriptionNotFound: string;
   errorCancelSubscription: string;
 };
@@ -43,6 +45,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorDeletePricing: 'Error al eliminar precio de membresía',
     errorAssignMembership: 'Error al asignar membresía',
     paidPlanNeedsCheckout: 'Los planes pagados se activan al completar el pago',
+    lowerPlanWhileActive:
+      'Podrás elegir un plan menor cuando termine tu plan actual',
     subscriptionNotFound: 'Suscripción no encontrada',
     errorCancelSubscription: 'Error al cancelar la suscripción',
   },
@@ -64,6 +68,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorDeletePricing: 'Error deleting membership pricing',
     errorAssignMembership: 'Error assigning membership',
     paidPlanNeedsCheckout: 'Paid plans are activated by completing checkout',
+    lowerPlanWhileActive:
+      'You can choose a lower plan once your current plan ends',
     subscriptionNotFound: 'Subscription not found',
     errorCancelSubscription: 'Error cancelling the subscription',
   },
@@ -86,6 +92,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: "Erreur lors de l'attribution de l'abonnement",
     paidPlanNeedsCheckout:
       "Les forfaits payants s'activent une fois le paiement effectué",
+    lowerPlanWhileActive:
+      'Vous pourrez choisir un forfait inférieur à la fin de votre forfait actuel',
     subscriptionNotFound: 'Abonnement introuvable',
     errorCancelSubscription: "Erreur lors de l'annulation de l'abonnement",
   },
@@ -108,6 +116,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: 'Erro ao atribuir assinatura',
     paidPlanNeedsCheckout:
       'Os planos pagos são ativados ao concluir o pagamento',
+    lowerPlanWhileActive:
+      'Você poderá escolher um plano menor quando o seu plano atual terminar',
     subscriptionNotFound: 'Assinatura não encontrada',
     errorCancelSubscription: 'Erro ao cancelar a assinatura',
   },
@@ -130,6 +140,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     errorAssignMembership: 'Fehler beim Zuweisen der Mitgliedschaft',
     paidPlanNeedsCheckout:
       'Kostenpflichtige Tarife werden nach Abschluss der Zahlung aktiviert',
+    lowerPlanWhileActive:
+      'Einen niedrigeren Tarif können Sie wählen, wenn Ihr aktueller Tarif endet',
     subscriptionNotFound: 'Abonnement nicht gefunden',
     errorCancelSubscription: 'Fehler beim Kündigen des Abonnements',
   },
