@@ -7,6 +7,8 @@ export type AdminMessages = {
   adminNotFound: string;
   emailAlreadyExists: string;
   businessIdRequired: string;
+  panelNotInPlan: string;
+  panelSeatsFull: string;
   errorGetAdmins: string;
   errorGetAdmin: string;
   errorGetMyData: string;
@@ -27,6 +29,9 @@ export const adminMessages: Record<Language, AdminMessages> = {
     emailAlreadyExists: 'Ya existe un administrador con ese email',
     businessIdRequired:
       'El ID de negocio es requerido para administradores de negocio',
+    panelNotInPlan: 'El plan actual de este negocio no incluye el panel',
+    panelSeatsFull:
+      'Este negocio ya usa todas las cuentas del panel que incluye su plan ({{seats}})',
     errorGetAdmins: 'Error al obtener administradores',
     errorGetAdmin: 'Error al obtener administrador',
     errorGetMyData: 'Error al obtener datos del administrador',
@@ -44,6 +49,9 @@ export const adminMessages: Record<Language, AdminMessages> = {
     adminNotFound: 'Admin not found',
     emailAlreadyExists: 'An admin with this email already exists',
     businessIdRequired: 'Business ID is required for business administrators',
+    panelNotInPlan: "This business's current plan doesn't include the panel",
+    panelSeatsFull:
+      'This business already uses all the panel accounts its plan includes ({{seats}})',
     errorGetAdmins: 'Error fetching admins',
     errorGetAdmin: 'Error fetching admin',
     errorGetMyData: 'Error fetching admin data',
@@ -62,6 +70,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     emailAlreadyExists: 'Un administrateur avec cet email existe déjà',
     businessIdRequired:
       "L'ID d'entreprise est requis pour les administrateurs d'entreprise",
+    panelNotInPlan:
+      "Le forfait actuel de cette entreprise n'inclut pas le panneau",
+    panelSeatsFull:
+      'Cette entreprise utilise déjà tous les comptes du panneau inclus dans son forfait ({{seats}})',
     errorGetAdmins: 'Erreur lors de la récupération des administrateurs',
     errorGetAdmin: "Erreur lors de la récupération de l'administrateur",
     errorGetMyData:
@@ -82,6 +94,9 @@ export const adminMessages: Record<Language, AdminMessages> = {
     emailAlreadyExists: 'Já existe um administrador com esse email',
     businessIdRequired:
       'O ID de negócio é obrigatório para administradores de negócio',
+    panelNotInPlan: 'O plano atual deste negócio não inclui o painel',
+    panelSeatsFull:
+      'Este negócio já usa todas as contas do painel incluídas no seu plano ({{seats}})',
     errorGetAdmins: 'Erro ao obter administradores',
     errorGetAdmin: 'Erro ao obter administrador',
     errorGetMyData: 'Erro ao obter dados do administrador',
@@ -100,6 +115,10 @@ export const adminMessages: Record<Language, AdminMessages> = {
     emailAlreadyExists: 'Ein Administrator mit dieser E-Mail existiert bereits',
     businessIdRequired:
       'Die Unternehmens-ID ist für Unternehmensadministratoren erforderlich',
+    panelNotInPlan:
+      'Der aktuelle Tarif dieses Unternehmens enthält das Panel nicht',
+    panelSeatsFull:
+      'Dieses Unternehmen nutzt bereits alle Panel-Konten seines Tarifs ({{seats}})',
     errorGetAdmins: 'Fehler beim Abrufen der Administratoren',
     errorGetAdmin: 'Fehler beim Abrufen des Administrators',
     errorGetMyData: 'Fehler beim Abrufen der Administratordaten',

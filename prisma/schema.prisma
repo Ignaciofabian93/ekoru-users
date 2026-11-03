@@ -656,6 +656,12 @@ model BusinessMembershipSubscription {
   @@index([endDate])
 }
 
+model BusinessPlanRule {
+  plan       BusinessSubscriptionPlan @id
+  panelSeats Int                      @default(0)
+  updatedAt  DateTime                 @updatedAt
+}
+
 model Admin {
   id                  String             @id @default(uuid())
   email               String             @unique

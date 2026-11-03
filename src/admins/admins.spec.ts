@@ -68,6 +68,11 @@ describe('AdminsService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
+      // Panel seats (USR-15): the plan in force and its rule.
+      businessMembershipSubscription: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      businessPlanRule: { findUnique: jest.fn().mockResolvedValue(null) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -822,6 +827,135 @@ describe('AdminsService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(InternalServerError);
+    });
+  });
+
+  describe('panel seats (USR-15)', () => {
+    const businessInput = {
+      ...mockRegisterInput,
+      adminType: AdminType.BUSINESS,
+      role: AdminRole.BUSINESS_MANAGER,
+      sellerId: 'store-1',
+    };
+
+    // The store holds a Startup term whose rule gives `seats` accounts.
+    function onPlan(seats: number, used: number) {
+      prisma.businessMembershipSubscription.findFirst.mockResolvedValue({
+        businessMembership: { membershipType: 'STARTUP' },
+      });
+      prisma.businessPlanRule.findUnique.mockResolvedValue({
+        panelSeats: seats,
+      });
+      prisma.admin.count.mockResolvedValue(used);
+    }
+
+    beforeEach(() => {
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+    });
+
+    it('refuses a business admin on the free plan', async () => {
+      mockLookups({ email: null });
+
+      await expect(
+        service.createAdmin({
+          callerId: CALLER_ID,
+          input: businessInput,
+          language: Language.ES,
+        }),
+      ).rejects.toThrow('El plan actual de este negocio no incluye el panel');
+      // No paid term: the free plan's rule decides.
+      expect(prisma.businessPlanRule.findUnique).toHaveBeenCalledWith({
+        where: { plan: 'FREEMIUM' },
+        select: { panelSeats: true },
+      });
+      expect(prisma.admin.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses one admin more than the plan gives', async () => {
+      mockLookups({ email: null });
+      onPlan(2, 2);
+
+      await expect(
+        service.createAdmin({
+          callerId: CALLER_ID,
+          input: businessInput,
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(
+        'ya usa todas las cuentas del panel que incluye su plan (2)',
+      );
+      expect(prisma.admin.count).toHaveBeenCalledWith({
+        where: { sellerId: 'store-1', adminType: 'BUSINESS', isActive: true },
+      });
+    });
+
+    it('creates the admin while a seat is free', async () => {
+      mockLookups({ email: null });
+      onPlan(2, 1);
+      prisma.admin.create.mockResolvedValue(mockAdmin);
+
+      await service.createAdmin({
+        callerId: CALLER_ID,
+        input: businessInput,
+        language: Language.ES,
+      });
+
+      expect(prisma.admin.create).toHaveBeenCalled();
+    });
+
+    it('checks a reactivation but never a deactivation', async () => {
+      const seated = {
+        id: 'admin-9',
+        adminType: AdminType.BUSINESS,
+        sellerId: 'store-1',
+        isActive: false,
+      };
+      mockLookups({ target: seated });
+      onPlan(1, 1);
+
+      await expect(
+        service.toggleAdminStatus({
+          callerId: CALLER_ID,
+          id: 'admin-9',
+          isActive: true,
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(BadRequestError);
+      // The admin itself is left out of the count.
+      expect(prisma.admin.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: { not: 'admin-9' } }),
+      });
+
+      jest.clearAllMocks();
+      mockLookups({ target: { ...seated, isActive: true } });
+      prisma.admin.update.mockResolvedValue(mockAdmin);
+      await service.toggleAdminStatus({
+        callerId: CALLER_ID,
+        id: 'admin-9',
+        isActive: false,
+        language: Language.ES,
+      });
+      expect(prisma.businessPlanRule.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('leaves an admin that keeps its seat alone', async () => {
+      mockLookups({
+        target: {
+          ...mockAdmin,
+          adminType: AdminType.BUSINESS,
+          sellerId: 'store-1',
+        },
+      });
+      prisma.admin.update.mockResolvedValue(mockAdmin);
+
+      await service.updateAdmin({
+        callerId: CALLER_ID,
+        id: 'admin-123',
+        input: { name: 'Renamed' },
+        language: Language.ES,
+      });
+
+      expect(prisma.businessPlanRule.findUnique).not.toHaveBeenCalled();
     });
   });
 });

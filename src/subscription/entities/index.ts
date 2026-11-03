@@ -14,3 +14,4 @@ export {
 } from './raw-connections.entity';
 export { MembershipCharge } from './membership-charge.entity';
 export { MySubscription } from './my-subscription.entity';
+export { BusinessPlanRule } from './business-plan-rule.entity';

@@ -29,6 +29,14 @@ import {
   requireBulkFields,
   processBulkRows,
 } from '../common/bulk';
+import { businessPanelSeats } from '../subscription/panel-seats';
+
+/** What decides whether an admin holds a seat in a business's panel. */
+type SeatState = {
+  adminType: string;
+  sellerId: string | null;
+  isActive: boolean;
+};
 
 const ADMIN_SELECT = {
   id: true,
@@ -300,6 +308,15 @@ export class AdminsService {
         throw new BadRequestError(t.businessIdRequired);
       }
 
+      await this.assertPanelSeat({
+        after: {
+          adminType: input.adminType,
+          sellerId: input.sellerId || null,
+          isActive: true,
+        },
+        t,
+      });
+
       const passwordHash = await hash(input.password, 10);
 
       const admin = await this.prisma.admin.create({
@@ -355,6 +372,20 @@ export class AdminsService {
       ) {
         throw new BadRequestError(t.businessIdRequired);
       }
+
+      await this.assertPanelSeat({
+        before: existing,
+        after: {
+          adminType: input.adminType ?? existing.adminType,
+          sellerId:
+            input.sellerId !== undefined
+              ? input.sellerId || null
+              : existing.sellerId,
+          isActive: existing.isActive,
+        },
+        id,
+        t,
+      });
 
       const admin = await this.prisma.admin.update({
         where: { id },
@@ -453,7 +484,7 @@ export class AdminsService {
 
       const existing = await this.prisma.admin.findUnique({
         where: { id },
-        select: { id: true },
+        select: { id: true, adminType: true, sellerId: true, isActive: true },
       });
 
       if (!existing) {
@@ -463,6 +494,13 @@ export class AdminsService {
       if (id === callerId && !isActive) {
         throw new BadRequestError(t.cannotDeactivateSelf);
       }
+
+      await this.assertPanelSeat({
+        before: existing,
+        after: { ...existing, isActive },
+        id,
+        t,
+      });
 
       const admin = await this.prisma.admin.update({
         where: { id },
@@ -536,10 +574,8 @@ export class AdminsService {
     rows: AdminUpsertRowInput[];
     language: Language;
   }) {
-    await this.assertCanManageAdmins({
-      callerId,
-      t: adminMessages[language],
-    });
+    const t = adminMessages[language];
+    await this.assertCanManageAdmins({ callerId, t });
 
     return processBulkRows(this.logger, rows, async (row) => {
       const data = pickDefined({
@@ -560,6 +596,25 @@ export class AdminsService {
       });
 
       if (row.id != null) {
+        const before = await this.prisma.admin.findUnique({
+          where: { id: row.id },
+          select: { adminType: true, sellerId: true, isActive: true },
+        });
+        if (before) {
+          await this.assertPanelSeat({
+            before,
+            after: {
+              adminType: row.adminType ?? before.adminType,
+              sellerId:
+                row.sellerId !== undefined
+                  ? row.sellerId || null
+                  : before.sellerId,
+              isActive: row.isActive ?? before.isActive,
+            },
+            id: row.id,
+            t,
+          });
+        }
         await this.prisma.admin.update({ where: { id: row.id }, data });
         return { outcome: 'updated', id: row.id };
       }
@@ -574,6 +629,14 @@ export class AdminsService {
       if (row.adminType === AdminType.BUSINESS && !row.sellerId) {
         throw new Error('sellerId is required for BUSINESS admins');
       }
+      await this.assertPanelSeat({
+        after: {
+          adminType: row.adminType!,
+          sellerId: row.sellerId || null,
+          isActive: row.isActive ?? true,
+        },
+        t,
+      });
       const created = await this.prisma.admin.create({
         data: {
           email: row.email!.toLowerCase(),
@@ -593,5 +656,46 @@ export class AdminsService {
       });
       return { outcome: 'created', id: created.id };
     });
+  }
+
+  /**
+   * Refuses a change that would seat one more admin in a business's panel than
+   * its plan gives (USR-15): none on the free plan, never more than the
+   * plan's count. Only an admin that newly takes a seat is checked: created,
+   * reactivated, or moved into a business. `id` leaves that admin out of the
+   * count.
+   */
+  private async assertPanelSeat({
+    before,
+    after,
+    id,
+    t,
+  }: {
+    before?: SeatState | null;
+    after: SeatState;
+    id?: string;
+    t: AdminMessages;
+  }) {
+    const seated = (a?: SeatState | null) =>
+      !!a?.isActive && a.adminType === 'BUSINESS' && !!a.sellerId;
+    if (!seated(after)) return;
+    if (seated(before) && before!.sellerId === after.sellerId) return;
+
+    const sellerId = after.sellerId!;
+    const { seats } = await businessPanelSeats(this.prisma, sellerId);
+    if (seats <= 0) throw new BadRequestError(t.panelNotInPlan);
+    const used = await this.prisma.admin.count({
+      where: {
+        sellerId,
+        adminType: AdminType.BUSINESS,
+        isActive: true,
+        ...(id && { id: { not: id } }),
+      },
+    });
+    if (used >= seats) {
+      throw new BadRequestError(
+        t.panelSeatsFull.replace('{{seats}}', String(seats)),
+      );
+    }
   }
 }

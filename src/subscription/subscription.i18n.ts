@@ -22,6 +22,7 @@ export type SubscriptionMessages = {
   paidPlanNeedsCheckout: string;
   /** A lower plan than the one in force, bought before it ends (USR-16). */
   lowerPlanWhileActive: string;
+  invalidPanelSeats: string;
   subscriptionNotFound: string;
   errorCancelSubscription: string;
 };
@@ -47,6 +48,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     paidPlanNeedsCheckout: 'Los planes pagados se activan al completar el pago',
     lowerPlanWhileActive:
       'Podrás elegir un plan menor cuando termine tu plan actual',
+    invalidPanelSeats:
+      'Las cuentas del panel deben ser un número entero entre 0 y 50',
     subscriptionNotFound: 'Suscripción no encontrada',
     errorCancelSubscription: 'Error al cancelar la suscripción',
   },
@@ -70,6 +73,7 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
     paidPlanNeedsCheckout: 'Paid plans are activated by completing checkout',
     lowerPlanWhileActive:
       'You can choose a lower plan once your current plan ends',
+    invalidPanelSeats: 'Panel accounts must be a whole number from 0 to 50',
     subscriptionNotFound: 'Subscription not found',
     errorCancelSubscription: 'Error cancelling the subscription',
   },
@@ -94,6 +98,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
       "Les forfaits payants s'activent une fois le paiement effectué",
     lowerPlanWhileActive:
       'Vous pourrez choisir un forfait inférieur à la fin de votre forfait actuel',
+    invalidPanelSeats:
+      'Les comptes du panneau doivent être un nombre entier entre 0 et 50',
     subscriptionNotFound: 'Abonnement introuvable',
     errorCancelSubscription: "Erreur lors de l'annulation de l'abonnement",
   },
@@ -118,6 +124,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
       'Os planos pagos são ativados ao concluir o pagamento',
     lowerPlanWhileActive:
       'Você poderá escolher um plano menor quando o seu plano atual terminar',
+    invalidPanelSeats:
+      'As contas do painel devem ser um número inteiro entre 0 e 50',
     subscriptionNotFound: 'Assinatura não encontrada',
     errorCancelSubscription: 'Erro ao cancelar a assinatura',
   },
@@ -142,6 +150,8 @@ export const subscriptionMessages: Record<Language, SubscriptionMessages> = {
       'Kostenpflichtige Tarife werden nach Abschluss der Zahlung aktiviert',
     lowerPlanWhileActive:
       'Einen niedrigeren Tarif können Sie wählen, wenn Ihr aktueller Tarif endet',
+    invalidPanelSeats:
+      'Die Panel-Konten müssen eine ganze Zahl von 0 bis 50 sein',
     subscriptionNotFound: 'Abonnement nicht gefunden',
     errorCancelSubscription: 'Fehler beim Kündigen des Abonnements',
   },

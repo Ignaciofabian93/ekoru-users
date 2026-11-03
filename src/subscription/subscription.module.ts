@@ -5,6 +5,8 @@ import { SubscriptionService } from './subscription.service';
 import { MembershipExpiryService } from './membership-expiry.service';
 import { SubscriptionAdminService } from './subscription-admin.service';
 import { SubscriptionAdminResolver } from './subscription-admin.resolver';
+import { BusinessPlanRulesService } from './business-plan-rules.service';
+import { BusinessPlanRulesResolver } from './business-plan-rules.resolver';
 import { MembershipExpiryProcessor } from './membership-expiry.processor';
 import { MEMBERSHIPS_QUEUE } from './membership-expiry.queue';
 import {
@@ -24,6 +26,8 @@ import { BusinessMembershipLoader } from './loaders/business-membership.loader';
     SubscriptionService,
     SubscriptionAdminService,
     SubscriptionAdminResolver,
+    BusinessPlanRulesService,
+    BusinessPlanRulesResolver,
     MembershipExpiryService,
     MembershipExpiryProcessor,
     SubscriptionResolver,
