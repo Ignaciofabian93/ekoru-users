@@ -722,6 +722,18 @@ model AdminActivityLog {
   @@index([action, createdAt(sort: Desc)])
 }
 
+model AdminPasswordToken {
+  id        String    @id @default(uuid())
+  adminId   String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
 model Country {
   id                        Int                         @id @default(autoincrement())
   // ISO 3166-1 alpha-2 code (e.g. "CL", "CA"). Lets the search subgraph scope a

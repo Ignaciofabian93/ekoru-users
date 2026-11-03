@@ -29,14 +29,7 @@ import {
   requireBulkFields,
   processBulkRows,
 } from '../common/bulk';
-import { businessPanelSeats } from '../subscription/panel-seats';
-
-/** What decides whether an admin holds a seat in a business's panel. */
-type SeatState = {
-  adminType: string;
-  sellerId: string | null;
-  isActive: boolean;
-};
+import { assertPanelSeat, type SeatState } from '../subscription/panel-seats';
 
 const ADMIN_SELECT = {
   id: true,
@@ -658,14 +651,8 @@ export class AdminsService {
     });
   }
 
-  /**
-   * Refuses a change that would seat one more admin in a business's panel than
-   * its plan gives (USR-15): none on the free plan, never more than the
-   * plan's count. Only an admin that newly takes a seat is checked: created,
-   * reactivated, or moved into a business. `id` leaves that admin out of the
-   * count.
-   */
-  private async assertPanelSeat({
+  /** The seat rule (USR-15), with this module's wording. */
+  private assertPanelSeat({
     before,
     after,
     id,
@@ -676,26 +663,6 @@ export class AdminsService {
     id?: string;
     t: AdminMessages;
   }) {
-    const seated = (a?: SeatState | null) =>
-      !!a?.isActive && a.adminType === 'BUSINESS' && !!a.sellerId;
-    if (!seated(after)) return;
-    if (seated(before) && before!.sellerId === after.sellerId) return;
-
-    const sellerId = after.sellerId!;
-    const { seats } = await businessPanelSeats(this.prisma, sellerId);
-    if (seats <= 0) throw new BadRequestError(t.panelNotInPlan);
-    const used = await this.prisma.admin.count({
-      where: {
-        sellerId,
-        adminType: AdminType.BUSINESS,
-        isActive: true,
-        ...(id && { id: { not: id } }),
-      },
-    });
-    if (used >= seats) {
-      throw new BadRequestError(
-        t.panelSeatsFull.replace('{{seats}}', String(seats)),
-      );
-    }
+    return assertPanelSeat(this.prisma, { before, after, id, messages: t });
   }
 }

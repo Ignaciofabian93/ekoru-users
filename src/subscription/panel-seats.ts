@@ -1,4 +1,5 @@
 import { BusinessSubscriptionPlan, type PrismaClient } from '@prisma/client';
+import { BadRequestError } from '../common/exceptions';
 
 type Db = Pick<
   PrismaClient,
@@ -34,4 +35,56 @@ export async function businessPanelSeats(
     select: { panelSeats: true },
   });
   return { plan, seats: rule?.panelSeats ?? 0 };
+}
+
+/** What decides whether an admin holds a seat in a business's panel. */
+export type SeatState = {
+  adminType: string;
+  sellerId: string | null;
+  isActive: boolean;
+};
+
+/**
+ * Refuses a change that would seat one more admin in a business's panel than
+ * its plan gives (USR-15): none on the free plan, never more than the plan's
+ * count. Only an admin that newly takes a seat is checked: created,
+ * reactivated, or moved into a business. `id` leaves that admin out of the
+ * count. Used by EKORU's Administradores screen and the business's own Team
+ * screen alike.
+ */
+export async function assertPanelSeat(
+  prisma: Db & Pick<PrismaClient, 'admin'>,
+  {
+    before,
+    after,
+    id,
+    messages,
+  }: {
+    before?: SeatState | null;
+    after: SeatState;
+    id?: string;
+    messages: { panelNotInPlan: string; panelSeatsFull: string };
+  },
+): Promise<void> {
+  const seated = (a?: SeatState | null) =>
+    !!a?.isActive && a.adminType === 'BUSINESS' && !!a.sellerId;
+  if (!seated(after)) return;
+  if (seated(before) && before!.sellerId === after.sellerId) return;
+
+  const sellerId = after.sellerId!;
+  const { seats } = await businessPanelSeats(prisma, sellerId);
+  if (seats <= 0) throw new BadRequestError(messages.panelNotInPlan);
+  const used = await prisma.admin.count({
+    where: {
+      sellerId,
+      adminType: 'BUSINESS',
+      isActive: true,
+      ...(id && { id: { not: id } }),
+    },
+  });
+  if (used >= seats) {
+    throw new BadRequestError(
+      messages.panelSeatsFull.replace('{{seats}}', String(seats)),
+    );
+  }
 }

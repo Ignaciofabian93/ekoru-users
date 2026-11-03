@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UnAuthorizedError,
@@ -8,6 +8,7 @@ import {
 } from '../common/exceptions';
 import { AdminPermission, Language } from '../graphql/enums';
 import { assertAdminCan } from '../common/admin-access';
+import { BusinessTeamService } from '../admins/business-team.service';
 import { subscriptionMessages } from './subscription.i18n';
 import {
   canBuy,
@@ -47,7 +48,11 @@ import {
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Opens a business's panel when it buys a paid plan (USR-15).
+    @Optional() private readonly businessTeam?: BusinessTeamService,
+  ) {}
 
   /**
    * Platform admin with MANAGE_SETTINGS, the permission the panel's memberships
@@ -1352,7 +1357,25 @@ export class SubscriptionService {
       language,
       viaPayment: true,
     });
+    await this.openBusinessPanel(sellerId);
     return { subscriptionId: sub.id };
+  }
+
+  /**
+   * A paid business plan includes the panel (USR-15): the first purchase
+   * creates the owner's account and emails the link to choose a password. The
+   * payment is already taken, so a failure here is logged, never thrown; EKORU
+   * can still create the account in Administradores.
+   */
+  private async openBusinessPanel(sellerId: string): Promise<void> {
+    try {
+      await this.businessTeam?.ensureOwner(sellerId);
+    } catch (error) {
+      this.logger.error(
+        `Could not open the panel for seller ${sellerId}:`,
+        error,
+      );
+    }
   }
 
   /**

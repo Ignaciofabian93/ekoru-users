@@ -1,3 +1,7 @@
 export { RegisterAdminInput } from './register-admin.input';
 export { UpdateAdminInput } from './update-admin.input';
 export { AdminUpsertRowInput } from './bulk-upsert.input';
+export {
+  InviteBusinessAdminInput,
+  UpdateBusinessAdminInput,
+} from './business-team.input';

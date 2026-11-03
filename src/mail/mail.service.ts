@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import {
+  adminAccessTemplates,
   businessApplicationReceivedTemplates,
   businessApplicationReviewMail,
   businessApprovedTemplates,
@@ -15,6 +16,7 @@ import {
   pickTemplate,
   transactionTemplates,
   welcomeTemplates,
+  type AdminAccessData,
   type BusinessApplicationData,
   type BusinessRejectedData,
   type BusinessReviewData,
@@ -114,6 +116,32 @@ export class MailService {
   }
 
   /**
+   * A one-time link into the admin panel to choose a password (USR-15): the
+   * invite a business owner or team member gets, or a panel password reset.
+   * Never gated on a preference. Returns whether SMTP accepted it.
+   */
+  async sendAdminAccessEmail({
+    email,
+    locale,
+    data,
+  }: {
+    email: string;
+    locale?: string;
+    data: AdminAccessData;
+  }): Promise<boolean> {
+    const template = pickTemplate(adminAccessTemplates, locale);
+    return this.send(`admin ${data.kind}`, email, template(data));
+  }
+
+  /** The admin panel's base URL, without a trailing slash. */
+  adminPanelUrl(): string {
+    const panel =
+      this.configService.get<string>('adminPanelUrl') ||
+      'https://admin.ekoru.cl';
+    return panel.replace(/\/$/, '');
+  }
+
+  /**
    * Order / P2P deal lifecycle update. Transactional: sent whatever the
    * seller's email opt-in says (USR-1).
    */
@@ -193,10 +221,7 @@ export class MailService {
   }) {
     const inbox =
       this.configService.get<string>('mail.reviewInbox') || 'contacto@ekoru.cl';
-    const panel =
-      this.configService.get<string>('adminPanelUrl') ||
-      'https://admin.ekoru.cl';
-    const reviewUrl = `${panel.replace(/\/$/, '')}/es/users/${data.sellerId}`;
+    const reviewUrl = `${this.adminPanelUrl()}/es/users/${data.sellerId}`;
     await this.send(
       'business application review',
       inbox,

@@ -1473,4 +1473,54 @@ describe('SubscriptionService', () => {
       ).rejects.toBeInstanceOf(InternalServerError);
     });
   });
+
+  describe('opening the panel on a paid business plan (USR-15)', () => {
+    const businessTeam = { ensureOwner: jest.fn() };
+
+    beforeEach(() => {
+      service = new SubscriptionService(
+        mockPrisma as unknown as PrismaService,
+        businessTeam as never,
+      );
+      mockPrisma.seller.findUnique.mockResolvedValue({
+        sellerType: 'COMPANY',
+        countryId: 1,
+      });
+      mockPrisma.businessMembership.findUnique.mockResolvedValue({
+        ...businessMembershipRaw,
+        membershipType: BusinessSubscriptionPlan.STARTUP,
+      });
+      mockPrisma.businessMembershipSubscription.create.mockResolvedValue({
+        id: 77,
+      });
+      mockPrisma.businessProfile.update.mockResolvedValue({});
+    });
+
+    it('creates the owner account once the term starts', async () => {
+      businessTeam.ensureOwner.mockResolvedValue('owner-1');
+
+      await expect(
+        service.activateMembershipSubscription({
+          sellerId,
+          membershipId: 2,
+          paymentId: 5,
+          language: lang,
+        }),
+      ).resolves.toEqual({ subscriptionId: 77 });
+      expect(businessTeam.ensureOwner).toHaveBeenCalledWith(sellerId);
+    });
+
+    it('still activates the plan when the owner account fails', async () => {
+      businessTeam.ensureOwner.mockRejectedValue(new Error('smtp down'));
+
+      await expect(
+        service.activateMembershipSubscription({
+          sellerId,
+          membershipId: 2,
+          paymentId: 5,
+          language: lang,
+        }),
+      ).resolves.toEqual({ subscriptionId: 77 });
+    });
+  });
 });

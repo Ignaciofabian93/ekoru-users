@@ -5,3 +5,4 @@ export {
   AdminActivityLogEntry,
   AdminActivityLogConnection,
 } from './admin-activity-log.entity';
+export { BusinessTeam, BusinessTeamMember } from './business-team.entity';

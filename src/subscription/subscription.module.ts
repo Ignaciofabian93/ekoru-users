@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AdminsModule } from '../admins/admins.module';
 import { SubscriptionService } from './subscription.service';
 import { MembershipExpiryService } from './membership-expiry.service';
 import { SubscriptionAdminService } from './subscription-admin.service';
@@ -20,6 +21,7 @@ import { BusinessMembershipLoader } from './loaders/business-membership.loader';
 @Module({
   imports: [
     NotificationsModule, // expiry notices go through emit()
+    AdminsModule, // a paid business plan opens the panel (USR-15)
     BullModule.registerQueue({ name: MEMBERSHIPS_QUEUE }),
   ],
   providers: [
