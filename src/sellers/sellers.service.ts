@@ -49,6 +49,9 @@ import {
 /** Shortest rejection reason accepted — the business receives it by email. */
 const REJECTION_REASON_MIN_LENGTH = 10;
 
+/** Most counties a `getSellers` location filter takes (Chile has 346). */
+const MAX_COUNTY_IDS = 500;
+
 /**
  * Password guessing through `reapplyBusiness` counts against the same lock as
  * the gateway's login (ekoru-gateway `auth.service.ts`): 8 failures lock the
@@ -142,10 +145,13 @@ export class SellersService {
     pageSize = 20,
     searchQuery,
     createdAfter,
+    countyIds,
   }: {
     language: Language;
     adminId?: string;
     createdAfter?: Date;
+    /** Sellers located in these counties; `[]` matches no one. */
+    countyIds?: number[];
     sellerType?: SellerType;
     businessType?: BusinessType;
     approvalStatus?: BusinessApprovalStatus;
@@ -162,6 +168,13 @@ export class SellersService {
       if (isActive !== undefined) where.isActive = isActive;
       if (isVerified !== undefined) where.isVerified = isVerified;
       if (createdAfter) where.createdAt = { gte: createdAfter };
+      // Location is the seller's primary county (`Seller.countyId`), the same
+      // one the marketplace and stores subgraphs filter products by, so the
+      // home page's nearby rows agree with each other. Capped: a radius can't
+      // reach more counties than a country has.
+      if (countyIds) {
+        where.countyId = { in: countyIds.slice(0, MAX_COUNTY_IDS) };
+      }
       if (searchQuery) {
         where.OR = [{ email: { contains: searchQuery, mode: 'insensitive' } }];
       }

@@ -10,6 +10,7 @@ import {
 import { AdminPermission, Language } from '../graphql/enums';
 import { assertAdminCan } from '../common/admin-access';
 import { locationMessages } from './location.i18n';
+import { asGeoPoint, boundingBox, distanceKm } from './geo';
 import {
   CreateCountryInput,
   CreateRegionInput,
@@ -734,6 +735,122 @@ export class LocationService {
         throw error;
       }
       throw new InternalServerError(t.errorCounties);
+    }
+  }
+
+  /** Largest radius `countiesNear` searches; larger requests are clamped. */
+  static readonly MAX_NEAR_RADIUS_KM = 100;
+
+  /**
+   * How far `countiesNear` looks for the county nearest a bare point. A point
+   * always belongs to some comuna, but with no boundaries stored the closest
+   * reference point stands in for "the one it is in", even when that point is
+   * further away than the radius asked for.
+   */
+  private static readonly NEAREST_SEARCH_KM = 40;
+
+  /**
+   * Counties whose reference point lies within `radiusKm` of an origin,
+   * nearest first, for the home page's "near you" rails. Public: browsing
+   * by location needs no account, and it returns catalogue data only.
+   *
+   * The origin is a point (the visitor's geolocation) or a county (the one
+   * they picked; its reference point is used). Given both, the point wins
+   * and the county is still included. The origin county is always in the
+   * result, and so is the county nearest a bare point, so a small radius
+   * never comes back without the visitor's own comuna. A county with no
+   * stored point (coordinates not seeded yet) only ever matches itself.
+   */
+  async getCountiesNear({
+    countyId,
+    latitude,
+    longitude,
+    radiusKm,
+    language,
+  }: {
+    countyId?: number;
+    latitude?: number;
+    longitude?: number;
+    radiusKm: number;
+    language: Language;
+  }) {
+    const t = locationMessages[language];
+    const point = asGeoPoint(latitude, longitude);
+    if (!countyId && !point) {
+      throw new BadRequestError(t.invalidNearOrigin);
+    }
+
+    try {
+      const radius = Math.min(
+        Math.max(Number.isFinite(radiusKm) ? radiusKm : 0, 0),
+        LocationService.MAX_NEAR_RADIUS_KM,
+      );
+      const select = {
+        id: true,
+        county: true,
+        cityId: true,
+        latitude: true,
+        longitude: true,
+      } as const;
+
+      const originCounty = countyId
+        ? await this.prisma.county.findUnique({
+            where: { id: Number(countyId) },
+            select,
+          })
+        : null;
+      if (countyId && !originCounty) {
+        throw new NotFoundError(t.countyNotFound);
+      }
+
+      const origin =
+        point ?? asGeoPoint(originCounty?.latitude, originCounty?.longitude);
+      const own = originCounty
+        ? [
+            {
+              id: originCounty.id,
+              county: originCounty.county,
+              cityId: originCounty.cityId,
+              distanceKm: 0,
+            },
+          ]
+        : [];
+      if (!origin) return own;
+
+      // A bare point widens the search just enough to find its own county.
+      const searchKm = originCounty
+        ? radius
+        : Math.max(radius, LocationService.NEAREST_SEARCH_KM);
+      const candidates = await this.prisma.county.findMany({
+        where: boundingBox(origin, searchKm),
+        select,
+      });
+
+      const measured = candidates
+        .flatMap((c) => {
+          const at = asGeoPoint(c.latitude, c.longitude);
+          if (!at) return [];
+          return [
+            {
+              id: c.id,
+              county: c.county,
+              cityId: c.cityId,
+              distanceKm: distanceKm(origin, at),
+            },
+          ];
+        })
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+
+      const within = measured.filter((c) => c.distanceKm <= radius);
+      const always = originCounty ? own : measured.slice(0, 1);
+      for (const c of always) {
+        if (!within.some((w) => w.id === c.id)) within.unshift(c);
+      }
+      return within;
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      this.logger.error(t.errorCountiesNear, error);
+      throw new InternalServerError(t.errorCountiesNear);
     }
   }
 

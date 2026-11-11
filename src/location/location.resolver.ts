@@ -1,10 +1,11 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, Float } from '@nestjs/graphql';
 import { LocationService } from './location.service';
 import {
   Country,
   Region,
   City,
   County,
+  NearbyCounty,
   RawCountryConnection,
   RawCountryTranslationConnection,
   RawRegionConnection,
@@ -205,6 +206,31 @@ export class LocationResolver {
       cityId,
       sellerId,
       adminId,
+      language,
+    });
+  }
+
+  @Query(() => [NearbyCounty], {
+    name: 'countiesNear',
+    description:
+      'Counties within `radiusKm` (at most 100) of a point or of a county, ' +
+      'nearest first; the origin county is always included. Feeds the ' +
+      '`countyIds` filter of the catalogue listings. Public.',
+  })
+  async getCountiesNear(
+    @Args('radiusKm', { type: () => Float }) radiusKm: number,
+    @Args('countyId', { type: () => Int, nullable: true }) countyId?: number,
+    @Args('latitude', { type: () => Float, nullable: true }) latitude?: number,
+    @Args('longitude', { type: () => Float, nullable: true })
+    longitude?: number,
+    @Args('language', { type: () => Language, defaultValue: Language.ES })
+    language: Language = Language.ES,
+  ) {
+    return this.locationService.getCountiesNear({
+      countyId,
+      latitude,
+      longitude,
+      radiusKm,
       language,
     });
   }

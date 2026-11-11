@@ -128,8 +128,17 @@ export class SellersResolver {
         "Accounts created on or after this moment (the dashboard's new sign-ups).",
     })
     createdAfter?: Date,
+    @Args('countyIds', {
+      type: () => [Int],
+      nullable: true,
+      description:
+        'Only sellers whose primary address is in one of these counties (see ' +
+        '`countiesNear`). An empty list matches no one; omit it for no filter.',
+    })
+    countyIds?: number[],
   ) {
     return this.sellersService.getSellers({
+      countyIds,
       createdAfter,
       language,
       adminId,

@@ -34,6 +34,8 @@ export type LocationMessages = {
   errorDeleteRegion: string;
   errorDeleteCity: string;
   errorDeleteCounty: string;
+  invalidNearOrigin: string;
+  errorCountiesNear: string;
 };
 
 export const locationMessages: Record<Language, LocationMessages> = {
@@ -76,6 +78,9 @@ export const locationMessages: Record<Language, LocationMessages> = {
     errorDeleteRegion: 'Error al eliminar la región',
     errorDeleteCity: 'Error al eliminar la ciudad',
     errorDeleteCounty: 'Error al eliminar la comuna',
+    invalidNearOrigin:
+      'Indica una comuna o un punto (latitud y longitud) como origen',
+    errorCountiesNear: 'Error al buscar comunas cercanas',
   },
   [Language.EN]: {
     unauthorized: 'Unauthorized',
@@ -115,6 +120,9 @@ export const locationMessages: Record<Language, LocationMessages> = {
     errorDeleteRegion: 'Error deleting region',
     errorDeleteCity: 'Error deleting city',
     errorDeleteCounty: 'Error deleting county',
+    invalidNearOrigin:
+      'Provide a county or a point (latitude and longitude) as the origin',
+    errorCountiesNear: 'Error finding nearby counties',
   },
   [Language.FR]: {
     unauthorized: 'Non autorisé',
@@ -155,6 +163,9 @@ export const locationMessages: Record<Language, LocationMessages> = {
     errorDeleteRegion: 'Erreur lors de la suppression de la région',
     errorDeleteCity: 'Erreur lors de la suppression de la ville',
     errorDeleteCounty: 'Erreur lors de la suppression de la commune',
+    invalidNearOrigin:
+      'Indiquez une commune ou un point (latitude et longitude) comme origine',
+    errorCountiesNear: 'Erreur lors de la recherche des communes proches',
   },
   [Language.PT]: {
     unauthorized: 'Não autorizado',
@@ -195,6 +206,9 @@ export const locationMessages: Record<Language, LocationMessages> = {
     errorDeleteRegion: 'Erro ao excluir a região',
     errorDeleteCity: 'Erro ao excluir a cidade',
     errorDeleteCounty: 'Erro ao excluir o município',
+    invalidNearOrigin:
+      'Informe um município ou um ponto (latitude e longitude) como origem',
+    errorCountiesNear: 'Erro ao buscar municípios próximos',
   },
   [Language.DE]: {
     unauthorized: 'Nicht autorisiert',
@@ -235,5 +249,8 @@ export const locationMessages: Record<Language, LocationMessages> = {
     errorDeleteRegion: 'Fehler beim Löschen der Region',
     errorDeleteCity: 'Fehler beim Löschen der Stadt',
     errorDeleteCounty: 'Fehler beim Löschen der Gemeinde',
+    invalidNearOrigin:
+      'Geben Sie eine Gemeinde oder einen Punkt (Breiten- und Längengrad) als Ausgangspunkt an',
+    errorCountiesNear: 'Fehler beim Suchen nahegelegener Gemeinden',
   },
 };

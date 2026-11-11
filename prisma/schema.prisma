@@ -792,12 +792,16 @@ model County {
   id              Int               @id @default(autoincrement())
   county          String
   cityId          Int
+  latitude        Float?
+  longitude       Float?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   admin           Admin[]
   city            City              @relation(fields: [cityId], references: [id])
   seller          Seller[]
   businessAddress BusinessAddress[]
+
+  @@index([latitude, longitude])
 }
 
 model Notification {

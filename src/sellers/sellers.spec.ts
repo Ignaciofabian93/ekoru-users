@@ -177,6 +177,33 @@ describe('SellersService', () => {
       expect(prisma.seller.findMany).toHaveBeenCalled();
     });
 
+    it('should filter sellers by the counties they are located in', async () => {
+      prisma.seller.findMany.mockResolvedValue([mockSeller]);
+
+      await service.getSellers({ language: Language.ES, countyIds: [10, 11] });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            countyId: { in: [10, 11] },
+            businessProfile: { approvalStatus: APPROVED },
+          },
+        }),
+      );
+    });
+
+    it('should match no one for an empty county list', async () => {
+      prisma.seller.findMany.mockResolvedValue([]);
+
+      await service.getSellers({ language: Language.ES, countyIds: [] });
+
+      expect(prisma.seller.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ countyId: { in: [] } }),
+        }),
+      );
+    });
+
     it('should filter sellers by sellerType', async () => {
       const sellers = [mockSeller];
       prisma.seller.findMany.mockResolvedValue(sellers);

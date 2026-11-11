@@ -514,6 +514,148 @@ describe('LocationService', () => {
     });
   });
 
+  describe('getCountiesNear', () => {
+    const select = {
+      id: true,
+      county: true,
+      cityId: true,
+      latitude: true,
+      longitude: true,
+    };
+    const nunoa = {
+      id: 10,
+      county: 'Ñuñoa',
+      cityId: 1,
+      latitude: -33.4543,
+      longitude: -70.5936,
+    };
+    const providencia = {
+      id: 11,
+      county: 'Providencia',
+      cityId: 1,
+      latitude: -33.4314,
+      longitude: -70.6093,
+    };
+    const puenteAlto = {
+      id: 12,
+      county: 'Puente Alto',
+      cityId: 2,
+      latitude: -33.6117,
+      longitude: -70.5758,
+    };
+
+    it('needs a county or a full point as the origin', async () => {
+      await expect(
+        service.getCountiesNear({ radiusKm: 5, language: Language.ES }),
+      ).rejects.toThrow(locationMessages[Language.ES].invalidNearOrigin);
+      await expect(
+        service.getCountiesNear({
+          latitude: -33.45,
+          radiusKm: 5,
+          language: Language.EN,
+        }),
+      ).rejects.toThrow(locationMessages[Language.EN].invalidNearOrigin);
+      expect(prisma.county.findMany).not.toHaveBeenCalled();
+    });
+
+    it('returns the counties within the radius of a county, nearest first', async () => {
+      prisma.county.findUnique.mockResolvedValue(nunoa);
+      prisma.county.findMany.mockResolvedValue([
+        puenteAlto,
+        providencia,
+        nunoa,
+      ]);
+
+      const result = await service.getCountiesNear({
+        countyId: 10,
+        radiusKm: 5,
+        language: Language.ES,
+      });
+
+      expect(result.map((c) => c.id)).toEqual([10, 11]);
+      expect(result[0].distanceKm).toBe(0);
+      expect(result[1].distanceKm).toBeGreaterThan(2);
+      expect(result[1].distanceKm).toBeLessThan(4);
+      expect(prisma.county.findUnique).toHaveBeenCalledWith({
+        where: { id: 10 },
+        select,
+      });
+    });
+
+    it('matches only the county itself while it has no coordinates', async () => {
+      prisma.county.findUnique.mockResolvedValue({
+        ...nunoa,
+        latitude: null,
+        longitude: null,
+      });
+
+      const result = await service.getCountiesNear({
+        countyId: 10,
+        radiusKm: 25,
+        language: Language.ES,
+      });
+
+      expect(result).toEqual([
+        { id: 10, county: 'Ñuñoa', cityId: 1, distanceKm: 0 },
+      ]);
+      expect(prisma.county.findMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps a bare point's nearest county even beyond a small radius", async () => {
+      prisma.county.findMany.mockResolvedValue([providencia, puenteAlto]);
+
+      const result = await service.getCountiesNear({
+        latitude: -33.4543,
+        longitude: -70.5936,
+        radiusKm: 1,
+        language: Language.ES,
+      });
+
+      expect(result.map((c) => c.id)).toEqual([11]);
+      expect(prisma.county.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('clamps the radius to the maximum', async () => {
+      prisma.county.findUnique.mockResolvedValue(nunoa);
+      prisma.county.findMany.mockResolvedValue([nunoa]);
+
+      await service.getCountiesNear({
+        countyId: 10,
+        radiusKm: 10_000,
+        language: Language.ES,
+      });
+
+      const { where } = prisma.county.findMany.mock.calls[0][0];
+      const maxDelta = LocationService.MAX_NEAR_RADIUS_KM / 111.32;
+      expect(where.latitude.gte).toBeCloseTo(nunoa.latitude - maxDelta, 6);
+      expect(where.latitude.lte).toBeCloseTo(nunoa.latitude + maxDelta, 6);
+    });
+
+    it('throws NotFoundError for an unknown county', async () => {
+      prisma.county.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getCountiesNear({
+          countyId: 999,
+          radiusKm: 5,
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('throws InternalServerError with translated message on database error', async () => {
+      prisma.county.findUnique.mockRejectedValue(new Error('Database error'));
+
+      await expect(
+        service.getCountiesNear({
+          countyId: 10,
+          radiusKm: 5,
+          language: Language.FR,
+        }),
+      ).rejects.toThrow(locationMessages[Language.FR].errorCountiesNear);
+    });
+  });
+
   // ─── Create mutations ────────────────────────────────────────────────────────
 
   // Locations need an active platform admin with MANAGE_SETTINGS (USR-8).
