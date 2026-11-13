@@ -59,6 +59,10 @@ describe('AccountService', () => {
         findUniqueOrThrow: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
+      // No ban unless a test says so (USR-17).
+      bannedSeller: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
       sellerLabel: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
@@ -250,6 +254,58 @@ describe('AccountService', () => {
   });
 
   describe('reactivateAccount', () => {
+    beforeEach(() => {
+      prisma.seller.findUnique.mockResolvedValue({ email: mockSeller.email });
+    });
+
+    it('refuses a banned seller, who would otherwise undo the ban (USR-17)', async () => {
+      prisma.bannedSeller.findFirst.mockResolvedValue({ id: 'ban-1' });
+
+      await expect(
+        service.reactivateAccount({
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(accountMessages[Language.ES].accountSuspended);
+
+      expect(prisma.seller.update).not.toHaveBeenCalled();
+      // Only a ban in force counts: active, and with no end date or one ahead.
+      expect(prisma.bannedSeller.findFirst).toHaveBeenCalledWith({
+        where: {
+          sellerId: 'seller-123',
+          isActive: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+        },
+        select: { id: true },
+      });
+    });
+
+    it('refuses a deleted account (USR-17)', async () => {
+      prisma.seller.findUnique.mockResolvedValue({
+        email: 'deleted+seller-123@deleted.ekoru',
+      });
+
+      await expect(
+        service.reactivateAccount({
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(accountMessages[Language.ES].accountSuspended);
+      expect(prisma.seller.update).not.toHaveBeenCalled();
+    });
+
+    it('answers not found for a seller that does not exist', async () => {
+      prisma.seller.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.reactivateAccount({
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(NotFoundError);
+      expect(prisma.seller.update).not.toHaveBeenCalled();
+    });
+
     it('should reactivate seller account successfully', async () => {
       const updatedSeller = { ...mockSeller, isActive: true };
       prisma.seller.update.mockResolvedValue(updatedSeller as any);
@@ -464,6 +520,43 @@ describe('AccountService', () => {
       });
     });
 
+    it('signs every other session out, in the same transaction (USR-17)', async () => {
+      prisma.seller.findUnique.mockResolvedValue(mockSeller as any);
+
+      await service.updatePassword({
+        sellerId: 'seller-123',
+        currentPassword: 'currentPassword',
+        newPassword: 'newPassword',
+        language: Language.ES,
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const [sql, sellerId] = prisma.$executeRaw.mock.calls[0] as [
+        string[],
+        string,
+      ];
+      expect(sql.join('?')).toMatch(
+        /UPDATE "RefreshToken"\s+SET "isRevoked" = true\s+WHERE "userId" = \? AND "isRevoked" = false/,
+      );
+      expect(sellerId).toBe('seller-123');
+    });
+
+    it('refuses a new password under 8 characters (USR-17)', async () => {
+      prisma.seller.findUnique.mockResolvedValue(mockSeller as any);
+
+      await expect(
+        service.updatePassword({
+          sellerId: 'seller-123',
+          currentPassword: 'currentPassword',
+          newPassword: '1234567',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(accountMessages[Language.ES].weakPassword);
+
+      expect(prisma.seller.update).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    });
+
     it('should throw UnAuthorizedError when sellerId is not provided', async () => {
       await expect(
         service.updatePassword({
@@ -516,6 +609,59 @@ describe('AccountService', () => {
           language: Language.ES,
         }),
       ).rejects.toThrow(InternalServerError);
+    });
+  });
+
+  describe('deleteAccount (USR-17)', () => {
+    beforeEach(() => {
+      (bcrypt.genSalt as jest.Mock).mockResolvedValue('salt');
+      (bcrypt.hash as jest.Mock).mockResolvedValue('locked-password');
+      prisma.seller.findUnique.mockResolvedValue({ id: 'seller-123' });
+      // The tables the deletion clears or anonymises.
+      prisma.businessAddress = { deleteMany: jest.fn() };
+      prisma.sellerPreferences = { deleteMany: jest.fn() };
+      prisma.personProfile = { updateMany: jest.fn() };
+      prisma.businessProfile = { updateMany: jest.fn() };
+    });
+
+    const statements = () =>
+      (prisma.$executeRaw.mock.calls as Array<[string[], ...unknown[]]>).map(
+        ([sql]) => sql.join('?').replace(/\s+/g, ' ').trim(),
+      );
+
+    it('revokes the sessions that were open, inside the deletion', async () => {
+      const result = await service.deleteAccount({
+        sellerId: 'seller-123',
+        language: Language.ES,
+      });
+
+      expect(result).toBe(true);
+      expect(statements()).toContain(
+        'UPDATE "RefreshToken" SET "isRevoked" = true WHERE "userId" = ? AND "isRevoked" = false',
+      );
+      expect(prisma.seller.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: 'deleted+seller-123@deleted.ekoru',
+            isActive: false,
+          }),
+        }),
+      );
+    });
+
+    it('revokes nothing when the deletion is refused for open obligations', async () => {
+      const sellers = (service as any).sellersService as {
+        getPendingObligations: jest.Mock;
+      };
+      sellers.getPendingObligations.mockResolvedValue({ total: 1 });
+
+      await expect(
+        service.deleteAccount({
+          sellerId: 'seller-123',
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(BadRequestError);
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
     });
   });
 

@@ -203,8 +203,10 @@ export class SellersResolver {
   }
 
   // Mutations
-  // 5 a minute per visitor: each call can send an email (or tries a token).
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // 20 a minute per address: each call can send an email. Not fewer, because
+  // everyone on one network (an office, the expo's WiFi) shares an address
+  // (INF-23).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Mutation(() => Seller)
   async registerPerson(
     @Args('input') input: RegisterPersonInput,
@@ -214,8 +216,8 @@ export class SellersResolver {
     return this.sellersService.registerPerson({ input, language });
   }
 
-  // 5 a minute per visitor: each call can send an email (or tries a token).
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // 20 a minute per address, as registerPerson.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Mutation(() => Seller)
   async registerBusiness(
     @Args('input') input: RegisterBusinessInput,

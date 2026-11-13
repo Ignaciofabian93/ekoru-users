@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from '../../common/fetch-with-timeout';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationPriority } from '@prisma/client';
@@ -87,7 +88,7 @@ export class PushChannel {
     let tickets: ExpoTicket[];
     try {
       const accessToken = this.config.get<string>('push.expoAccessToken');
-      const response = await fetch(EXPO_PUSH_URL, {
+      const response = await fetchWithTimeout(EXPO_PUSH_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

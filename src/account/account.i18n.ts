@@ -7,6 +7,8 @@ export type AccountMessages = {
   incorrectPassword: string;
   errorDeactivateAccount: string;
   errorReactivateAccount: string;
+  /** Resuming an account that is banned or deleted (USR-17). */
+  accountSuspended: string;
   errorAddPoints: string;
   errorDeductPoints: string;
   errorUpdateSellerCategory: string;
@@ -56,6 +58,8 @@ export const accountMessages: Record<Language, AccountMessages> = {
     incorrectPassword: 'La contraseña actual es incorrecta',
     errorDeactivateAccount: 'Error al desactivar cuenta',
     errorReactivateAccount: 'Error al activar cuenta',
+    accountSuspended:
+      'Tu cuenta está suspendida y no puede reactivarse. Escríbenos a contacto@ekoru.cl si crees que es un error.',
     errorAddPoints: 'Error al incrementar puntos',
     errorDeductPoints: 'Error al reducir puntos',
     errorUpdateSellerCategory: 'Error al actualizar categoría del vendedor',
@@ -103,6 +107,8 @@ export const accountMessages: Record<Language, AccountMessages> = {
     incorrectPassword: 'Current password is incorrect',
     errorDeactivateAccount: 'Error deactivating account',
     errorReactivateAccount: 'Error reactivating account',
+    accountSuspended:
+      "Your account is suspended and can't be reactivated. Write to contacto@ekoru.cl if you think this is a mistake.",
     errorAddPoints: 'Error adding points',
     errorDeductPoints: 'Error deducting points',
     errorUpdateSellerCategory: 'Error updating seller category',
@@ -148,6 +154,8 @@ export const accountMessages: Record<Language, AccountMessages> = {
     incorrectPassword: 'Le mot de passe actuel est incorrect',
     errorDeactivateAccount: 'Erreur lors de la désactivation du compte',
     errorReactivateAccount: 'Erreur lors de la réactivation du compte',
+    accountSuspended:
+      "Votre compte est suspendu et ne peut pas être réactivé. Écrivez-nous à contacto@ekoru.cl si vous pensez qu'il s'agit d'une erreur.",
     errorAddPoints: "Erreur lors de l'ajout de points",
     errorDeductPoints: 'Erreur lors de la déduction de points',
     errorUpdateSellerCategory:
@@ -202,6 +210,8 @@ export const accountMessages: Record<Language, AccountMessages> = {
     incorrectPassword: 'A senha atual está incorreta',
     errorDeactivateAccount: 'Erro ao desativar conta',
     errorReactivateAccount: 'Erro ao reativar conta',
+    accountSuspended:
+      'Sua conta está suspensa e não pode ser reativada. Escreva para contacto@ekoru.cl se achar que é um engano.',
     errorAddPoints: 'Erro ao adicionar pontos',
     errorDeductPoints: 'Erro ao deduzir pontos',
     errorUpdateSellerCategory: 'Erro ao atualizar categoria do vendedor',
@@ -248,6 +258,8 @@ export const accountMessages: Record<Language, AccountMessages> = {
     incorrectPassword: 'Das aktuelle Passwort ist falsch',
     errorDeactivateAccount: 'Fehler beim Deaktivieren des Kontos',
     errorReactivateAccount: 'Fehler beim Reaktivieren des Kontos',
+    accountSuspended:
+      'Dein Konto ist gesperrt und kann nicht reaktiviert werden. Schreib uns an contacto@ekoru.cl, wenn du das für einen Fehler hältst.',
     errorAddPoints: 'Fehler beim Hinzufügen von Punkten',
     errorDeductPoints: 'Fehler beim Abziehen von Punkten',
     errorUpdateSellerCategory:

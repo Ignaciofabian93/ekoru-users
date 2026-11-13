@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   UnAuthorizedError,
+  ForbiddenError,
   BadRequestError,
   NotFoundError,
   ConflictError,
@@ -51,8 +52,11 @@ const RESET_TOKEN_TTL_MINUTES = 30;
  */
 const RESET_RESEND_COOLDOWN_MS = 60_000;
 
-/** Floor for a reset password. Registration is not yet as strict. */
+/** Shortest password accepted: on reset, on change and at sign-up (USR-17). */
 const MIN_PASSWORD_LENGTH = 8;
+
+/** The address `deleteAccount` leaves on the row it anonymises. */
+const DELETED_EMAIL_SUFFIX = '@deleted.ekoru';
 
 /**
  * SHA-256, not bcrypt: the token is 256 bits of CSPRNG output, so there is no
@@ -126,6 +130,29 @@ export class AccountService {
         throw new UnAuthorizedError(t.unauthorized);
       }
 
+      // Resuming is for a seller who paused their own account. A ban sets
+      // `isActive` to false too, so without this check a banned seller undid
+      // the ban with one call; a deleted account has nothing to resume
+      // (USR-17).
+      const current = await this.prisma.seller.findUnique({
+        where: { id: sellerId },
+        select: { email: true },
+      });
+      if (!current) {
+        throw new NotFoundError(t.sellerNotFound);
+      }
+      const ban = await this.prisma.bannedSeller.findFirst({
+        where: {
+          sellerId,
+          isActive: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      });
+      if (ban || current.email.endsWith(DELETED_EMAIL_SUFFIX)) {
+        throw new ForbiddenError(t.accountSuspended);
+      }
+
       const seller = await this.prisma.seller.update({
         where: { id: sellerId },
         data: { isActive: true },
@@ -133,7 +160,9 @@ export class AccountService {
 
       return seller;
     } catch (error) {
-      if (error instanceof UnAuthorizedError) throw error;
+      // ForbiddenError is an UnAuthorizedError.
+      if (error instanceof UnAuthorizedError || error instanceof NotFoundError)
+        throw error;
       this.logger.error('Error reactivating account:', error);
       throw new InternalServerError(t.errorReactivateAccount);
     }
@@ -268,6 +297,14 @@ export class AccountService {
               socialMediaLinks: Prisma.DbNull,
             },
           });
+
+          // End every session. The password is gone, but an open tab or app
+          // kept renewing its refresh token on the anonymised row (USR-17).
+          // RefreshToken is the gateway's table, so raw SQL, as resetPassword.
+          await tx.$executeRaw`
+            UPDATE "RefreshToken"
+               SET "isRevoked" = true
+             WHERE "userId" = ${sellerId} AND "isRevoked" = false`;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
@@ -418,12 +455,32 @@ export class AccountService {
         throw new BadRequestError(t.incorrectPassword);
       }
 
+      // The same floor as the reset link. Any length passed here, one
+      // character included (USR-17).
+      if (
+        typeof newPassword !== 'string' ||
+        newPassword.length < MIN_PASSWORD_LENGTH
+      ) {
+        throw new BadRequestError(t.weakPassword);
+      }
+
       const salt = await genSalt(12);
       const hashedNewPassword = await hash(newPassword, salt);
 
-      await this.prisma.seller.update({
-        where: { id: sellerId },
-        data: { password: hashedNewPassword },
+      await this.prisma.$transaction(async (tx) => {
+        await tx.seller.update({
+          where: { id: sellerId },
+          data: { password: hashedNewPassword },
+        });
+
+        // Whoever else holds a session on the old password loses it: a
+        // changed password is how an owner shuts out someone who got in.
+        // This device's session goes too, so the web signs in again with the
+        // new password right after this call. Raw SQL, as resetPassword.
+        await tx.$executeRaw`
+          UPDATE "RefreshToken"
+             SET "isRevoked" = true
+           WHERE "userId" = ${sellerId} AND "isRevoked" = false`;
       });
 
       return seller;

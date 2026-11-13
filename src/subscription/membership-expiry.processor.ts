@@ -5,7 +5,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
+import { PrismaService } from '../prisma/prisma.service';
 import { MembershipExpiryService } from './membership-expiry.service';
+import { purgeExpiredRefreshTokens } from './refresh-token-cleanup';
 import {
   EXPIRY_SWEEP_EVERY_MS,
   EXPIRY_SWEEP_JOB,
@@ -23,10 +25,13 @@ export class MembershipExpiryProcessor
   implements OnModuleInit, BeforeApplicationShutdown
 {
   private readonly logger = new Logger(MembershipExpiryProcessor.name);
+  /** So a missing grant is logged once per start, not every hour. */
+  private cleanupFailureLogged = false;
 
   constructor(
     private readonly expiry: MembershipExpiryService,
     @InjectQueue(MEMBERSHIPS_QUEUE) private readonly queue: Queue,
+    private readonly prisma: PrismaService,
   ) {
     super();
   }
@@ -69,6 +74,30 @@ export class MembershipExpiryProcessor
       this.logger.warn(`Unknown memberships job: ${job.name}`);
       return null;
     }
-    return this.expiry.sweep();
+    const result = await this.expiry.sweep();
+    await this.clearOldRefreshTokens();
+    return result;
+  }
+
+  /**
+   * Housekeeping that rides on the hourly run (GW-7). It never fails the
+   * sweep: until the `ekoru_users` role is granted DELETE on RefreshToken
+   * (`npm run db-roles:apply` in the root) the database refuses it.
+   */
+  private async clearOldRefreshTokens(): Promise<void> {
+    try {
+      const deleted = await purgeExpiredRefreshTokens(this.prisma);
+      if (deleted > 0) {
+        this.logger.log(`Deleted ${deleted} expired refresh tokens`);
+      }
+    } catch (error) {
+      if (this.cleanupFailureLogged) return;
+      this.cleanupFailureLogged = true;
+      this.logger.warn(
+        `Could not delete expired refresh tokens: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }
