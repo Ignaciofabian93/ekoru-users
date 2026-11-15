@@ -1301,8 +1301,14 @@ export class SellersService {
    *   • Payment      — PENDING or PROCESSING
    *   • PaymentRefund— PENDING or PROCESSING
    *   • Quotation    — PENDING or ACCEPTED (agreed work not yet completed)
-   *   • ServiceBooking — PENDING/CONFIRMED/IN_PROGRESS, or payment PENDING/PROCESSING
+   *   • ServiceBooking — PENDING, CONFIRMED or IN_PROGRESS
    *   • Exchange     — PENDING or ACCEPTED
+   *
+   * A booking's `paymentStatus` column is not read: bookings are paid on site
+   * (SRV-5), nothing writes it, and it stays at its default PENDING, so
+   * counting it made every booking ever made, completed or cancelled, an open
+   * obligation for both people, and neither could delete their account or be
+   * banned.
    */
   async getPendingObligations({
     client,
@@ -1344,8 +1350,7 @@ export class SellersService {
         ) AS "quotations",
         (SELECT COUNT(*)::int FROM "ServiceBooking"
           WHERE ("clientId" = ${sellerId} OR "providerId" = ${sellerId})
-            AND (status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
-                 OR "paymentStatus" IN ('PENDING', 'PROCESSING'))
+            AND status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
         ) AS "bookings",
         (SELECT COUNT(*)::int FROM "Exchange" e
            JOIN "Product" po ON po.id = e."offeredProductId"

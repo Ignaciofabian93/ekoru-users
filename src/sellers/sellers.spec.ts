@@ -1770,4 +1770,45 @@ describe('SellersService', () => {
       );
     });
   });
+
+  // The gate for deleting an account and for a ban.
+  describe('getPendingObligations', () => {
+    const run = async (row: Record<string, number>) => {
+      const queryRaw = jest.fn().mockResolvedValue([row]);
+      const result = await service.getPendingObligations({
+        client: { $queryRaw: queryRaw } as any,
+        sellerId: 'seller-123',
+      });
+      const sql = (queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?');
+      return { result, sql };
+    };
+
+    it('adds up every open kind', async () => {
+      const { result } = await run({
+        orders: 1,
+        payments: 0,
+        refunds: 0,
+        quotations: 2,
+        bookings: 1,
+        exchanges: 0,
+      });
+      expect(result.total).toBe(4);
+      expect(result.obligations.quotations).toBe(2);
+    });
+
+    it('counts a booking by its state alone, not the unused paymentStatus column', async () => {
+      // Bookings are paid on site and nothing writes paymentStatus, which
+      // stays PENDING: reading it kept every past booking open for ever, so
+      // its client and provider could never delete their accounts.
+      const { sql } = await run({ bookings: 0 });
+      const bookings = sql.slice(
+        sql.indexOf('FROM "ServiceBooking"'),
+        sql.indexOf('AS "bookings"'),
+      );
+      expect(bookings).toContain(
+        "status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')",
+      );
+      expect(bookings).not.toContain('paymentStatus');
+    });
+  });
 });
