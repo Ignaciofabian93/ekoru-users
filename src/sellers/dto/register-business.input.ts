@@ -1,10 +1,11 @@
-import { InputType, Field } from '@nestjs/graphql';
+import { InputType, Field, Int } from '@nestjs/graphql';
 import {
   IsEmail,
   IsString,
   MinLength,
   MaxLength,
   IsEnum,
+  IsInt,
   IsOptional,
 } from 'class-validator';
 import { SellerType, BusinessType } from '../../graphql/enums';
@@ -51,4 +52,13 @@ export class RegisterBusinessInput {
   @MinLength(APPLICATION_MESSAGE_MIN_LENGTH)
   @MaxLength(APPLICATION_MESSAGE_MAX_LENGTH)
   applicationMessage: string;
+
+  @Field(() => Int, {
+    nullable: true,
+    description:
+      'The terms version (currentTerms.version) the business ticked. Must be the one in force. Left out by app builds from before LEG-1; those accounts are asked at their first visit.',
+  })
+  @IsOptional()
+  @IsInt()
+  acceptedTermsVersion?: number;
 }

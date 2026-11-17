@@ -18,6 +18,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { LocationModule } from './location/location.module';
 import { SellersModule } from './sellers/sellers.module';
 import { AccountModule } from './account/account.module';
+import { LegalModule } from './legal/legal.module';
 import { MailModule } from './mail/mail.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminsModule } from './admins/admins.module';
@@ -114,6 +115,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     LocationModule,
     SellersModule,
     AccountModule,
+    LegalModule,
     MailModule,
     NotificationsModule,
     AdminsModule,

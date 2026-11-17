@@ -45,6 +45,10 @@ import {
   calculatePrismaParams,
   createPaginatedResponse,
 } from '../utils/pagination';
+import {
+  resolveSignUpTerms,
+  TermsAcceptanceSource,
+} from '../legal/legal.service';
 
 /** Shortest rejection reason accepted — the business receives it by email. */
 const REJECTION_REASON_MIN_LENGTH = 10;
@@ -425,6 +429,14 @@ export class SellersService {
         throw new BadRequestError(t.emailAlreadyExists);
       }
 
+      // LEG-1: the terms version ticked on the form; refused when it is no
+      // longer the one in force.
+      const termsVersionId = await resolveSignUpTerms(
+        this.prisma,
+        input.acceptedTermsVersion,
+        language,
+      );
+
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
@@ -445,6 +457,16 @@ export class SellersService {
             lastName,
           },
         });
+
+        if (termsVersionId !== null) {
+          await tx.termsAcceptance.create({
+            data: {
+              sellerId: user.id,
+              termsVersionId,
+              source: TermsAcceptanceSource.SIGN_UP,
+            },
+          });
+        }
 
         return user;
       });
@@ -491,6 +513,12 @@ export class SellersService {
         throw new BadRequestError(t.emailAlreadyExists);
       }
 
+      const termsVersionId = await resolveSignUpTerms(
+        this.prisma,
+        input.acceptedTermsVersion,
+        language,
+      );
+
       const salt = await genSalt(12);
       const hashedPassword = await hash(password, salt);
 
@@ -518,6 +546,16 @@ export class SellersService {
             applicationMessage,
           },
         });
+
+        if (termsVersionId !== null) {
+          await tx.termsAcceptance.create({
+            data: {
+              sellerId: user.id,
+              termsVersionId,
+              source: TermsAcceptanceSource.SIGN_UP,
+            },
+          });
+        }
 
         return user;
       });

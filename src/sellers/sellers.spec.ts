@@ -10,6 +10,7 @@ import {
   SellerType,
 } from '../graphql/enums';
 import { sellerMessages } from './sellers.i18n';
+import { legalMessages } from '../legal/legal.i18n';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('bcrypt');
@@ -89,6 +90,9 @@ describe('SellersService', () => {
       },
       admin: {
         findUnique: jest.fn(),
+      },
+      termsVersion: {
+        findFirst: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -919,6 +923,50 @@ describe('SellersService', () => {
         businessName: '',
         locale: Language.EN.toLowerCase(),
       });
+    });
+
+    it('records the terms version ticked on the form (LEG-1)', async () => {
+      prisma.seller.findUnique.mockResolvedValue(null);
+      prisma.termsVersion.findFirst.mockResolvedValue({
+        id: 7,
+        version: 2,
+        summary: null,
+      });
+      const termsAcceptance = { create: jest.fn() };
+      prisma.$transaction.mockImplementation(async (callback) => {
+        return await callback({
+          seller: { create: jest.fn().mockResolvedValue(mockSeller) },
+          personProfile: {
+            create: jest.fn().mockResolvedValue(mockPersonProfile),
+          },
+          termsAcceptance,
+        });
+      });
+
+      await service.registerPerson({
+        input: { ...input, acceptedTermsVersion: 2 },
+        language: Language.ES,
+      });
+
+      expect(termsAcceptance.create).toHaveBeenCalledWith({
+        data: { sellerId: mockSeller.id, termsVersionId: 7, source: 'SIGN_UP' },
+      });
+    });
+
+    it('refuses a sign-up whose terms changed while the form was open', async () => {
+      prisma.seller.findUnique.mockResolvedValue(null);
+      prisma.termsVersion.findFirst.mockResolvedValue({
+        id: 7,
+        version: 2,
+        summary: null,
+      });
+      await expect(
+        service.registerPerson({
+          input: { ...input, acceptedTermsVersion: 1 },
+          language: Language.ES,
+        }),
+      ).rejects.toThrow(legalMessages[Language.ES].termsChanged);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestError with ES message when email already exists', async () => {

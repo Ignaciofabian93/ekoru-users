@@ -251,6 +251,7 @@ model Seller {
   businessMembershipSubscription         BusinessMembershipSubscription[]
   bans                                   BannedSeller[]
   devices                                SellerDevice[]
+  termsAcceptances                       TermsAcceptance[]
 
   @@index([cityId])
   @@index([email])
@@ -412,6 +413,46 @@ model BannedSeller {
   @@index([isActive])
   @@index([bannedById])
   @@index([expiresAt])
+}
+
+model TermsVersion {
+  id            Int                       @id @default(autoincrement())
+  version       Int                       @unique
+  /// What changed, shown when people are asked to accept the new version.
+  summary       String?
+  publishedAt   DateTime?
+  createdById   String?
+  publishedById String?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  translations  TermsVersionTranslation[]
+  acceptances   TermsAcceptance[]
+
+  @@index([publishedAt])
+}
+
+model TermsVersionTranslation {
+  id             Int          @id @default(autoincrement())
+  termsVersionId Int
+  language       Language
+  title          String
+  content        String
+  termsVersion   TermsVersion @relation(fields: [termsVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([termsVersionId, language])
+}
+
+model TermsAcceptance {
+  id             Int          @id @default(autoincrement())
+  sellerId       String
+  termsVersionId Int
+  source         String
+  acceptedAt     DateTime     @default(now())
+  seller         Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  termsVersion   TermsVersion @relation(fields: [termsVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, termsVersionId])
+  @@index([termsVersionId])
 }
 
 model SellerLabel {
